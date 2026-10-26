@@ -2960,7 +2960,8 @@
     },
     "provider": "Craftgineer",
     "account": "Craftgineer · {account}",
-    "browser_done": "Vrnite se v Beam Bench, da preverite povezavo. Ta zavihek lahko zaprete."
+    "browser_done": "Vrnite se v Beam Bench, da preverite povezavo. Ta zavihek lahko zaprete.",
+    "connect_help": "Povežite svoj račun Craftgineer za brskanje po shranjenih datotekah v svoji knjižnici in njihovo vstavljanje."
   },
   "printcutcarve_library": {
     "title": "Povezava s PrintCutCarve",
@@ -3001,6 +3002,13 @@
     "back_to_packs": "Nazaj na pakete",
     "file_count": "{count, plural, one {# datoteka} two {# datoteki} few {# datoteke} other {# datotek}}",
     "website": "Odpri v storitvi PrintCutCarve",
-    "unavailable_file": "Te datoteke ni mogoče vstaviti. Odprite paket v storitvi PrintCutCarve za možnosti prenosa."
+    "unavailable_file": "Te datoteke ni mogoče vstaviti. Odprite paket v storitvi PrintCutCarve za možnosti prenosa.",
+    "connect_help": "Povežite svoj račun PrintCutCarve za brskanje po svojih paketih in vstavljanje motivov."
+  },
+  "connected_accounts": {
+    "title": "Povezani računi",
+    "help": "Povezave se posodobijo takoj. Za druge nastavitve uporabite Shrani.",
+    "remembered": "Zapomnjeno v tem računalniku.",
+    "session_only": "Povezava velja samo za to sejo."
   }
 }

@@ -2960,7 +2960,8 @@
     },
     "provider": "Craftgineer",
     "account": "Craftgineer · {account}",
-    "browser_done": "Vraťte se do Beam Bench a zkontrolujte připojení. Tuto kartu můžete zavřít."
+    "browser_done": "Vraťte se do Beam Bench a zkontrolujte připojení. Tuto kartu můžete zavřít.",
+    "connect_help": "Připojte svůj účet Craftgineer a procházejte a vkládejte soubory uložené ve své knihovně."
   },
   "printcutcarve_library": {
     "title": "Připojení ke službě PrintCutCarve",
@@ -3001,6 +3002,13 @@
     "back_to_packs": "Zpět na balíčky",
     "file_count": "{count, plural, one {# soubor} few {# soubory} many {# souboru} other {# souborů}}",
     "website": "Otevřít ve službě PrintCutCarve",
-    "unavailable_file": "Tento soubor nelze vložit. Otevřete balíček ve službě PrintCutCarve a zobrazte možnosti stažení."
+    "unavailable_file": "Tento soubor nelze vložit. Otevřete balíček ve službě PrintCutCarve a zobrazte možnosti stažení.",
+    "connect_help": "Připojte svůj účet PrintCutCarve a procházejte své balíčky a vkládejte návrhy."
+  },
+  "connected_accounts": {
+    "title": "Připojené účty",
+    "help": "Připojení se aktualizují okamžitě. Tlačítko Uložit slouží pro ostatní předvolby.",
+    "remembered": "Účet zapamatován v tomto počítači.",
+    "session_only": "Připojeno pouze pro tuto relaci."
   }
 }

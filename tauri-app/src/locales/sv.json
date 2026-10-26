@@ -2960,7 +2960,8 @@
     },
     "provider": "Craftgineer",
     "account": "Craftgineer · {account}",
-    "browser_done": "Gå tillbaka till Beam Bench för att kontrollera anslutningen. Du kan stänga den här fliken."
+    "browser_done": "Gå tillbaka till Beam Bench för att kontrollera anslutningen. Du kan stänga den här fliken.",
+    "connect_help": "Anslut ditt Craftgineer-konto för att bläddra bland och infoga dina sparade biblioteksfiler."
   },
   "printcutcarve_library": {
     "title": "PrintCutCarve-anslutning",
@@ -3001,6 +3002,13 @@
     "back_to_packs": "Tillbaka till paket",
     "file_count": "{count, plural, one {# fil} other {# filer}}",
     "website": "Öppna på PrintCutCarve",
-    "unavailable_file": "Den här filen kan inte infogas. Öppna paketet på PrintCutCarve för nedladdningsalternativ."
+    "unavailable_file": "Den här filen kan inte infogas. Öppna paketet på PrintCutCarve för nedladdningsalternativ.",
+    "connect_help": "Anslut ditt PrintCutCarve-konto för att bläddra bland dina paket och infoga designer."
+  },
+  "connected_accounts": {
+    "title": "Anslutna konton",
+    "help": "Anslutningar uppdateras direkt. Använd Spara för dina andra inställningar.",
+    "remembered": "Sparat på den här datorn.",
+    "session_only": "Ansluten endast för den här sessionen."
   }
 }

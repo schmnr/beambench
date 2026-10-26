@@ -2960,7 +2960,8 @@
     },
     "provider": "Craftgineer",
     "account": "Craftgineer · {account}",
-    "browser_done": "Bağlantını kontrol etmek için Beam Bench uygulamasına dön. Bu sekmeyi kapatabilirsin."
+    "browser_done": "Bağlantını kontrol etmek için Beam Bench uygulamasına dön. Bu sekmeyi kapatabilirsin.",
+    "connect_help": "Kitaplığına kaydettiğin dosyalara göz atmak ve bunları eklemek için Craftgineer hesabını bağla."
   },
   "printcutcarve_library": {
     "title": "PrintCutCarve bağlantısı",
@@ -3001,6 +3002,13 @@
     "back_to_packs": "Paketlere dön",
     "file_count": "{count, plural, one {# dosya} other {# dosya}}",
     "website": "PrintCutCarve üzerinden aç",
-    "unavailable_file": "Bu dosya eklenemiyor. İndirme seçenekleri için paketi PrintCutCarve üzerinden aç."
+    "unavailable_file": "Bu dosya eklenemiyor. İndirme seçenekleri için paketi PrintCutCarve üzerinden aç.",
+    "connect_help": "Paketlerine göz atmak ve tasarımlar eklemek için PrintCutCarve hesabını bağla."
+  },
+  "connected_accounts": {
+    "title": "Bağlı hesaplar",
+    "help": "Bağlantılar hemen güncellenir. Diğer tercihlerin için Kaydet'i kullan.",
+    "remembered": "Bu bilgisayarda hatırlanıyor.",
+    "session_only": "Yalnızca bu oturum için bağlanıldı."
   }
 }

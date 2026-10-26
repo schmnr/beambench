@@ -2960,7 +2960,8 @@
     },
     "provider": "Craftgineer",
     "account": "Craftgineer · {account}",
-    "browser_done": "Wróć do Beam Bench, aby sprawdzić połączenie. Możesz zamknąć tę kartę."
+    "browser_done": "Wróć do Beam Bench, aby sprawdzić połączenie. Możesz zamknąć tę kartę.",
+    "connect_help": "Połącz konto Craftgineer, aby przeglądać i wstawiać pliki zapisane w swojej bibliotece."
   },
   "printcutcarve_library": {
     "title": "Połączenie z PrintCutCarve",
@@ -3001,6 +3002,13 @@
     "back_to_packs": "Powrót do pakietów",
     "file_count": "{count, plural, one {# plik} few {# pliki} many {# plików} other {# pliku}}",
     "website": "Otwórz w PrintCutCarve",
-    "unavailable_file": "Tego pliku nie można wstawić. Otwórz pakiet w PrintCutCarve, aby zobaczyć opcje pobierania."
+    "unavailable_file": "Tego pliku nie można wstawić. Otwórz pakiet w PrintCutCarve, aby zobaczyć opcje pobierania.",
+    "connect_help": "Połącz konto PrintCutCarve, aby przeglądać swoje pakiety i wstawiać wzory."
+  },
+  "connected_accounts": {
+    "title": "Połączone konta",
+    "help": "Połączenia są aktualizowane od razu. Przycisk Zapisz służy do zapisywania pozostałych preferencji.",
+    "remembered": "Konto zapamiętane na tym komputerze.",
+    "session_only": "Połączono tylko na czas tej sesji."
   }
 }

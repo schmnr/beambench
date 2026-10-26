@@ -2960,7 +2960,8 @@
     },
     "provider": "Craftgineer",
     "account": "Craftgineer · {account}",
-    "browser_done": "Beam Bench로 돌아가 연결을 확인하세요. 이 탭은 닫아도 됩니다."
+    "browser_done": "Beam Bench로 돌아가 연결을 확인하세요. 이 탭은 닫아도 됩니다.",
+    "connect_help": "Craftgineer 계정을 연결해 라이브러리에 저장한 파일을 찾아보고 삽입할 수 있습니다."
   },
   "printcutcarve_library": {
     "title": "PrintCutCarve 연결",
@@ -3001,6 +3002,13 @@
     "back_to_packs": "팩으로 돌아가기",
     "file_count": "{count, plural, one {파일 #개} other {파일 #개}}",
     "website": "PrintCutCarve에서 열기",
-    "unavailable_file": "이 파일은 삽입할 수 없습니다. PrintCutCarve에서 팩을 열어 다운로드 옵션을 확인하세요."
+    "unavailable_file": "이 파일은 삽입할 수 없습니다. PrintCutCarve에서 팩을 열어 다운로드 옵션을 확인하세요.",
+    "connect_help": "PrintCutCarve 계정을 연결해 내 팩을 찾아보고 디자인을 삽입할 수 있습니다."
+  },
+  "connected_accounts": {
+    "title": "연결된 계정",
+    "help": "연결은 즉시 업데이트됩니다. 다른 환경설정에는 저장을 사용하세요.",
+    "remembered": "이 컴퓨터에 저장되었습니다.",
+    "session_only": "현재 세션에만 연결되었습니다."
   }
 }

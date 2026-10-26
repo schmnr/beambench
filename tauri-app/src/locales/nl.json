@@ -2960,7 +2960,8 @@
     },
     "provider": "Craftgineer",
     "account": "Craftgineer · {account}",
-    "browser_done": "Ga terug naar Beam Bench om je verbinding te controleren. Je kunt dit tabblad sluiten."
+    "browser_done": "Ga terug naar Beam Bench om je verbinding te controleren. Je kunt dit tabblad sluiten.",
+    "connect_help": "Verbind je Craftgineer-account om je opgeslagen bibliotheekbestanden te bekijken en in te voegen."
   },
   "printcutcarve_library": {
     "title": "PrintCutCarve-verbinding",
@@ -3001,6 +3002,13 @@
     "back_to_packs": "Terug naar pakketten",
     "file_count": "{count, plural, one {# bestand} other {# bestanden}}",
     "website": "Openen op PrintCutCarve",
-    "unavailable_file": "Dit bestand kan niet worden ingevoegd. Open het pakket op PrintCutCarve voor downloadopties."
+    "unavailable_file": "Dit bestand kan niet worden ingevoegd. Open het pakket op PrintCutCarve voor downloadopties.",
+    "connect_help": "Verbind je PrintCutCarve-account om je pakketten te bekijken en ontwerpen in te voegen."
+  },
+  "connected_accounts": {
+    "title": "Verbonden accounts",
+    "help": "Verbindingen worden direct bijgewerkt. Gebruik Opslaan voor je andere voorkeuren.",
+    "remembered": "Onthouden op deze computer.",
+    "session_only": "Alleen voor deze sessie verbonden."
   }
 }
