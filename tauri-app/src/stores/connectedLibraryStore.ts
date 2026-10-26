@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import {
   connectedLibraryService,
@@ -141,9 +141,14 @@ export function libraryStore(provider: LibraryProvider) {
   return provider === 'craftgineer' ? useConnectedLibraryStore : usePrintcutcarveLibraryStore;
 }
 export function useConnectedLibraryEvents() {
+  const [ready, setReady] = useState(false);
   useEffect(() => {
     let cancelled = false;
     let unlisten: UnlistenFn | undefined;
+    const restore = () => Promise.allSettled([
+      useConnectedLibraryStore.getState().restore(),
+      usePrintcutcarveLibraryStore.getState().restore(),
+    ]).then(() => { if (!cancelled) setReady(true); });
     void listen<{ provider: LibraryProvider; status: ConnectionStatus; error?: string | null }>(
       'connected-library-changed',
       ({ payload }) => {
@@ -156,14 +161,14 @@ export function useConnectedLibraryEvents() {
         if (cancelled) stop();
         else {
           unlisten = stop;
-          void useConnectedLibraryStore.getState().restore();
-          void usePrintcutcarveLibraryStore.getState().restore();
         }
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => { if (!cancelled) void restore(); });
     return () => {
       cancelled = true;
       unlisten?.();
     };
   }, []);
+  return ready;
 }

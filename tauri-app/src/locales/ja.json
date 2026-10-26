@@ -2933,7 +2933,7 @@
   "connected_library": {
     "title": "Craftgineer 接続",
     "manage": "接続を管理",
-    "disclosure": "有料の Craftgineer アカウントを接続すると、ライブラリに保存したファイルを読み込めます。Craftgineer でファイルを編集・保存してから、この画面を更新してください。挿入したアートワークは Beam Bench のプロジェクト内に保存され、オフラインでも利用できます。",
+    "disclosure": "無料または有料の Craftgineer アカウントを接続して、ライブラリに保存したファイルを読み取れます。Craftgineer でファイルを編集・保存してから、この画面を更新してください。挿入したアートワークは Beam Bench のプロジェクト内に保存され、オフラインでも利用できます。接続済みの Craftgineer または PrintCutCarve アカウントを通じて有効な有料サブスクリプションが確認されると、Beam Bench 起動時の広告が表示されなくなります。",
     "remember": "このコンピューターにアカウント情報を安全に保存する",
     "connect": "Craftgineer に接続",
     "disconnect": "接続を解除",
@@ -2947,7 +2947,7 @@
     "insert": "挿入",
     "more": "さらに読み込む",
     "errors": {
-      "subscription_required": "有効な有料 Craftgineer サブスクリプションが必要です。Craftgineer でサブスクリプションを管理してください。",
+      "subscription_required": "このライブラリは利用できません。更新するか、アカウントを再接続してください。",
       "invalid_token": "この接続は期限切れか、アクセス権が取り消されています。接続を解除してから、再接続してください。",
       "revision_conflict": "このファイルは変更されました。ライブラリを更新して、もう一度お試しください。",
       "access_denied": "ブラウザーで接続がキャンセルされました。",
@@ -2965,7 +2965,7 @@
   "printcutcarve_library": {
     "title": "PrintCutCarve 接続",
     "manage": "接続を管理",
-    "disclosure": "PrintCutCarve アカウントを接続すると、有効な有料メンバーシップまたは完了したパック購入により利用可能なパックを参照できます。パックを選択し、デザインを挿入してください。挿入した図柄は Beam Bench プロジェクトに保存され、オフラインでも利用できます。",
+    "disclosure": "無料または有料の PrintCutCarve アカウントを接続して、「マイダウンロード」で利用可能なパックを閲覧し、デザインを挿入できます。挿入した図柄は Beam Bench プロジェクトに保存され、オフラインでも利用できます。接続済みの Craftgineer または PrintCutCarve アカウントを通じて有効な有料サブスクリプションが確認されると、Beam Bench 起動時の広告が表示されなくなります。",
     "remember": "このコンピューターにアカウント情報を安全に保存する",
     "connect": "PrintCutCarve に接続",
     "disconnect": "接続を解除",
@@ -2979,7 +2979,7 @@
     "insert": "挿入",
     "more": "さらに読み込む",
     "errors": {
-      "subscription_required": "有効な有料メンバーシップまたは購入済みのデザインパックが必要です。PrintCutCarve でアカウントを管理してください。",
+      "subscription_required": "このライブラリは利用できません。更新するか、アカウントを再接続してください。",
       "invalid_token": "この接続は期限切れか、アクセス権が取り消されています。接続を解除してから、再接続してください。",
       "revision_conflict": "このファイルは変更されました。ライブラリを更新して、もう一度お試しください。",
       "access_denied": "ブラウザーで接続がキャンセルされました。",

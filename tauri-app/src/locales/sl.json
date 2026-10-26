@@ -2933,7 +2933,7 @@
   "connected_library": {
     "title": "Povezava s Craftgineer",
     "manage": "Upravljanje povezav",
-    "disclosure": "Povežite svoj plačljivi račun Craftgineer za branje datotek, shranjenih v knjižnici. Datoteke uredite in shranite v storitvi Craftgineer, nato osvežite ta pogled. Vstavljena grafika se shrani v projekt Beam Bench in ostane na voljo brez povezave.",
+    "disclosure": "Povežite brezplačen ali plačljiv račun Craftgineer za branje svojih datotek, shranjenih v knjižnici. Datoteke uredite in shranite v storitvi Craftgineer, nato osvežite ta pogled. Vstavljena grafika se shrani v projekt Beam Bench in ostane na voljo brez povezave. Aktivna plačljiva naročnina, preverjena prek povezanega računa Craftgineer ali PrintCutCarve, odstrani oglas ob zagonu aplikacije Beam Bench.",
     "remember": "Varno si zapomni ta račun v tem računalniku",
     "connect": "Poveži Craftgineer",
     "disconnect": "Prekini povezavo",
@@ -2947,7 +2947,7 @@
     "insert": "Vstavi",
     "more": "Naloži več",
     "errors": {
-      "subscription_required": "Potrebna je aktivna plačljiva naročnina na Craftgineer. Naročnino upravljajte v storitvi Craftgineer.",
+      "subscription_required": "Ta knjižnica ni na voljo. Osvežite pogled ali znova povežite račun.",
       "invalid_token": "Ta povezava je potekla ali je bila preklicana. Prekinite jo in se povežite znova.",
       "revision_conflict": "Ta datoteka se je spremenila. Osvežite knjižnico in poskusite znova.",
       "access_denied": "Povezava je bila preklicana v brskalniku.",
@@ -2965,7 +2965,7 @@
   "printcutcarve_library": {
     "title": "Povezava s PrintCutCarve",
     "manage": "Upravljanje povezav",
-    "disclosure": "Povežite svoj račun PrintCutCarve za ogled paketov, ki so na voljo z aktivnim plačljivim članstvom ali zaključenimi nakupi paketov. Izberite paket in nato vstavite motiv. Vstavljena grafika se shrani v projekt Beam Bench in ostane na voljo brez povezave.",
+    "disclosure": "Povežite brezplačen ali plačljiv račun PrintCutCarve za brskanje po paketih, ki so na voljo v razdelku Moji prenosi, in vstavljanje motiva. Vstavljena grafika se shrani v projekt Beam Bench in ostane na voljo brez povezave. Aktivna plačljiva naročnina, preverjena prek povezanega računa Craftgineer ali PrintCutCarve, odstrani oglas ob zagonu aplikacije Beam Bench.",
     "remember": "Varno si zapomni ta račun v tem računalniku",
     "connect": "Poveži PrintCutCarve",
     "disconnect": "Prekini povezavo",
@@ -2979,7 +2979,7 @@
     "insert": "Vstavi",
     "more": "Naloži več",
     "errors": {
-      "subscription_required": "Potrebno je aktivno plačljivo članstvo ali kupljen paket motivov. Račun upravljajte v storitvi PrintCutCarve.",
+      "subscription_required": "Ta knjižnica ni na voljo. Osvežite pogled ali znova povežite račun.",
       "invalid_token": "Ta povezava je potekla ali je bila preklicana. Prekinite jo in se povežite znova.",
       "revision_conflict": "Ta datoteka se je spremenila. Osvežite knjižnico in poskusite znova.",
       "access_denied": "Povezava je bila preklicana v brskalniku.",

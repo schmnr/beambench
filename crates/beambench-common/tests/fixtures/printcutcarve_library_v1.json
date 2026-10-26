@@ -13,7 +13,8 @@
       ],
       "maxFileBytes": 26214400,
       "maxPageSize": 50
-    }
+    },
+    "paidThrough": null
   },
   "collectionsResponse": {
     "schemaVersion": 1,

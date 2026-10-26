@@ -2933,7 +2933,7 @@
   "connected_library": {
     "title": "Craftgineer bağlantısı",
     "manage": "Bağlantıları yönet",
-    "disclosure": "Kitaplığına kaydettiğin dosyaları okumak için ücretli Craftgineer hesabını bağla. Dosyaları Craftgineer'da düzenleyip kaydet, ardından bu görünümü yenile. Eklenen çizimler Beam Bench projesine kaydedilir ve çevrimdışı kullanılabilir.",
+    "disclosure": "Kitaplığa kaydettiğin dosyaları okumak için ücretsiz veya ücretli bir Craftgineer hesabı bağla. Dosyaları Craftgineer'da düzenleyip kaydet, ardından bu görünümü yenile. Eklenen çizimler Beam Bench projesine kaydedilir ve çevrimdışı kullanılabilir. Bağlı bir Craftgineer veya PrintCutCarve hesabı üzerinden doğrulanan etkin ücretli abonelik, Beam Bench başlangıç reklamını kaldırır.",
     "remember": "Bu hesabı bu bilgisayarda güvenle hatırla",
     "connect": "Craftgineer'ı bağla",
     "disconnect": "Bağlantıyı kes",
@@ -2947,7 +2947,7 @@
     "insert": "Ekle",
     "more": "Daha fazla yükle",
     "errors": {
-      "subscription_required": "Etkin bir ücretli Craftgineer aboneliği gerekiyor. Aboneliğini Craftgineer'da yönet.",
+      "subscription_required": "Bu kitaplık kullanılamıyor. Görünümü yenile veya hesabını yeniden bağla.",
       "invalid_token": "Bu bağlantının süresi doldu veya erişimi iptal edildi. Bağlantıyı kesip yeniden bağlan.",
       "revision_conflict": "Bu dosya değişti. Kitaplığı yenileyip tekrar dene.",
       "access_denied": "Bağlantı tarayıcıda iptal edildi.",
@@ -2965,7 +2965,7 @@
   "printcutcarve_library": {
     "title": "PrintCutCarve bağlantısı",
     "manage": "Bağlantıları yönet",
-    "disclosure": "Etkin bir ücretli üyelik veya tamamlanmış paket satın alımlarıyla erişilebilen paketleri görüntülemek için PrintCutCarve hesabını bağla. Bir paket seç, ardından bir tasarım ekle. Eklenen çizimler Beam Bench projesine kaydedilir ve çevrimdışı kullanılabilir.",
+    "disclosure": "İndirmelerim bölümündeki paketlere göz atıp bir tasarım eklemek için ücretsiz veya ücretli bir PrintCutCarve hesabı bağla. Eklenen çizimler Beam Bench projesine kaydedilir ve çevrimdışı kullanılabilir. Bağlı bir Craftgineer veya PrintCutCarve hesabı üzerinden doğrulanan etkin ücretli abonelik, Beam Bench başlangıç reklamını kaldırır.",
     "remember": "Bu hesabı bu bilgisayarda güvenle hatırla",
     "connect": "PrintCutCarve hesabını bağla",
     "disconnect": "Bağlantıyı kes",
@@ -2979,7 +2979,7 @@
     "insert": "Ekle",
     "more": "Daha fazla yükle",
     "errors": {
-      "subscription_required": "Etkin bir ücretli üyelik veya satın alınmış bir tasarım paketi gerekiyor. Hesabını PrintCutCarve üzerinden yönet.",
+      "subscription_required": "Bu kitaplık kullanılamıyor. Görünümü yenile veya hesabını yeniden bağla.",
       "invalid_token": "Bu bağlantının süresi doldu veya erişimi iptal edildi. Bağlantıyı kesip yeniden bağlan.",
       "revision_conflict": "Bu dosya değişti. Kitaplığı yenileyip tekrar dene.",
       "access_denied": "Bağlantı tarayıcıda iptal edildi.",

@@ -25,7 +25,7 @@ PrintCutCarve's contract and rollout instructions live in its
 `docs/integrations/desktop-library-v1.md`. Its separate canonical synthetic
 snapshot is `crates/beambench-common/tests/fixtures/printcutcarve_library_v1.json`,
 which matches PrintCutCarve's `lib/integrations/desktop-library/fixtures/v1.json`.
-Craftgineer's existing fixture stays unchanged. PrintCutCarve browses accessible
+Both fixtures include the separate paid-period metadata. PrintCutCarve browses accessible
 packs before files, serves original SVG bytes, and reports missing, unsupported,
 unsafe or oversized files explicitly in `unavailableFiles`. SVG covers the
 current original-file catalog. Future original formats need a separate validated
@@ -71,3 +71,14 @@ macOS and Windows credential lifecycle tests and the final signed, unmodified
 AppImage startup tests on Ubuntu 22.04, 24.04 and 26.04 remain mandatory. The Linux
 tests must reach the real Frontend ready callback and retain camera, font and
 update-relaunch coverage. Follow `docs/releasing.md` before publishing.
+
+
+All free and paid accounts may connect to their own available library. An active
+paid subscription verified through either connected service hides the startup
+promotion; free files and individual pack purchases do not. The optional account
+`paidThrough` field is separate from library access and remains backward
+compatible with earlier responses. The native credential record may include this
+verified end date when remembering an account. It suppresses the startup ad
+offline only until that date and is cleared on revocation or disconnect. No paid
+flag is persisted in frontend settings. Startup waits for both provider checks
+before deciding whether to show the promotion.

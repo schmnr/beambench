@@ -126,7 +126,7 @@ class HostedAccount:
         forms.feed(body.decode())
         consent = [f for f in forms.forms if f['allow']]
         if status != 200 or len(consent) != 1:
-            raise RuntimeError('paid_consent_form_missing')
+            raise RuntimeError('consent_form_missing')
         form = consent[0]
         boundary = 'BeamBenchPilot' + secrets.token_hex(16)
         fields = form['inputs'] + [('decision', 'allow')]
@@ -218,6 +218,11 @@ class Driver:
         element = self.element('//button[normalize-space(.)=' + json.dumps(name) + ']')
         return self.command('GET','/element/'+element+'/enabled')
 
+    def welcome_visible(self):
+        elements = self.command('POST', '/elements', {'using': 'xpath',
+            'value': '//button[@aria-label="Close welcome"]'})
+        return any(self.command('GET', '/element/' + item[ELEMENT] + '/displayed') for item in elements)
+
     def wait(self, predicate, label, timeout=40):
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
@@ -308,6 +313,9 @@ class WindowsDriver(Driver):
 
     def button_enabled(self, name):
         return any(c.window_text() == name and c.is_enabled() for c in self.controls('Button'))
+
+    def welcome_visible(self):
+        return any(c.window_text() == 'Close welcome' for c in self.controls('Button'))
 
     def ready(self):
         return any(c.window_text() == 'Library' for c in self.controls('Button'))
@@ -411,7 +419,10 @@ def main():
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--scenario', choices=['lifecycle', 'session-only', 'wallet-unlock', 'wallet-deny', 'wallet-unavailable', 'deletion'], default='lifecycle')
     parser.add_argument('--wallet-provider', choices=['gnome','kde'])
+    parser.add_argument('--check-startup-ad', action='store_true', help='Check free and paid startup behavior using explicit disposable-account entitlement metadata.')
     args = parser.parse_args()
+    if args.check_startup_ad and args.scenario not in ['lifecycle', 'session-only']:
+        parser.error('--check-startup-ad requires lifecycle or session-only')
     global PROVIDER, HOST, ORIGIN, PROVIDER_NAME, EXPECTED_CALLBACK_STATUS
     PROVIDER = args.provider
     HOST = PROVIDER + '.com'
@@ -433,6 +444,8 @@ def main():
             valid = re.fullmatch(r'[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}', account['id']) and re.fullmatch(r'pccbb-[a-f0-9]{16}-[ab]@example\.invalid', account['email']) and bool(account.get('pack'))
         if not valid:
             raise RuntimeError('personal_account_rejected')
+        if args.check_startup_ad and not isinstance(account.get('paidSubscription'), bool):
+            raise RuntimeError('disposable_paid_subscription_metadata_required')
     from datetime import datetime, timezone
     if datetime.fromisoformat(accounts['expiresAt'].replace('Z', '+00:00')) <= datetime.now(timezone.utc):
         raise RuntimeError('disposable_accounts_expired')
@@ -466,7 +479,7 @@ def main():
             except urllib.error.URLError:
                 time.sleep(0.1)
 
-        def launch():
+        def launch(remembered_account=None):
             nonlocal process
             if sys.platform != 'win32' and process.poll() is not None:
                 process = subprocess.Popen([str(args.driver),'--port=17556'],stdout=log,stderr=log)
@@ -481,12 +494,28 @@ def main():
             if sys.platform != 'win32':
                 active.process = process
             active.wait(active.ready, 'frontend')
-            try:
-                active.button('Close welcome')
-            except RuntimeError:
-                pass
+            if args.check_startup_ad:
+                expected_ad = not (remembered_account and remembered_account['paidSubscription'])
+                if expected_ad:
+                    active.wait(active.welcome_visible, 'free_startup_ad')
+                    active.screenshot(root/('startup-ad-' + str(len(results)) + '.png'))
+                    active.button('Close welcome')
+                    passed('startup_ad_without_paid_subscription')
+                elif active.welcome_visible():
+                    raise RuntimeError('paid_startup_ad_visible')
+            else:
+                try:
+                    active.button('Close welcome')
+                except RuntimeError:
+                    pass
             active.open_connections()
             active.choose_provider()
+            if args.check_startup_ad and remembered_account:
+                active.wait(lambda: remembered_account['name'] in active.text(), 'ad_check_account_restored')
+                if active.welcome_visible():
+                    raise RuntimeError('paid_startup_ad_visible')
+                if remembered_account['paidSubscription']:
+                    passed('paid_remembered_startup_without_ad')
             return active
 
         def passed(name):
@@ -585,9 +614,9 @@ def main():
         if args.scenario == 'lifecycle':
             connect(driver, first, True)
             driver.screenshot(root/'account-a.png')
-            passed('paid_connect_and_listing_a')
+            passed('connect_and_listing_a')
             driver.quit()
-            driver = launch()
+            driver = launch(first)
             driver.wait(lambda: first['name'] in driver.text(), 'remembered_account_a')
             passed('remembered_restart_a')
             driver.button('Disconnect')
@@ -598,7 +627,7 @@ def main():
             driver.screenshot(root/'account-b.png')
             passed('switch_to_b_without_a_files')
             driver.quit()
-            driver = launch()
+            driver = launch(second)
             driver.wait(lambda: second['name'] in driver.text(), 'remembered_account_b')
             if first['name'] in driver.text():
                 raise RuntimeError('wrong_account_restored')
@@ -647,6 +676,7 @@ def main():
         (root/'results.json').write_text(json.dumps({'scenario':args.scenario,
             'platform':sys.platform,'provider':PROVIDER,'applicationSha256':original_hash,
             'callbackStatus':EXPECTED_CALLBACK_STATUS,
+            'startupAdChecked':args.check_startup_ad,
             'passed':results,'ipcMocked':False,'tlsVerificationBypassed':False,
             'nativePasswordPromptsTested':args.scenario in ['wallet-unlock','wallet-deny']},indent=2)+'\n')
         print(json.dumps({'passed':results,'platform':sys.platform}))

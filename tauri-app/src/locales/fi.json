@@ -2933,7 +2933,7 @@
   "connected_library": {
     "title": "Craftgineer-yhteys",
     "manage": "Hallitse yhteyksiä",
-    "disclosure": "Yhdistä maksullinen Craftgineer-tilisi lukeaksesi kirjastoon tallennettuja tiedostoja. Muokkaa ja tallenna tiedostot Craftgineerissä ja päivitä sitten tämä näkymä. Lisätty grafiikka tallennetaan Beam Bench -projektiisi ja on käytettävissä myös ilman verkkoyhteyttä.",
+    "disclosure": "Yhdistä maksuton tai maksullinen Craftgineer-tili, jotta voit lukea kirjastoon tallentamiasi tiedostoja. Muokkaa ja tallenna tiedostot Craftgineerissä ja päivitä sitten tämä näkymä. Lisätty grafiikka tallennetaan Beam Bench -projektiisi ja on käytettävissä myös ilman verkkoyhteyttä. Yhdistetyn Craftgineer- tai PrintCutCarve-tilin kautta vahvistettu aktiivinen maksullinen tilaus poistaa Beam Bench -sovelluksen käynnistysmainoksen.",
     "remember": "Muista tämä tili turvallisesti tällä tietokoneella",
     "connect": "Yhdistä Craftgineer",
     "disconnect": "Katkaise yhteys",
@@ -2947,7 +2947,7 @@
     "insert": "Lisää",
     "more": "Lataa lisää",
     "errors": {
-      "subscription_required": "Tarvitset voimassa olevan maksullisen Craftgineer-tilauksen. Hallitse tilaustasi Craftgineerissä.",
+      "subscription_required": "Tämä kirjasto ei ole käytettävissä. Päivitä näkymä tai yhdistä tilisi uudelleen.",
       "invalid_token": "Tämä yhteys on vanhentunut tai sen käyttöoikeus on peruttu. Katkaise yhteys ja yhdistä uudelleen.",
       "revision_conflict": "Tämä tiedosto on muuttunut. Päivitä kirjasto ja yritä uudelleen.",
       "access_denied": "Yhteys peruutettiin selaimessa.",
@@ -2965,7 +2965,7 @@
   "printcutcarve_library": {
     "title": "PrintCutCarve-yhteys",
     "manage": "Hallitse yhteyksiä",
-    "disclosure": "Yhdistä PrintCutCarve-tilisi, jotta voit tarkastella aktiivisen maksullisen jäsenyyden tai loppuun suoritettujen pakettiostosten kautta saatavilla olevia paketteja. Valitse paketti ja lisää sitten kuvio. Lisätty grafiikka tallennetaan Beam Bench -projektiisi ja on käytettävissä myös ilman verkkoyhteyttä.",
+    "disclosure": "Yhdistä maksuton tai maksullinen PrintCutCarve-tili, jotta voit selata Omat lataukset -osiossa saatavilla olevia paketteja ja lisätä kuvion. Lisätty grafiikka tallennetaan Beam Bench -projektiisi ja on käytettävissä myös ilman verkkoyhteyttä. Yhdistetyn Craftgineer- tai PrintCutCarve-tilin kautta vahvistettu aktiivinen maksullinen tilaus poistaa Beam Bench -sovelluksen käynnistysmainoksen.",
     "remember": "Muista tämä tili turvallisesti tällä tietokoneella",
     "connect": "Yhdistä PrintCutCarve",
     "disconnect": "Katkaise yhteys",
@@ -2979,7 +2979,7 @@
     "insert": "Lisää",
     "more": "Lataa lisää",
     "errors": {
-      "subscription_required": "Tarvitset aktiivisen maksullisen jäsenyyden tai ostetun kuviopaketin. Hallitse tiliäsi PrintCutCarve-palvelussa.",
+      "subscription_required": "Tämä kirjasto ei ole käytettävissä. Päivitä näkymä tai yhdistä tilisi uudelleen.",
       "invalid_token": "Tämä yhteys on vanhentunut tai sen käyttöoikeus on peruttu. Katkaise yhteys ja yhdistä uudelleen.",
       "revision_conflict": "Tämä tiedosto on muuttunut. Päivitä kirjasto ja yritä uudelleen.",
       "access_denied": "Yhteys peruutettiin selaimessa.",

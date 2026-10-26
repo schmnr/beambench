@@ -31,6 +31,19 @@ beforeEach(() => {
   pccStore.setState({ status: null, busy: false, error: null, nativeGeneration: -1 });
 });
 describe('connected library account boundaries', () => {
+  it('keeps a native verified paid period through an offline restore, then clears it on revocation', async () => {
+    const until = new Date(Date.now() + 3_600_000).toISOString();
+    mock.status.mockImplementationOnce(async () => {
+      store.getState().receive({ account: null, remembered: true, walletUnavailable: false, nativeGeneration: 1, paidThrough: until });
+      throw 'service_unavailable';
+    });
+    await store.getState().restore();
+    expect(store.getState().status?.paidThrough).toBe(until);
+    expect(store.getState().status?.account).toBeNull();
+    mock.status.mockRejectedValueOnce('invalid_token');
+    await store.getState().restore();
+    expect(store.getState().status).toBeNull();
+  });
   it('keeps a local disconnect warning when the native event arrives before its reply', async () => {
     store.setState({ status: account });
     mock.disconnect.mockImplementation(async () => {

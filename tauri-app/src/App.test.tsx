@@ -11,6 +11,7 @@ import { useMachineStore } from './stores/machineStore';
 import { useNotificationStore } from './stores/notificationStore';
 import { usePreviewStore } from './stores/previewStore';
 import { useWelcomeStore } from './stores/welcomeStore';
+import { useConnectedLibraryStore, usePrintcutcarveLibraryStore } from './stores/connectedLibraryStore';
 import { suppressProfileEvent } from './stores/machineStore';
 import { previewService } from './services/previewService';
 import { persistenceService } from './services/persistenceService';
@@ -260,6 +261,9 @@ const initialUiState = useUiStore.getState();
 const initialMachineState = useMachineStore.getState();
 const initialNotificationState = useNotificationStore.getState();
 const initialPreviewState = usePreviewStore.getState();
+const initialWelcomeState = useWelcomeStore.getState();
+const initialCraftgineerState = useConnectedLibraryStore.getState();
+const initialPrintcutcarveState = usePrintcutcarveLibraryStore.getState();
 
 afterEach(() => {
   vi.useRealTimers();
@@ -273,6 +277,9 @@ afterEach(() => {
   useMachineStore.setState(initialMachineState, true);
   useNotificationStore.setState(initialNotificationState, true);
   usePreviewStore.setState(initialPreviewState, true);
+  useWelcomeStore.setState(initialWelcomeState, true);
+  useConnectedLibraryStore.setState(initialCraftgineerState, true);
+  usePrintcutcarveLibraryStore.setState(initialPrintcutcarveState, true);
 });
 
 describe('App', () => {
@@ -319,6 +326,52 @@ describe('App', () => {
     expect(useAppStore.getState().fetchStatus).toHaveBeenCalledOnce();
     expect(useAppStore.getState().fetchSettings).toHaveBeenCalledOnce();
     expect(useMachineStore.getState().loadProfiles).toHaveBeenCalledOnce();
+  });
+
+  it.each(['craftgineer', 'printcutcarve'] as const)('waits for %s restoration before deciding the startup ad', async (provider) => {
+    const openDialog = vi.fn();
+    let finish!: () => void;
+    const pending = new Promise<void>((resolve) => { finish = resolve; });
+    const paidStore = provider === 'craftgineer' ? useConnectedLibraryStore : usePrintcutcarveLibraryStore;
+    const otherStore = provider === 'craftgineer' ? usePrintcutcarveLibraryStore : useConnectedLibraryStore;
+    const restore = vi.fn(() => pending);
+    paidStore.setState({ status: null, restore });
+    otherStore.setState({ status: null, restore: vi.fn().mockResolvedValue(undefined) });
+    useAppStore.setState({ fetchSettings: vi.fn().mockResolvedValue(makeSettings()) });
+    useWelcomeStore.setState({ openDialog });
+
+    await act(async () => { render(<App />); });
+    expect(restore).toHaveBeenCalledOnce();
+    expect(openDialog).not.toHaveBeenCalled();
+    await act(async () => {
+      paidStore.setState({ status: { account: null, remembered: true, walletUnavailable: false,
+        paidThrough: new Date(Date.now() + 3_600_000).toISOString() } });
+      finish();
+    });
+    expect(openDialog).not.toHaveBeenCalled();
+
+    // Expiry or disconnect later in the session must not open a new ad.
+    await act(async () => { paidStore.setState({ status: null }); });
+    expect(openDialog).not.toHaveBeenCalled();
+  });
+
+  it('shows the startup ad after a free restore and closes it when a paid account connects', async () => {
+    const openDialog = vi.fn();
+    const closeDialog = vi.fn();
+    useAppStore.setState({ fetchSettings: vi.fn().mockResolvedValue(makeSettings()) });
+    for (const store of [useConnectedLibraryStore, usePrintcutcarveLibraryStore]) {
+      store.setState({ status: null, restore: vi.fn().mockResolvedValue(undefined) });
+    }
+    useWelcomeStore.setState({ openDialog, closeDialog });
+    await act(async () => { render(<App />); });
+    expect(openDialog).toHaveBeenCalledOnce();
+    expect(closeDialog).not.toHaveBeenCalled();
+    await act(async () => {
+      usePrintcutcarveLibraryStore.setState({ status: { account: null, remembered: true, walletUnavailable: false,
+        paidThrough: new Date(Date.now() + 3_600_000).toISOString() } });
+    });
+    expect(closeDialog).toHaveBeenCalledOnce();
+    expect(openDialog).toHaveBeenCalledOnce();
   });
 
   it('renders canvas element', async () => {

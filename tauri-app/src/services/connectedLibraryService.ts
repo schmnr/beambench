@@ -23,6 +23,7 @@ export interface ConnectionStatus {
   remembered: boolean;
   walletUnavailable: boolean;
   nativeGeneration?: number;
+  paidThrough?: string | null;
 }
 export interface LibraryCollection {
   id: string;

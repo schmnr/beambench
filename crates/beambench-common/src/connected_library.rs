@@ -65,6 +65,9 @@ pub struct LibraryAccountResponse {
     pub provider: LibraryProvider,
     pub account: LibraryAccount,
     pub access: LibraryAccess,
+    /// Active paid subscription end, used only for the startup promotion.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub paid_through: Option<String>,
     pub capabilities: LibraryCapabilities,
 }
 
@@ -81,6 +84,13 @@ impl LibraryAccountResponse {
         }
         if !valid_id(&self.account.id) {
             return Err("invalid_library_account_id");
+        }
+        if self
+            .paid_through
+            .as_ref()
+            .is_some_and(|value| chrono::DateTime::parse_from_rfc3339(value).is_err())
+        {
+            return Err("invalid_library_subscription");
         }
         if self.capabilities.max_file_bytes == 0
             || self.capabilities.max_file_bytes > CRAFTGINEER_MAX_FILE_BYTES

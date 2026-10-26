@@ -2933,7 +2933,7 @@
   "connected_library": {
     "title": "Połączenie z Craftgineer",
     "manage": "Zarządzaj połączeniami",
-    "disclosure": "Połącz swoje płatne konto Craftgineer, aby odczytywać pliki zapisane w bibliotece. Edytuj i zapisuj pliki w Craftgineer, a następnie odśwież ten widok. Wstawiona grafika jest zapisywana w projekcie Beam Bench i pozostaje dostępna offline.",
+    "disclosure": "Połącz bezpłatne lub płatne konto Craftgineer, aby odczytywać swoje pliki zapisane w bibliotece. Edytuj i zapisuj pliki w Craftgineer, a następnie odśwież ten widok. Wstawiona grafika jest zapisywana w projekcie Beam Bench i pozostaje dostępna offline. Aktywna płatna subskrypcja, zweryfikowana za pośrednictwem połączonego konta Craftgineer lub PrintCutCarve, usuwa reklamę wyświetlaną przy uruchamianiu Beam Bench.",
     "remember": "Bezpiecznie zapamiętaj to konto na tym komputerze",
     "connect": "Połącz z Craftgineer",
     "disconnect": "Rozłącz",
@@ -2947,7 +2947,7 @@
     "insert": "Wstaw",
     "more": "Wczytaj więcej",
     "errors": {
-      "subscription_required": "Wymagana jest aktywna płatna subskrypcja Craftgineer. Zarządzaj subskrypcją w Craftgineer.",
+      "subscription_required": "Ta biblioteka jest niedostępna. Odśwież widok lub połącz konto ponownie.",
       "invalid_token": "To połączenie wygasło lub dostęp został cofnięty. Rozłącz je, a następnie połącz się ponownie.",
       "revision_conflict": "Ten plik został zmieniony. Odśwież bibliotekę i spróbuj ponownie.",
       "access_denied": "Połączenie anulowano w przeglądarce.",
@@ -2965,7 +2965,7 @@
   "printcutcarve_library": {
     "title": "Połączenie z PrintCutCarve",
     "manage": "Zarządzaj połączeniami",
-    "disclosure": "Połącz konto PrintCutCarve, aby przeglądać pakiety dostępne w ramach aktywnego płatnego członkostwa lub zakończonych zakupów pakietów. Wybierz pakiet, a następnie wstaw wzór. Wstawiona grafika jest zapisywana w projekcie Beam Bench i pozostaje dostępna offline.",
+    "disclosure": "Połącz bezpłatne lub płatne konto PrintCutCarve, aby przeglądać pakiety dostępne w sekcji Moje pliki do pobrania i wstawić wzór. Wstawiona grafika jest zapisywana w projekcie Beam Bench i pozostaje dostępna offline. Aktywna płatna subskrypcja, zweryfikowana za pośrednictwem połączonego konta Craftgineer lub PrintCutCarve, usuwa reklamę wyświetlaną przy uruchamianiu Beam Bench.",
     "remember": "Bezpiecznie zapamiętaj to konto na tym komputerze",
     "connect": "Połącz z PrintCutCarve",
     "disconnect": "Rozłącz",
@@ -2979,7 +2979,7 @@
     "insert": "Wstaw",
     "more": "Wczytaj więcej",
     "errors": {
-      "subscription_required": "Wymagane jest aktywne płatne członkostwo lub zakupiony pakiet wzorów. Zarządzaj kontem w PrintCutCarve.",
+      "subscription_required": "Ta biblioteka jest niedostępna. Odśwież widok lub połącz konto ponownie.",
       "invalid_token": "To połączenie wygasło lub dostęp został cofnięty. Rozłącz je, a następnie połącz się ponownie.",
       "revision_conflict": "Ten plik został zmieniony. Odśwież bibliotekę i spróbuj ponownie.",
       "access_denied": "Połączenie anulowano w przeglądarce.",

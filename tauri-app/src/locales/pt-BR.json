@@ -2933,7 +2933,7 @@
   "connected_library": {
     "title": "Conexão com Craftgineer",
     "manage": "Gerenciar conexões",
-    "disclosure": "Conecte sua conta paga do Craftgineer para ler os arquivos salvos na biblioteca. Edite e salve os arquivos no Craftgineer e depois atualize esta visualização. As ilustrações inseridas são salvas no seu projeto do Beam Bench e continuam disponíveis offline.",
+    "disclosure": "Conecte uma conta gratuita ou paga do Craftgineer para ler seus arquivos salvos na biblioteca. Edite e salve os arquivos no Craftgineer e depois atualize esta visualização. As ilustrações inseridas são salvas no seu projeto do Beam Bench e continuam disponíveis offline. Uma assinatura paga e ativa, verificada por meio de uma conta conectada do Craftgineer ou do PrintCutCarve, remove o anúncio de inicialização do Beam Bench.",
     "remember": "Lembrar esta conta com segurança neste computador",
     "connect": "Conectar Craftgineer",
     "disconnect": "Desconectar",
@@ -2947,7 +2947,7 @@
     "insert": "Inserir",
     "more": "Carregar mais",
     "errors": {
-      "subscription_required": "É necessária uma assinatura paga e ativa do Craftgineer. Gerencie sua assinatura no Craftgineer.",
+      "subscription_required": "Esta biblioteca está indisponível. Atualize a visualização ou reconecte sua conta.",
       "invalid_token": "Esta conexão expirou ou foi revogada. Desconecte e conecte-se novamente.",
       "revision_conflict": "Este arquivo mudou. Atualize a biblioteca e tente novamente.",
       "access_denied": "Conexão cancelada no navegador.",
@@ -2965,7 +2965,7 @@
   "printcutcarve_library": {
     "title": "Conexão com PrintCutCarve",
     "manage": "Gerenciar conexões",
-    "disclosure": "Conecte sua conta do PrintCutCarve para ler os pacotes disponíveis por meio de uma assinatura paga e ativa ou de compras de pacotes concluídas. Escolha um pacote e insira um design. As ilustrações inseridas são salvas no seu projeto do Beam Bench e continuam disponíveis offline.",
+    "disclosure": "Conecte uma conta gratuita ou paga do PrintCutCarve para explorar os pacotes disponíveis em Meus downloads e inserir um design. As ilustrações inseridas são salvas no seu projeto do Beam Bench e continuam disponíveis offline. Uma assinatura paga e ativa, verificada por meio de uma conta conectada do Craftgineer ou do PrintCutCarve, remove o anúncio de inicialização do Beam Bench.",
     "remember": "Lembrar esta conta com segurança neste computador",
     "connect": "Conectar PrintCutCarve",
     "disconnect": "Desconectar",
@@ -2979,7 +2979,7 @@
     "insert": "Inserir",
     "more": "Carregar mais",
     "errors": {
-      "subscription_required": "É necessária uma assinatura paga e ativa ou um pacote de designs comprado. Gerencie sua conta no PrintCutCarve.",
+      "subscription_required": "Esta biblioteca está indisponível. Atualize a visualização ou reconecte sua conta.",
       "invalid_token": "Esta conexão expirou ou foi revogada. Desconecte e conecte-se novamente.",
       "revision_conflict": "Este arquivo mudou. Atualize a biblioteca e tente novamente.",
       "access_denied": "Conexão cancelada no navegador.",

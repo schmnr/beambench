@@ -2933,7 +2933,7 @@
   "connected_library": {
     "title": "Craftgineer-kapcsolat",
     "manage": "Kapcsolatok kezelése",
-    "disclosure": "Csatlakoztasd fizetős Craftgineer-fiókodat a könyvtárban mentett fájlok olvasásához. A fájlokat a Craftgineerben szerkeszd és mentsd, majd frissítsd ezt a nézetet. A beillesztett grafika a Beam Bench-projektbe kerül, és offline is elérhető marad.",
+    "disclosure": "Csatlakoztass egy ingyenes vagy fizetős Craftgineer-fiókot a könyvtárba mentett fájljaid olvasásához. A fájlokat a Craftgineerben szerkeszd és mentsd, majd frissítsd ezt a nézetet. A beillesztett grafika a Beam Bench-projektbe kerül, és offline is elérhető marad. Egy csatlakoztatott Craftgineer- vagy PrintCutCarve-fiókon keresztül ellenőrzött aktív fizetős előfizetés eltávolítja a Beam Bench indításkor megjelenő hirdetését.",
     "remember": "Fiók biztonságos megjegyzése ezen a számítógépen",
     "connect": "Craftgineer csatlakoztatása",
     "disconnect": "Leválasztás",
@@ -2947,7 +2947,7 @@
     "insert": "Beillesztés",
     "more": "Továbbiak betöltése",
     "errors": {
-      "subscription_required": "Aktív, fizetős Craftgineer-előfizetés szükséges. Az előfizetést a Craftgineerben kezelheted.",
+      "subscription_required": "Ez a könyvtár nem érhető el. Frissítsd a nézetet, vagy csatlakoztasd újra a fiókodat.",
       "invalid_token": "Ez a kapcsolat lejárt, vagy visszavonták. Válaszd le, majd csatlakozz újra.",
       "revision_conflict": "Ez a fájl megváltozott. Frissítsd a könyvtárat, és próbáld újra.",
       "access_denied": "A csatlakozás megszakítva a böngészőben.",
@@ -2965,7 +2965,7 @@
   "printcutcarve_library": {
     "title": "PrintCutCarve-kapcsolat",
     "manage": "Kapcsolatok kezelése",
-    "disclosure": "Csatlakoztasd a PrintCutCarve-fiókodat az aktív fizetős tagsággal vagy befejezett csomagvásárlásokkal elérhető csomagok megtekintéséhez. Válassz egy csomagot, majd illessz be egy mintát. A beillesztett grafika a Beam Bench-projektedben tárolódik, és internetkapcsolat nélkül is elérhető marad.",
+    "disclosure": "Csatlakoztass egy ingyenes vagy fizetős PrintCutCarve-fiókot a Saját letöltések alatt elérhető csomagok böngészéséhez és egy minta beillesztéséhez. A beillesztett grafika a Beam Bench-projektedben tárolódik, és internetkapcsolat nélkül is elérhető marad. Egy csatlakoztatott Craftgineer- vagy PrintCutCarve-fiókon keresztül ellenőrzött aktív fizetős előfizetés eltávolítja a Beam Bench indításkor megjelenő hirdetését.",
     "remember": "Fiók biztonságos megjegyzése ezen a számítógépen",
     "connect": "PrintCutCarve csatlakoztatása",
     "disconnect": "Leválasztás",
@@ -2979,7 +2979,7 @@
     "insert": "Beillesztés",
     "more": "Továbbiak betöltése",
     "errors": {
-      "subscription_required": "Aktív fizetős tagság vagy megvásárolt mintacsomag szükséges. A fiókodat a PrintCutCarve oldalán kezelheted.",
+      "subscription_required": "Ez a könyvtár nem érhető el. Frissítsd a nézetet, vagy csatlakoztasd újra a fiókodat.",
       "invalid_token": "Ez a kapcsolat lejárt, vagy visszavonták. Válaszd le, majd csatlakozz újra.",
       "revision_conflict": "Ez a fájl megváltozott. Frissítsd a könyvtárat, és próbáld újra.",
       "access_denied": "A csatlakozás megszakítva a böngészőben.",

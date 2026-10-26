@@ -77,6 +77,8 @@ fn error(code: &str) -> String {
 struct Saved {
     account_id: String,
     refresh_token: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    paid_through: Option<String>,
 }
 impl Drop for Saved {
     fn drop(&mut self) {
@@ -114,6 +116,7 @@ pub struct ConnectionStatus {
     remembered: bool,
     wallet_unavailable: bool,
     native_generation: u64,
+    paid_through: Option<String>,
 }
 #[derive(Clone, Serialize)]
 struct ConnectionChange {
@@ -258,6 +261,7 @@ struct ProviderConnection {
     generation: Arc<AtomicU64>,
     vault: OnceLock<Vault>,
     events: OnceLock<tauri::AppHandle>,
+    paid_through: std::sync::Mutex<Option<String>>,
 }
 struct PendingConnect(Arc<AtomicU64>, u64);
 impl Drop for PendingConnect {
@@ -268,16 +272,29 @@ impl Drop for PendingConnect {
     }
 }
 impl ProviderConnection {
+    fn paid_through(&self) -> Option<String> {
+        self.paid_through
+            .lock()
+            .ok()
+            .and_then(|value| valid_paid_through(value.clone()))
+    }
+    fn set_paid_through(&self, value: Option<String>) {
+        if let Ok(mut current) = self.paid_through.lock() {
+            *current = valid_paid_through(value);
+        }
+    }
     fn publish(&self, status: &ConnectionStatus) {
         self.publish_error(status, None);
     }
     fn publish_error(&self, status: &ConnectionStatus, error: Option<&str>) {
         if let Some(app) = self.events.get() {
+            let mut status = status.clone();
+            status.paid_through = self.paid_through();
             let _ = app.emit(
                 "connected-library-changed",
                 ConnectionChange {
                     provider: self.provider,
-                    status: status.clone(),
+                    status,
                     error: error.map(str::to_owned),
                 },
             );
@@ -297,6 +314,7 @@ impl ProviderConnection {
         let value = serde_json::to_string(&Saved {
             account_id: tokens.account_id.clone(),
             refresh_token: tokens.refresh_token.clone(),
+            paid_through: self.paid_through(),
         });
         match value {
             Ok(value) => self
@@ -307,6 +325,11 @@ impl ProviderConnection {
             Err(_) => false,
         }
     }
+}
+fn valid_paid_through(value: Option<String>) -> Option<String> {
+    value.filter(|value| {
+        chrono::DateTime::parse_from_rfc3339(value).is_ok_and(|date| date > chrono::Utc::now())
+    })
 }
 fn client() -> Result<reqwest::Client> {
     reqwest::Client::builder()
@@ -528,7 +551,7 @@ pub async fn connected_library_status(
     if guard.is_none() && manager.pending_connect.load(Ordering::Acquire) != 0 {
         return Err(error("connection_changed"));
     }
-    let result = async {
+    let result: Result<ConnectionStatus> = async {
         if guard.is_none() && restore {
             let saved = match manager.vault().call(None, true).await {
                 Ok(value) => value,
@@ -539,9 +562,16 @@ pub async fn connected_library_status(
                     });
                 }
             };
+            manager.check(generation)?;
             if let Some(saved) = saved {
                 let saved: Saved =
                     serde_json::from_str(&saved).map_err(|_| error("invalid_token"))?;
+                manager.set_paid_through(saved.paid_through.clone());
+                manager.publish(&ConnectionStatus {
+                    remembered: true,
+                    native_generation: generation,
+                    ..Default::default()
+                });
                 let result = token_request(
                     manager.provider,
                     &[
@@ -560,10 +590,13 @@ pub async fn connected_library_status(
         refreshed(manager, connection).await?;
         let account = account(manager.provider, &connection.tokens).await?;
         manager.check(generation)?;
-        if connection
-            .last_account
-            .as_ref()
-            .is_some_and(|old| old.access != account.access)
+        let subscription_changed =
+            manager.paid_through() != valid_paid_through(account.paid_through.clone());
+        if subscription_changed
+            || connection
+                .last_account
+                .as_ref()
+                .is_some_and(|old| old.access != account.access)
         {
             manager
                 .generation
@@ -576,16 +609,37 @@ pub async fn connected_library_status(
                 .map_err(|_| error("connection_changed"))?;
             generation += 1;
         }
+        manager.set_paid_through(account.paid_through.clone());
+        if subscription_changed && connection.remembered {
+            connection.remembered = manager.remember(&connection.tokens).await;
+            connection.wallet_unavailable = !connection.remembered;
+            manager.check(generation)?;
+        }
         connection.last_account = Some(account.clone());
         Ok(ConnectionStatus {
             account: Some(account),
             remembered: connection.remembered,
             wallet_unavailable: connection.wallet_unavailable,
             native_generation: generation,
+            paid_through: manager.paid_through(),
         })
     }
     .await;
-    if restore && guard.is_none() && result.as_ref().is_err_and(|code| code == "invalid_token") {
+    if restore
+        && guard.is_none()
+        && result.as_ref().is_err_and(|code| {
+            matches!(code.as_str(), "invalid_token" | "library_account_mismatch")
+        })
+    {
+        manager.set_paid_through(None);
+        let failed_generation = manager.generation.fetch_add(1, Ordering::AcqRel) + 1;
+        manager.publish_error(
+            &ConnectionStatus {
+                native_generation: failed_generation,
+                ..Default::default()
+            },
+            result.as_ref().err().map(String::as_str),
+        );
         manager.vault().invalidate();
         let _ = manager.vault().call(None, false).await;
     }
@@ -594,6 +648,7 @@ pub async fn connected_library_status(
         manager.check(generation)?;
         let mut status = status.clone();
         status.native_generation = generation;
+        status.paid_through = manager.paid_through();
         manager.publish(&status);
         return Ok(status);
     }
@@ -611,6 +666,7 @@ async fn finish<T>(
         })
     {
         *guard = None;
+        manager.set_paid_through(None);
         let generation = manager.generation.fetch_add(1, Ordering::AcqRel) + 1;
         manager.publish_error(
             &ConnectionStatus {
@@ -682,6 +738,7 @@ async fn finish_request<T>(
                 remembered: connection.remembered,
                 wallet_unavailable: connection.wallet_unavailable,
                 native_generation: resulting_generation,
+                paid_through: manager.paid_through(),
             });
         }
     }
@@ -901,6 +958,7 @@ pub async fn connected_library_connect(
             return Err(error("connection_changed"));
         }
         wallet_touched = remember;
+        manager.set_paid_through(account.paid_through.clone());
         let remembered = remember && manager.remember(&tokens).await;
         manager.check(generation)?;
         if window.is_visible().is_err() {
@@ -919,6 +977,7 @@ pub async fn connected_library_connect(
     let (account, remembered) = match result {
         Ok(value) => value,
         Err(code) => {
+            manager.set_paid_through(None);
             if wallet_touched {
                 manager.vault().invalidate();
                 let _ = manager.vault().call(None, false).await;
@@ -942,6 +1001,7 @@ pub async fn connected_library_connect(
         remembered,
         wallet_unavailable: remember && !remembered,
         native_generation: generation,
+        paid_through: manager.paid_through(),
     };
     manager.publish(&status);
     Ok(status)
@@ -975,12 +1035,16 @@ pub async fn connected_library_disconnect(
 ) -> Result<()> {
     let manager = manager.provider(provider);
     manager.pending_connect.store(0, Ordering::Release);
+    manager.set_paid_through(None);
     let generation = manager.generation.fetch_add(1, Ordering::AcqRel) + 1;
     if let Some(vault) = manager.vault.get() {
         vault.invalidate();
     }
     let mut guard = manager.connection.lock().await;
     let connection = guard.take();
+    // A restore may have been awaiting its wallet read when disconnect began.
+    // Clear again under the connection lock before publishing the final state.
+    manager.set_paid_through(None);
     manager.publish(&ConnectionStatus {
         native_generation: generation,
         ..Default::default()
@@ -1343,6 +1407,58 @@ mod tests {
             token_type: "Bearer".into(),
             scope: "library:read".into(),
         }
+    }
+    #[tokio::test]
+    async fn remembered_paid_period_is_bounded_and_revocation_removes_it() {
+        let manager = ProviderConnection {
+            vault: OnceLock::from(Vault::with_initializer(
+                mock_store,
+                "com.beambench.desktop-library.test.paid-cache",
+            )),
+            ..Default::default()
+        };
+        let legacy: Saved = serde_json::from_value(serde_json::json!({
+            "account_id": "disposable-test-account", "refresh_token": "r".repeat(43)
+        }))
+        .unwrap();
+        assert!(legacy.paid_through.is_none());
+        let until = (chrono::Utc::now() + chrono::Duration::hours(1)).to_rfc3339();
+        manager.set_paid_through(Some(until.clone()));
+        assert!(manager.remember(&fixture_tokens('p')).await);
+        let stored = manager.vault().call(None, true).await.unwrap().unwrap();
+        let saved: Saved = serde_json::from_str(&stored).unwrap();
+        assert_eq!(saved.paid_through.as_deref(), Some(until.as_str()));
+        // An offline restore preserves the last verified period without granting file access.
+        let result = restored(
+            &manager,
+            0,
+            saved,
+            Err(TokenRequestError::Retryable(error("service_unavailable"))),
+        )
+        .await;
+        assert!(matches!(result, Err(code) if code == "service_unavailable"));
+        assert_eq!(manager.paid_through().as_deref(), Some(until.as_str()));
+        manager.set_paid_through(Some(
+            (chrono::Utc::now() - chrono::Duration::hours(1)).to_rfc3339(),
+        ));
+        assert!(manager.paid_through().is_none());
+        manager.set_paid_through(Some(until));
+        let mut connection = Some(Connection {
+            tokens: fixture_tokens('p'),
+            expires: tokio::time::Instant::now(),
+            remembered: true,
+            wallet_unavailable: false,
+            last_account: None,
+            completed_inserts: Default::default(),
+            inflight_inserts: Default::default(),
+        });
+        assert_eq!(
+            finish::<()>(&manager, &mut connection, Err(error("invalid_token"))).await,
+            Err(error("invalid_token"))
+        );
+        assert!(connection.is_none());
+        assert!(manager.paid_through().is_none());
+        assert!(manager.vault().call(None, true).await.unwrap().is_none());
     }
     #[tokio::test]
     async fn access_loss_invalidates_pending_work_only_for_its_provider() {

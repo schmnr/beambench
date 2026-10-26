@@ -2933,7 +2933,7 @@
   "connected_library": {
     "title": "Craftgineer-forbindelse",
     "manage": "Administrer forbindelser",
-    "disclosure": "Forbind din betalte Craftgineer-konto for at læse gemte biblioteksfiler. Rediger og gem filer på Craftgineer, og opdater derefter denne visning. Indsatte billeder gemmes i dit Beam Bench-projekt og er tilgængelige offline.",
+    "disclosure": "Forbind en gratis eller betalt Craftgineer-konto for at læse dine gemte biblioteksfiler. Rediger og gem filer på Craftgineer, og opdater derefter denne visning. Indsatte billeder gemmes i dit Beam Bench-projekt og er tilgængelige offline. Et aktivt betalt abonnement, der er bekræftet via en tilsluttet Craftgineer- eller PrintCutCarve-konto, fjerner annoncen ved opstart af Beam Bench.",
     "remember": "Husk denne konto sikkert på denne computer",
     "connect": "Forbind Craftgineer",
     "disconnect": "Afbryd forbindelsen",
@@ -2947,7 +2947,7 @@
     "insert": "Indsæt",
     "more": "Indlæs flere",
     "errors": {
-      "subscription_required": "Et aktivt betalt Craftgineer-abonnement er påkrævet. Administrer dit abonnement på Craftgineer.",
+      "subscription_required": "Dette bibliotek er ikke tilgængeligt. Opdater visningen, eller forbind din konto igen.",
       "invalid_token": "Denne forbindelse er udløbet eller tilbagekaldt. Afbryd forbindelsen, og forbind igen.",
       "revision_conflict": "Denne fil er ændret. Opdater biblioteket, og prøv igen.",
       "access_denied": "Forbindelsen blev annulleret i browseren.",
@@ -2965,7 +2965,7 @@
   "printcutcarve_library": {
     "title": "PrintCutCarve-forbindelse",
     "manage": "Administrer forbindelser",
-    "disclosure": "Forbind din PrintCutCarve-konto for at se pakker, der er tilgængelige via et aktivt betalt medlemskab eller gennemførte pakkekøb. Vælg en pakke, og indsæt derefter et design. Indsatte billeder gemmes i dit Beam Bench-projekt og er tilgængelige offline.",
+    "disclosure": "Forbind en gratis eller betalt PrintCutCarve-konto for at gennemse pakkerne i Mine downloads og indsætte et design. Indsatte billeder gemmes i dit Beam Bench-projekt og er tilgængelige offline. Et aktivt betalt abonnement, der er bekræftet via en tilsluttet Craftgineer- eller PrintCutCarve-konto, fjerner annoncen ved opstart af Beam Bench.",
     "remember": "Husk denne konto sikkert på denne computer",
     "connect": "Forbind PrintCutCarve",
     "disconnect": "Afbryd forbindelsen",
@@ -2979,7 +2979,7 @@
     "insert": "Indsæt",
     "more": "Indlæs flere",
     "errors": {
-      "subscription_required": "Et aktivt betalt medlemskab eller en købt designpakke er påkrævet. Administrer din konto på PrintCutCarve.",
+      "subscription_required": "Dette bibliotek er ikke tilgængeligt. Opdater visningen, eller forbind din konto igen.",
       "invalid_token": "Denne forbindelse er udløbet eller tilbagekaldt. Afbryd forbindelsen, og forbind igen.",
       "revision_conflict": "Denne fil er ændret. Opdater biblioteket, og prøv igen.",
       "access_denied": "Forbindelsen blev annulleret i browseren.",

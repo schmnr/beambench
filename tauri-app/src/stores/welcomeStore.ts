@@ -4,12 +4,14 @@ import type { AppSettings } from '../types/commands';
 /**
  * Pure predicate: should the welcome/promo screen auto-show on this launch?
  *
- * It shows on every startup once settings have loaded. There is no permanent
- * opt-out; the screen can only be closed for the current session and returns
- * on the next launch.
+ * An active paid period verified through either connected service suppresses
+ * the startup promotion. Free accounts and pack purchases keep library access.
  */
-export function shouldShowWelcome(settings: AppSettings | null | undefined): boolean {
-  return !!settings;
+export function hasActivePaidConnection(...paidThrough: (string | null | undefined)[]): boolean {
+  return paidThrough.some((date) => !!date && Date.parse(date) > Date.now());
+}
+export function shouldShowWelcome(settings: AppSettings | null | undefined, ...paidThrough: (string | null | undefined)[]): boolean {
+  return !!settings && !hasActivePaidConnection(...paidThrough);
 }
 
 interface WelcomeStoreState {

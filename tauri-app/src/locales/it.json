@@ -2933,7 +2933,7 @@
   "connected_library": {
     "title": "Connessione Craftgineer",
     "manage": "Gestisci connessioni",
-    "disclosure": "Collega il tuo account Craftgineer a pagamento per leggere i file salvati nella libreria. Modifica e salva i file su Craftgineer, poi aggiorna questa vista. La grafica inserita viene salvata nel progetto Beam Bench e rimane disponibile offline.",
+    "disclosure": "Collega un account Craftgineer gratuito o a pagamento per leggere i tuoi file salvati nella libreria. Modifica e salva i file su Craftgineer, poi aggiorna questa vista. La grafica inserita viene salvata nel progetto Beam Bench e rimane disponibile offline. Un abbonamento a pagamento attivo, verificato tramite un account Craftgineer o PrintCutCarve collegato, rimuove l'annuncio all'avvio di Beam Bench.",
     "remember": "Memorizza questo account in modo sicuro su questo computer",
     "connect": "Collega Craftgineer",
     "disconnect": "Disconnetti",
@@ -2947,7 +2947,7 @@
     "insert": "Inserisci",
     "more": "Carica altro",
     "errors": {
-      "subscription_required": "È necessario un abbonamento Craftgineer a pagamento attivo. Gestisci il tuo abbonamento su Craftgineer.",
+      "subscription_required": "Questa libreria non è disponibile. Aggiorna la vista o ricollega il tuo account.",
       "invalid_token": "Questa connessione è scaduta o è stata revocata. Disconnettiti e poi riconnettiti.",
       "revision_conflict": "Questo file è cambiato. Aggiorna la libreria e riprova.",
       "access_denied": "Connessione annullata nel browser.",
@@ -2965,7 +2965,7 @@
   "printcutcarve_library": {
     "title": "Connessione PrintCutCarve",
     "manage": "Gestisci connessioni",
-    "disclosure": "Collega il tuo account PrintCutCarve per consultare i pacchetti disponibili tramite un abbonamento a pagamento attivo o acquisti di pacchetti completati. Scegli un pacchetto, poi inserisci un disegno. Le illustrazioni inserite vengono salvate nel tuo progetto Beam Bench e restano disponibili offline.",
+    "disclosure": "Collega un account PrintCutCarve gratuito o a pagamento per sfogliare i pacchetti disponibili in I miei download e inserire un disegno. Le illustrazioni inserite vengono salvate nel tuo progetto Beam Bench e restano disponibili offline. Un abbonamento a pagamento attivo, verificato tramite un account Craftgineer o PrintCutCarve collegato, rimuove l'annuncio all'avvio di Beam Bench.",
     "remember": "Memorizza questo account in modo sicuro su questo computer",
     "connect": "Collega PrintCutCarve",
     "disconnect": "Disconnetti",
@@ -2979,7 +2979,7 @@
     "insert": "Inserisci",
     "more": "Carica altro",
     "errors": {
-      "subscription_required": "È necessario un abbonamento a pagamento attivo o un pacchetto di disegni acquistato. Gestisci il tuo account su PrintCutCarve.",
+      "subscription_required": "Questa libreria non è disponibile. Aggiorna la vista o ricollega il tuo account.",
       "invalid_token": "Questa connessione è scaduta o è stata revocata. Disconnettiti e poi riconnettiti.",
       "revision_conflict": "Questo file è cambiato. Aggiorna la libreria e riprova.",
       "access_denied": "Connessione annullata nel browser.",

@@ -2933,7 +2933,7 @@
   "connected_library": {
     "title": "Craftgineer-tilkobling",
     "manage": "Administrer tilkoblinger",
-    "disclosure": "Koble til den betalte Craftgineer-kontoen din for å lese lagrede bibliotekfiler. Rediger og lagre filer på Craftgineer, og oppdater deretter denne visningen. Innsatte bilder lagres i Beam Bench-prosjektet ditt og er tilgjengelige uten nett.",
+    "disclosure": "Koble til en gratis eller betalt Craftgineer-konto for å lese de lagrede biblioteksfilene dine. Rediger og lagre filer på Craftgineer, og oppdater deretter denne visningen. Innsatte bilder lagres i Beam Bench-prosjektet ditt og er tilgjengelige uten nett. Et aktivt betalt abonnement som er bekreftet gjennom en tilkoblet Craftgineer- eller PrintCutCarve-konto, fjerner annonsen ved oppstart av Beam Bench.",
     "remember": "Husk denne kontoen sikkert på denne datamaskinen",
     "connect": "Koble til Craftgineer",
     "disconnect": "Koble fra",
@@ -2947,7 +2947,7 @@
     "insert": "Sett inn",
     "more": "Last inn flere",
     "errors": {
-      "subscription_required": "Du trenger et aktivt betalt Craftgineer-abonnement. Administrer abonnementet ditt på Craftgineer.",
+      "subscription_required": "Dette biblioteket er utilgjengelig. Oppdater visningen eller koble til kontoen din på nytt.",
       "invalid_token": "Denne tilkoblingen har utløpt eller blitt tilbakekalt. Koble fra og koble til igjen.",
       "revision_conflict": "Denne filen er endret. Oppdater biblioteket og prøv igjen.",
       "access_denied": "Tilkoblingen ble avbrutt i nettleseren.",
@@ -2965,7 +2965,7 @@
   "printcutcarve_library": {
     "title": "PrintCutCarve-tilkobling",
     "manage": "Administrer tilkoblinger",
-    "disclosure": "Koble til PrintCutCarve-kontoen din for å se pakker som er tilgjengelige gjennom et aktivt betalt medlemskap eller fullførte pakkekjøp. Velg en pakke, og sett deretter inn et design. Bilder som settes inn, lagres i Beam Bench-prosjektet ditt og er tilgjengelige uten nettilkobling.",
+    "disclosure": "Koble til en gratis eller betalt PrintCutCarve-konto for å bla gjennom pakkene i Mine nedlastinger og sette inn et design. Bilder som settes inn, lagres i Beam Bench-prosjektet ditt og er tilgjengelige uten nettilkobling. Et aktivt betalt abonnement som er bekreftet gjennom en tilkoblet Craftgineer- eller PrintCutCarve-konto, fjerner annonsen ved oppstart av Beam Bench.",
     "remember": "Husk denne kontoen sikkert på denne datamaskinen",
     "connect": "Koble til PrintCutCarve",
     "disconnect": "Koble fra",
@@ -2979,7 +2979,7 @@
     "insert": "Sett inn",
     "more": "Last inn flere",
     "errors": {
-      "subscription_required": "Et aktivt betalt medlemskap eller en kjøpt designpakke er nødvendig. Administrer kontoen din på PrintCutCarve.",
+      "subscription_required": "Dette biblioteket er utilgjengelig. Oppdater visningen eller koble til kontoen din på nytt.",
       "invalid_token": "Denne tilkoblingen har utløpt eller blitt tilbakekalt. Koble fra og koble til igjen.",
       "revision_conflict": "Denne filen er endret. Oppdater biblioteket og prøv igjen.",
       "access_denied": "Tilkoblingen ble avbrutt i nettleseren.",

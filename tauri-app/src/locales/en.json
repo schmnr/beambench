@@ -2933,7 +2933,7 @@
   "connected_library": {
     "title": "Craftgineer connection",
     "manage": "Manage connections",
-    "disclosure": "Connect your paid Craftgineer account to read saved library files. Edit and save files on Craftgineer, then refresh here. Inserted artwork is stored in your Beam Bench project and remains available offline.",
+    "disclosure": "Connect a free or paid Craftgineer account to read your saved library files. Edit and save files on Craftgineer, then refresh here. Inserted artwork is stored in your Beam Bench project and remains available offline. An active paid subscription verified through a connected Craftgineer or PrintCutCarve account removes the Beam Bench startup ad.",
     "remember": "Remember this account securely on this computer",
     "connect": "Connect Craftgineer",
     "disconnect": "Disconnect",
@@ -2947,7 +2947,7 @@
     "insert": "Insert",
     "more": "Load more",
     "errors": {
-      "subscription_required": "An active paid Craftgineer subscription is required. Manage your subscription on Craftgineer.",
+      "subscription_required": "This library is unavailable. Refresh or reconnect your account.",
       "invalid_token": "This connection has expired or was revoked. Disconnect, then reconnect.",
       "revision_conflict": "This file changed. Refresh the library and try again.",
       "access_denied": "Connection cancelled in the browser.",
@@ -2965,7 +2965,7 @@
   "printcutcarve_library": {
     "title": "PrintCutCarve connection",
     "manage": "Manage connections",
-    "disclosure": "Connect your PrintCutCarve account to read packs available through an active paid membership or completed pack purchases. Choose a pack, then insert a design. Inserted artwork is saved in your Beam Bench project and remains available offline.",
+    "disclosure": "Connect a free or paid PrintCutCarve account to browse the packs available in My Downloads and insert a design. Inserted artwork is saved in your Beam Bench project and remains available offline. An active paid subscription verified through a connected Craftgineer or PrintCutCarve account removes the Beam Bench startup ad.",
     "remember": "Remember this account securely on this computer",
     "connect": "Connect PrintCutCarve",
     "disconnect": "Disconnect",
@@ -2979,7 +2979,7 @@
     "insert": "Insert",
     "more": "Load more",
     "errors": {
-      "subscription_required": "An active paid membership or a purchased design pack is required. Manage your account on PrintCutCarve.",
+      "subscription_required": "This library is unavailable. Refresh or reconnect your account.",
       "invalid_token": "This connection has expired or was revoked. Disconnect, then reconnect.",
       "revision_conflict": "This file changed. Refresh the library and try again.",
       "access_denied": "Connection cancelled in the browser.",

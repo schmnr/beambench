@@ -2933,7 +2933,7 @@
   "connected_library": {
     "title": "Craftgineer-verbinding",
     "manage": "Verbindingen beheren",
-    "disclosure": "Verbind je betaalde Craftgineer-account om opgeslagen bibliotheekbestanden te lezen. Bewerk en bewaar bestanden op Craftgineer en vernieuw daarna deze weergave. Ingevoegde afbeeldingen worden in je Beam Bench-project opgeslagen en blijven offline beschikbaar.",
+    "disclosure": "Verbind een gratis of betaald Craftgineer-account om je opgeslagen bibliotheekbestanden te lezen. Bewerk en bewaar bestanden op Craftgineer en vernieuw daarna deze weergave. Ingevoegde afbeeldingen worden in je Beam Bench-project opgeslagen en blijven offline beschikbaar. Een actief betaald abonnement dat via een verbonden Craftgineer- of PrintCutCarve-account is geverifieerd, verwijdert de advertentie bij het opstarten van Beam Bench.",
     "remember": "Dit account veilig onthouden op deze computer",
     "connect": "Craftgineer verbinden",
     "disconnect": "Verbinding verbreken",
@@ -2947,7 +2947,7 @@
     "insert": "Invoegen",
     "more": "Meer laden",
     "errors": {
-      "subscription_required": "Een actief betaald Craftgineer-abonnement is vereist. Beheer je abonnement op Craftgineer.",
+      "subscription_required": "Deze bibliotheek is niet beschikbaar. Vernieuw de weergave of verbind je account opnieuw.",
       "invalid_token": "Deze verbinding is verlopen of ingetrokken. Verbreek de verbinding en verbind opnieuw.",
       "revision_conflict": "Dit bestand is gewijzigd. Vernieuw de bibliotheek en probeer het opnieuw.",
       "access_denied": "Verbinding geannuleerd in de browser.",
@@ -2965,7 +2965,7 @@
   "printcutcarve_library": {
     "title": "PrintCutCarve-verbinding",
     "manage": "Verbindingen beheren",
-    "disclosure": "Verbind je PrintCutCarve-account om pakketten te bekijken die beschikbaar zijn via een actief betaald lidmaatschap of afgeronde pakketaankopen. Kies een pakket en voeg daarna een ontwerp in. Ingevoegde afbeeldingen worden in je Beam Bench-project opgeslagen en blijven offline beschikbaar.",
+    "disclosure": "Verbind een gratis of betaald PrintCutCarve-account om de pakketten onder Mijn downloads te bekijken en een ontwerp in te voegen. Ingevoegde afbeeldingen worden in je Beam Bench-project opgeslagen en blijven offline beschikbaar. Een actief betaald abonnement dat via een verbonden Craftgineer- of PrintCutCarve-account is geverifieerd, verwijdert de advertentie bij het opstarten van Beam Bench.",
     "remember": "Dit account veilig onthouden op deze computer",
     "connect": "PrintCutCarve verbinden",
     "disconnect": "Verbinding verbreken",
@@ -2979,7 +2979,7 @@
     "insert": "Invoegen",
     "more": "Meer laden",
     "errors": {
-      "subscription_required": "Een actief betaald lidmaatschap of een gekocht ontwerppakket is vereist. Beheer je account op PrintCutCarve.",
+      "subscription_required": "Deze bibliotheek is niet beschikbaar. Vernieuw de weergave of verbind je account opnieuw.",
       "invalid_token": "Deze verbinding is verlopen of ingetrokken. Verbreek de verbinding en verbind opnieuw.",
       "revision_conflict": "Dit bestand is gewijzigd. Vernieuw de bibliotheek en probeer het opnieuw.",
       "access_denied": "Verbinding geannuleerd in de browser.",

@@ -32,9 +32,13 @@ python3 /scripts/connected-library-smoke/wallet.py metadata --provider "$1" --ou
 scenarios=(lifecycle wallet-unlock wallet-deny wallet-unavailable)
 if [[ "${2:-full}" == deletion ]]; then scenarios=(deletion); fi
 for scenario in "${scenarios[@]}"; do
+  startup_args=()
+  if [[ "$library_provider" == printcutcarve && "$scenario" == lifecycle ]]; then
+    startup_args=(--check-startup-ad)
+  fi
   python3 /scripts/test-connected-library-desktop.py \
     --application /test.AppImage --driver /usr/bin/WebKitWebDriver \
-    --scenario "$scenario" --wallet-provider "$1" --provider "$library_provider" --output "/evidence/$scenario"
+    --scenario "$scenario" --wallet-provider "$1" --provider "$library_provider" "${startup_args[@]}" --output "/evidence/$scenario"
   python3 /scripts/connected-library-smoke/wallet.py metadata --provider "$1" \
     --library-provider "$library_provider" --expect-empty --output "/evidence/$scenario/wallet-cleanup.json"
 done

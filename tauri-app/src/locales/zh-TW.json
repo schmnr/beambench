@@ -2933,7 +2933,7 @@
   "connected_library": {
     "title": "Craftgineer 連線",
     "manage": "管理連線",
-    "disclosure": "連結您的 Craftgineer 付費帳戶，即可讀取素材庫中儲存的檔案。在 Craftgineer 上編輯並儲存檔案後，重新整理此頁面。插入的圖稿會儲存在 Beam Bench 專案中，離線時仍可使用。",
+    "disclosure": "連結免費或付費 Craftgineer 帳戶，即可讀取您儲存在素材庫中的檔案。在 Craftgineer 上編輯並儲存檔案後，重新整理此頁面。插入的圖稿會儲存在 Beam Bench 專案中，離線時仍可使用。透過已連結的 Craftgineer 或 PrintCutCarve 帳戶驗證的有效付費訂閱會移除 Beam Bench 啟動時的廣告。",
     "remember": "在這部電腦上安全儲存此帳戶資訊",
     "connect": "連結 Craftgineer",
     "disconnect": "中斷連線",
@@ -2947,7 +2947,7 @@
     "insert": "插入",
     "more": "載入更多",
     "errors": {
-      "subscription_required": "需要有效的 Craftgineer 付費訂閱。請在 Craftgineer 上管理您的訂閱。",
+      "subscription_required": "此素材庫無法使用。請重新整理或重新連結您的帳戶。",
       "invalid_token": "此連線已到期或遭到撤銷。請先中斷連線，再重新連線。",
       "revision_conflict": "此檔案已變更。請重新整理素材庫後再試。",
       "access_denied": "已在瀏覽器中取消連線。",
@@ -2965,7 +2965,7 @@
   "printcutcarve_library": {
     "title": "PrintCutCarve 連線",
     "manage": "管理連線",
-    "disclosure": "連結您的 PrintCutCarve 帳戶，即可讀取透過有效的付費會員資格或已完成的素材包購買取得的素材包。選擇素材包，然後插入設計。插入的圖稿會儲存在 Beam Bench 專案中，離線時仍可使用。",
+    "disclosure": "連結免費或付費 PrintCutCarve 帳戶，即可瀏覽「我的下載」中可用的素材包並插入設計。插入的圖稿會儲存在 Beam Bench 專案中，離線時仍可使用。透過已連結的 Craftgineer 或 PrintCutCarve 帳戶驗證的有效付費訂閱會移除 Beam Bench 啟動時的廣告。",
     "remember": "在這部電腦上安全儲存此帳戶資訊",
     "connect": "連結 PrintCutCarve",
     "disconnect": "中斷連線",
@@ -2979,7 +2979,7 @@
     "insert": "插入",
     "more": "載入更多",
     "errors": {
-      "subscription_required": "需要有效的付費會員資格或已購買的設計素材包。請在 PrintCutCarve 上管理您的帳戶。",
+      "subscription_required": "此素材庫無法使用。請重新整理或重新連結您的帳戶。",
       "invalid_token": "此連線已到期或遭到撤銷。請先中斷連線，再重新連線。",
       "revision_conflict": "此檔案已變更。請重新整理素材庫後再試。",
       "access_denied": "已在瀏覽器中取消連線。",
