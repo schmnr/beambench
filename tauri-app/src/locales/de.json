@@ -2363,6 +2363,34 @@
           },
           "twotrees_tt_5_5s": {
             "description": "USB-Voreinstellung für Originalhardware auf Basis der Dokumentation. Verfahrweg und maximalen S-Wert prüfen. Praxistest steht aus."
+          },
+          "acmer_p1_s_pro_6w": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "380 x 370 mm, Ursprung vorne links, S1000. $30 und Lasermodus $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. Andere Firmware und Erweiterungen müssen separat eingerichtet werden."
+          },
+          "acmer_p1_s_pro_10w": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "380 x 370 mm, Ursprung vorne links, S1000. $30 und Lasermodus $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. Andere Firmware und Erweiterungen müssen separat eingerichtet werden."
+          },
+          "acmer_p2_10w": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "420 x 400 mm, Ursprung vorne links, S1000. $30 und Lasermodus $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. Andere Firmware und Erweiterungen müssen separat eingerichtet werden."
+          },
+          "acmer_p2_20w": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "420 x 400 mm, Ursprung vorne links, S1000. $30 und Lasermodus $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. Andere Firmware und Erweiterungen müssen separat eingerichtet werden."
+          },
+          "acmer_p2_33w": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "420 x 400 mm, Ursprung vorne links, S1000. $30 und Lasermodus $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. Andere Firmware und Erweiterungen müssen separat eingerichtet werden."
+          },
+          "acmer_s2_pro_36w": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "400 x 400 mm, Ursprung vorne links, S1000. $30 und Lasermodus $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. Andere Firmware und Erweiterungen müssen separat eingerichtet werden."
+          },
+          "acmer_s2_pro_48w": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "400 x 400 mm, Ursprung vorne links, S1000. $30 und Lasermodus $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. Andere Firmware und Erweiterungen müssen separat eingerichtet werden."
           }
         },
         "report_active_profile": "Speichern und aktivieren Sie dieses Profil, um seine Einstellungen mit den Ergebnissen zu teilen.",

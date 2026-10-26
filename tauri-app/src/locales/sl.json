@@ -2363,6 +2363,34 @@
           },
           "twotrees_tt_5_5s": {
             "description": "Prednastavitev USB za izvirno strojno opremo na podlagi dokumentacije. Preverite hod in največjo vrednost S. Fizično testiranje še ni opravljeno."
+          },
+          "acmer_p1_s_pro_6w": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "380 x 370 mm, izhodišče spredaj levo, S1000. Preverite $30 in laserski način $32=1. Iskanje izhodišča in samodejni vpih zraka sta izklopljena. Druga strojna programska oprema in razširitve zahtevajo ločeno nastavitev."
+          },
+          "acmer_p1_s_pro_10w": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "380 x 370 mm, izhodišče spredaj levo, S1000. Preverite $30 in laserski način $32=1. Iskanje izhodišča in samodejni vpih zraka sta izklopljena. Druga strojna programska oprema in razširitve zahtevajo ločeno nastavitev."
+          },
+          "acmer_p2_10w": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "420 x 400 mm, izhodišče spredaj levo, S1000. Preverite $30 in laserski način $32=1. Iskanje izhodišča in samodejni vpih zraka sta izklopljena. Druga strojna programska oprema in razširitve zahtevajo ločeno nastavitev."
+          },
+          "acmer_p2_20w": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "420 x 400 mm, izhodišče spredaj levo, S1000. Preverite $30 in laserski način $32=1. Iskanje izhodišča in samodejni vpih zraka sta izklopljena. Druga strojna programska oprema in razširitve zahtevajo ločeno nastavitev."
+          },
+          "acmer_p2_33w": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "420 x 400 mm, izhodišče spredaj levo, S1000. Preverite $30 in laserski način $32=1. Iskanje izhodišča in samodejni vpih zraka sta izklopljena. Druga strojna programska oprema in razširitve zahtevajo ločeno nastavitev."
+          },
+          "acmer_s2_pro_36w": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "400 x 400 mm, izhodišče spredaj levo, S1000. Preverite $30 in laserski način $32=1. Iskanje izhodišča in samodejni vpih zraka sta izklopljena. Druga strojna programska oprema in razširitve zahtevajo ločeno nastavitev."
+          },
+          "acmer_s2_pro_48w": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "400 x 400 mm, izhodišče spredaj levo, S1000. Preverite $30 in laserski način $32=1. Iskanje izhodišča in samodejni vpih zraka sta izklopljena. Druga strojna programska oprema in razširitve zahtevajo ločeno nastavitev."
           }
         },
         "report_active_profile": "Shranite in aktivirajte ta profil, da njegove nastavitve delite z rezultati.",

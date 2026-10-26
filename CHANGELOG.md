@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add documentation-based USB presets for ACMER P1 S Pro 6W/10W,
+  P2 10W/20W/33W and S2 Pro 36W/48W, with model-specific workspaces and
+  translated setup guidance. Physical testing is pending.
+
 - Import vector PDFs that retain unused text spacing or scaling commands.
   Actual PDF text still requires conversion to paths before importing.
 

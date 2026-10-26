@@ -2363,6 +2363,34 @@
           },
           "twotrees_tt_5_5s": {
             "description": "Dokumentaatioon perustuva USB-esiasetus alkuperäiselle laitteistolle. Tarkista liikealue ja S-arvon enimmäismäärä. Fyysinen testaus on vielä tekemättä."
+          },
+          "acmer_p1_s_pro_6w": {
+            "description": "Dokumentaatioon perustuva GRBL 1.1:n USB-esiasetus. Testaus fyysisellä koneella on tekemättä.",
+            "advisory": "380 x 370 mm, origo edessä vasemmalla, S1000. Tarkista $30 ja lasertila $32=1. Kotihaku ja automaattinen ilma-avustus ovat pois käytöstä. Muu laiteohjelmisto ja laajennukset vaativat erillisen määrityksen."
+          },
+          "acmer_p1_s_pro_10w": {
+            "description": "Dokumentaatioon perustuva GRBL 1.1:n USB-esiasetus. Testaus fyysisellä koneella on tekemättä.",
+            "advisory": "380 x 370 mm, origo edessä vasemmalla, S1000. Tarkista $30 ja lasertila $32=1. Kotihaku ja automaattinen ilma-avustus ovat pois käytöstä. Muu laiteohjelmisto ja laajennukset vaativat erillisen määrityksen."
+          },
+          "acmer_p2_10w": {
+            "description": "Dokumentaatioon perustuva GRBL 1.1:n USB-esiasetus. Testaus fyysisellä koneella on tekemättä.",
+            "advisory": "420 x 400 mm, origo edessä vasemmalla, S1000. Tarkista $30 ja lasertila $32=1. Kotihaku ja automaattinen ilma-avustus ovat pois käytöstä. Muu laiteohjelmisto ja laajennukset vaativat erillisen määrityksen."
+          },
+          "acmer_p2_20w": {
+            "description": "Dokumentaatioon perustuva GRBL 1.1:n USB-esiasetus. Testaus fyysisellä koneella on tekemättä.",
+            "advisory": "420 x 400 mm, origo edessä vasemmalla, S1000. Tarkista $30 ja lasertila $32=1. Kotihaku ja automaattinen ilma-avustus ovat pois käytöstä. Muu laiteohjelmisto ja laajennukset vaativat erillisen määrityksen."
+          },
+          "acmer_p2_33w": {
+            "description": "Dokumentaatioon perustuva GRBL 1.1:n USB-esiasetus. Testaus fyysisellä koneella on tekemättä.",
+            "advisory": "420 x 400 mm, origo edessä vasemmalla, S1000. Tarkista $30 ja lasertila $32=1. Kotihaku ja automaattinen ilma-avustus ovat pois käytöstä. Muu laiteohjelmisto ja laajennukset vaativat erillisen määrityksen."
+          },
+          "acmer_s2_pro_36w": {
+            "description": "Dokumentaatioon perustuva GRBL 1.1:n USB-esiasetus. Testaus fyysisellä koneella on tekemättä.",
+            "advisory": "400 x 400 mm, origo edessä vasemmalla, S1000. Tarkista $30 ja lasertila $32=1. Kotihaku ja automaattinen ilma-avustus ovat pois käytöstä. Muu laiteohjelmisto ja laajennukset vaativat erillisen määrityksen."
+          },
+          "acmer_s2_pro_48w": {
+            "description": "Dokumentaatioon perustuva GRBL 1.1:n USB-esiasetus. Testaus fyysisellä koneella on tekemättä.",
+            "advisory": "400 x 400 mm, origo edessä vasemmalla, S1000. Tarkista $30 ja lasertila $32=1. Kotihaku ja automaattinen ilma-avustus ovat pois käytöstä. Muu laiteohjelmisto ja laajennukset vaativat erillisen määrityksen."
           }
         },
         "report_active_profile": "Tallenna ja aktivoi tämä profiili, jotta voit jakaa sen asetukset tulosten mukana.",

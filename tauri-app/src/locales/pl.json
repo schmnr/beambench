@@ -2363,6 +2363,34 @@
           },
           "twotrees_tt_5_5s": {
             "description": "Ustawienie USB dla oryginalnego sprzętu na podstawie dokumentacji. Sprawdź zakres ruchu i maksymalną wartość S. Testy na urządzeniu są jeszcze nieprzeprowadzone."
+          },
+          "acmer_p1_s_pro_6w": {
+            "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
+            "advisory": "380 x 370 mm, początek z przodu po lewej, S1000. Sprawdź $30 i tryb lasera $32=1. Bazowanie i automatyczny nadmuch są wyłączone. Inne oprogramowanie układowe i rozszerzenia wymagają osobnej konfiguracji."
+          },
+          "acmer_p1_s_pro_10w": {
+            "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
+            "advisory": "380 x 370 mm, początek z przodu po lewej, S1000. Sprawdź $30 i tryb lasera $32=1. Bazowanie i automatyczny nadmuch są wyłączone. Inne oprogramowanie układowe i rozszerzenia wymagają osobnej konfiguracji."
+          },
+          "acmer_p2_10w": {
+            "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
+            "advisory": "420 x 400 mm, początek z przodu po lewej, S1000. Sprawdź $30 i tryb lasera $32=1. Bazowanie i automatyczny nadmuch są wyłączone. Inne oprogramowanie układowe i rozszerzenia wymagają osobnej konfiguracji."
+          },
+          "acmer_p2_20w": {
+            "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
+            "advisory": "420 x 400 mm, początek z przodu po lewej, S1000. Sprawdź $30 i tryb lasera $32=1. Bazowanie i automatyczny nadmuch są wyłączone. Inne oprogramowanie układowe i rozszerzenia wymagają osobnej konfiguracji."
+          },
+          "acmer_p2_33w": {
+            "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
+            "advisory": "420 x 400 mm, początek z przodu po lewej, S1000. Sprawdź $30 i tryb lasera $32=1. Bazowanie i automatyczny nadmuch są wyłączone. Inne oprogramowanie układowe i rozszerzenia wymagają osobnej konfiguracji."
+          },
+          "acmer_s2_pro_36w": {
+            "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
+            "advisory": "400 x 400 mm, początek z przodu po lewej, S1000. Sprawdź $30 i tryb lasera $32=1. Bazowanie i automatyczny nadmuch są wyłączone. Inne oprogramowanie układowe i rozszerzenia wymagają osobnej konfiguracji."
+          },
+          "acmer_s2_pro_48w": {
+            "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
+            "advisory": "400 x 400 mm, początek z przodu po lewej, S1000. Sprawdź $30 i tryb lasera $32=1. Bazowanie i automatyczny nadmuch są wyłączone. Inne oprogramowanie układowe i rozszerzenia wymagają osobnej konfiguracji."
           }
         },
         "report_active_profile": "Zapisz i aktywuj ten profil, aby udostępnić jego ustawienia wraz z wynikami.",

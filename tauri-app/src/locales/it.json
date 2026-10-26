@@ -2363,6 +2363,34 @@
           },
           "twotrees_tt_5_5s": {
             "description": "Preimpostazione USB per hardware originale basata sulla documentazione. Verifica la corsa e il valore S massimo. Test fisici ancora da eseguire."
+          },
+          "acmer_p1_s_pro_6w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "380 x 370 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata."
+          },
+          "acmer_p1_s_pro_10w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "380 x 370 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata."
+          },
+          "acmer_p2_10w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "420 x 400 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata."
+          },
+          "acmer_p2_20w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "420 x 400 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata."
+          },
+          "acmer_p2_33w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "420 x 400 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata."
+          },
+          "acmer_s2_pro_36w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "400 x 400 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata."
+          },
+          "acmer_s2_pro_48w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "400 x 400 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata."
           }
         },
         "report_active_profile": "Salva e attiva questo profilo per condividere le impostazioni con i risultati.",

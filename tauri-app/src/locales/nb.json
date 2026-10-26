@@ -2363,6 +2363,34 @@
           },
           "twotrees_tt_5_5s": {
             "description": "USB-forhåndsinnstilling for original maskinvare basert på dokumentasjon. Kontroller vandring og maksimal S-verdi. Fysisk testing gjenstår."
+          },
+          "acmer_p1_s_pro_6w": {
+            "description": "USB-forhåndsinnstilling for GRBL 1.1 basert på dokumentasjon. Testing på maskinen gjenstår.",
+            "advisory": "380 x 370 mm, origo foran til venstre, S1000. Kontroller $30 og lasermodus $32=1. Referansekjøring og automatisk luftassistanse er slått av. Annen fastvare og utvidelser krever eget oppsett."
+          },
+          "acmer_p1_s_pro_10w": {
+            "description": "USB-forhåndsinnstilling for GRBL 1.1 basert på dokumentasjon. Testing på maskinen gjenstår.",
+            "advisory": "380 x 370 mm, origo foran til venstre, S1000. Kontroller $30 og lasermodus $32=1. Referansekjøring og automatisk luftassistanse er slått av. Annen fastvare og utvidelser krever eget oppsett."
+          },
+          "acmer_p2_10w": {
+            "description": "USB-forhåndsinnstilling for GRBL 1.1 basert på dokumentasjon. Testing på maskinen gjenstår.",
+            "advisory": "420 x 400 mm, origo foran til venstre, S1000. Kontroller $30 og lasermodus $32=1. Referansekjøring og automatisk luftassistanse er slått av. Annen fastvare og utvidelser krever eget oppsett."
+          },
+          "acmer_p2_20w": {
+            "description": "USB-forhåndsinnstilling for GRBL 1.1 basert på dokumentasjon. Testing på maskinen gjenstår.",
+            "advisory": "420 x 400 mm, origo foran til venstre, S1000. Kontroller $30 og lasermodus $32=1. Referansekjøring og automatisk luftassistanse er slått av. Annen fastvare og utvidelser krever eget oppsett."
+          },
+          "acmer_p2_33w": {
+            "description": "USB-forhåndsinnstilling for GRBL 1.1 basert på dokumentasjon. Testing på maskinen gjenstår.",
+            "advisory": "420 x 400 mm, origo foran til venstre, S1000. Kontroller $30 og lasermodus $32=1. Referansekjøring og automatisk luftassistanse er slått av. Annen fastvare og utvidelser krever eget oppsett."
+          },
+          "acmer_s2_pro_36w": {
+            "description": "USB-forhåndsinnstilling for GRBL 1.1 basert på dokumentasjon. Testing på maskinen gjenstår.",
+            "advisory": "400 x 400 mm, origo foran til venstre, S1000. Kontroller $30 og lasermodus $32=1. Referansekjøring og automatisk luftassistanse er slått av. Annen fastvare og utvidelser krever eget oppsett."
+          },
+          "acmer_s2_pro_48w": {
+            "description": "USB-forhåndsinnstilling for GRBL 1.1 basert på dokumentasjon. Testing på maskinen gjenstår.",
+            "advisory": "400 x 400 mm, origo foran til venstre, S1000. Kontroller $30 og lasermodus $32=1. Referansekjøring og automatisk luftassistanse er slått av. Annen fastvare og utvidelser krever eget oppsett."
           }
         },
         "report_active_profile": "Lagre og aktiver denne profilen for å dele innstillingene med resultatene dine.",

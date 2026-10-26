@@ -559,6 +559,13 @@ describe('MachineProfileDialog', () => {
   });
 
   it.each([
+    { presetId: 'acmer_p1_s_pro_6w', name: 'ACMER P1 S Pro 6W', airOn: '', width: 380, height: 370, homing: false, constantPower: false, usbEvidence: true },
+    { presetId: 'acmer_p1_s_pro_10w', name: 'ACMER P1 S Pro 10W', airOn: '', width: 380, height: 370, homing: false, constantPower: false, usbEvidence: true },
+    { presetId: 'acmer_p2_10w', name: 'ACMER P2 10W', airOn: '', width: 420, height: 400, homing: false, constantPower: false, usbEvidence: true },
+    { presetId: 'acmer_p2_20w', name: 'ACMER P2 20W', airOn: '', width: 420, height: 400, homing: false, constantPower: false, usbEvidence: true },
+    { presetId: 'acmer_p2_33w', name: 'ACMER P2 33W', airOn: '', width: 420, height: 400, homing: false, constantPower: false, usbEvidence: true },
+    { presetId: 'acmer_s2_pro_36w', name: 'ACMER S2 Pro 36W', airOn: '', width: 400, height: 400, homing: false, constantPower: false, usbEvidence: true },
+    { presetId: 'acmer_s2_pro_48w', name: 'ACMER S2 Pro 48W', airOn: '', width: 400, height: 400, homing: false, constantPower: false, usbEvidence: true },
     { presetId: 'sculpfun_s30_pro_10w', name: 'Sculpfun S30 Pro 10W', airOn: 'M8', width: 380, height: 385, homing: false, constantPower: false, usbEvidence: false },
     { presetId: 'sculpfun_s30_pro_max_20w', name: 'Sculpfun S30 Pro Max 20W', airOn: 'M8', width: 370, height: 360, homing: true, constantPower: false, usbEvidence: false },
     { presetId: 'sculpfun_s9', name: 'Sculpfun S9 (5.5W)', airOn: '', width: 410, height: 415, homing: false, constantPower: false, usbEvidence: false },

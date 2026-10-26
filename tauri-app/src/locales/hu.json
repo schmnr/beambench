@@ -2363,6 +2363,34 @@
           },
           "twotrees_tt_5_5s": {
             "description": "Dokumentáció alapján készült USB-beállítás az eredeti hardverhez. Ellenőrizze a mozgástartományt és a maximális S-értéket. A gépen történő tesztelés még nem történt meg."
+          },
+          "acmer_p1_s_pro_6w": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "380 x 370 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek."
+          },
+          "acmer_p1_s_pro_10w": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "380 x 370 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek."
+          },
+          "acmer_p2_10w": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "420 x 400 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek."
+          },
+          "acmer_p2_20w": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "420 x 400 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek."
+          },
+          "acmer_p2_33w": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "420 x 400 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek."
+          },
+          "acmer_s2_pro_36w": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "400 x 400 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek."
+          },
+          "acmer_s2_pro_48w": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "400 x 400 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek."
           }
         },
         "report_active_profile": "Mentse és aktiválja ezt a profilt, hogy beállításait az eredményekkel együtt megoszthassa.",

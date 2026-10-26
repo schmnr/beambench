@@ -2363,6 +2363,34 @@
           },
           "twotrees_tt_5_5s": {
             "description": "Belgeler temelinde hazırlanmış, standart donanım için USB ön ayarı. Hareket mesafesini ve en yüksek S değerini kontrol edin. Fiziksel testler henüz yapılmadı."
+          },
+          "acmer_p1_s_pro_6w": {
+            "description": "Belgelere dayalı GRBL 1.1 USB ön ayarı. Fiziksel makine testleri henüz yapılmadı.",
+            "advisory": "380 x 370 mm, sol ön başlangıç noktası, S1000. $30 değerini ve $32=1 lazer modunu doğrulayın. Referansa dönüş ve otomatik hava desteği kapalıdır. Diğer donanım yazılımları ve genişletmeler ayrı kurulum gerektirir."
+          },
+          "acmer_p1_s_pro_10w": {
+            "description": "Belgelere dayalı GRBL 1.1 USB ön ayarı. Fiziksel makine testleri henüz yapılmadı.",
+            "advisory": "380 x 370 mm, sol ön başlangıç noktası, S1000. $30 değerini ve $32=1 lazer modunu doğrulayın. Referansa dönüş ve otomatik hava desteği kapalıdır. Diğer donanım yazılımları ve genişletmeler ayrı kurulum gerektirir."
+          },
+          "acmer_p2_10w": {
+            "description": "Belgelere dayalı GRBL 1.1 USB ön ayarı. Fiziksel makine testleri henüz yapılmadı.",
+            "advisory": "420 x 400 mm, sol ön başlangıç noktası, S1000. $30 değerini ve $32=1 lazer modunu doğrulayın. Referansa dönüş ve otomatik hava desteği kapalıdır. Diğer donanım yazılımları ve genişletmeler ayrı kurulum gerektirir."
+          },
+          "acmer_p2_20w": {
+            "description": "Belgelere dayalı GRBL 1.1 USB ön ayarı. Fiziksel makine testleri henüz yapılmadı.",
+            "advisory": "420 x 400 mm, sol ön başlangıç noktası, S1000. $30 değerini ve $32=1 lazer modunu doğrulayın. Referansa dönüş ve otomatik hava desteği kapalıdır. Diğer donanım yazılımları ve genişletmeler ayrı kurulum gerektirir."
+          },
+          "acmer_p2_33w": {
+            "description": "Belgelere dayalı GRBL 1.1 USB ön ayarı. Fiziksel makine testleri henüz yapılmadı.",
+            "advisory": "420 x 400 mm, sol ön başlangıç noktası, S1000. $30 değerini ve $32=1 lazer modunu doğrulayın. Referansa dönüş ve otomatik hava desteği kapalıdır. Diğer donanım yazılımları ve genişletmeler ayrı kurulum gerektirir."
+          },
+          "acmer_s2_pro_36w": {
+            "description": "Belgelere dayalı GRBL 1.1 USB ön ayarı. Fiziksel makine testleri henüz yapılmadı.",
+            "advisory": "400 x 400 mm, sol ön başlangıç noktası, S1000. $30 değerini ve $32=1 lazer modunu doğrulayın. Referansa dönüş ve otomatik hava desteği kapalıdır. Diğer donanım yazılımları ve genişletmeler ayrı kurulum gerektirir."
+          },
+          "acmer_s2_pro_48w": {
+            "description": "Belgelere dayalı GRBL 1.1 USB ön ayarı. Fiziksel makine testleri henüz yapılmadı.",
+            "advisory": "400 x 400 mm, sol ön başlangıç noktası, S1000. $30 değerini ve $32=1 lazer modunu doğrulayın. Referansa dönüş ve otomatik hava desteği kapalıdır. Diğer donanım yazılımları ve genişletmeler ayrı kurulum gerektirir."
           }
         },
         "report_active_profile": "Ayarlarını sonuçlarınızla paylaşmak için bu profili kaydedip etkinleştirin.",
