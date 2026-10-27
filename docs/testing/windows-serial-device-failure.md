@@ -49,7 +49,7 @@ library discarded both the operation and numeric Windows error.
 No specific driver version, physical fault or working compatibility
 fallback is established by these comparisons.
 
-The [jSSC Windows source](https://github.com/scream3r/java-simple-serial-connector/blob/master/src/cpp/windows/jssc.c%2B%2B)
+The [jSSC 2.8.0 Windows source](https://github.com/scream3r/java-simple-serial-connector/blob/2.8.0/src/cpp/windows/jssc.c%2B%2B)
 also requires successful `GetCommState` and `SetCommState` calls. It uses
 overlapped I/O and different control defaults, but supplies no documented
 CH340 error-31 recovery that can be transplanted and validated here.
