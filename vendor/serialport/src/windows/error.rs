@@ -18,7 +18,16 @@ pub fn last_os_error() -> Error {
         _ => ErrorKind::Io(io::ErrorKind::Other),
     };
 
-    Error::new(kind, error_string(errno).trim())
+    Error::new(
+        kind,
+        format!("{} (Windows error {errno})", error_string(errno).trim()),
+    )
+}
+
+pub fn last_os_error_at(operation: &str) -> Error {
+    // Capture GetLastError before formatting or any other Windows call.
+    let error = last_os_error();
+    Error::new(error.kind(), format!("{operation} failed: {error}"))
 }
 
 // the rest of this module is borrowed from libstd
@@ -64,6 +73,37 @@ fn error_string(errnum: u32) -> String {
                 "OS Error {} (FormatMessageW() returned invalid UTF-16)",
                 errnum
             ),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use windows_sys::Win32::Foundation::{SetLastError, ERROR_GEN_FAILURE};
+
+    #[test]
+    fn device_failure_retains_the_operation_and_numeric_code() {
+        unsafe { SetLastError(ERROR_GEN_FAILURE) };
+        let error = last_os_error_at("SetCommState");
+        assert_eq!(error.kind(), ErrorKind::Io(io::ErrorKind::Other));
+        assert!(error.description.starts_with("SetCommState failed: "));
+        assert!(error.description.ends_with("(Windows error 31)"));
+    }
+
+    #[test]
+    fn unavailable_port_errors_keep_their_locale_independent_kind() {
+        for code in [
+            ERROR_ACCESS_DENIED,
+            ERROR_FILE_NOT_FOUND,
+            ERROR_PATH_NOT_FOUND,
+        ] {
+            unsafe { SetLastError(code) };
+            let error = last_os_error_at("CreateFileW");
+            assert_eq!(error.kind(), ErrorKind::NoDevice);
+            assert!(error
+                .description
+                .ends_with(&format!("(Windows error {code})")));
         }
     }
 }

@@ -74,7 +74,7 @@ impl COMPort {
         };
 
         if handle == INVALID_HANDLE_VALUE {
-            return Err(super::error::last_os_error());
+            return Err(super::error::last_os_error_at("CreateFileW"));
         }
 
         // create the COMPort here so the handle is getting closed
@@ -281,7 +281,7 @@ impl SerialPort for COMPort {
         };
 
         if unsafe { SetCommTimeouts(self.handle, &timeouts) } == 0 {
-            return Err(super::error::last_os_error());
+            return Err(super::error::last_os_error_at("SetCommTimeouts"));
         }
 
         self.timeout = timeout;
@@ -469,6 +469,28 @@ impl SerialPort for COMPort {
 mod tests {
     use super::*;
     use crate::tests::timeout::MONOTONIC_DURATIONS;
+
+    #[test]
+    fn missing_port_identifies_device_open_without_claiming_configuration() {
+        let error =
+            COMPort::open(&crate::new(r"\\.\BEAMBENCH_MISSING_COM_PORT", 115_200)).unwrap_err();
+        assert_eq!(error.kind(), ErrorKind::NoDevice);
+        assert!(error.description.starts_with("CreateFileW failed: "));
+        assert!(error.description.ends_with("(Windows error 2)"));
+    }
+
+    #[test]
+    fn failed_timeouts_identify_the_windows_call() {
+        let mut port = COMPort {
+            handle: INVALID_HANDLE_VALUE,
+            timeout: Duration::ZERO,
+            port_name: None,
+        };
+        let error = port.set_timeout(Duration::from_millis(100)).unwrap_err();
+        assert!(error.description.starts_with("SetCommTimeouts failed: "));
+        assert!(error.description.ends_with("(Windows error 6)"));
+        assert_eq!(port.timeout, Duration::ZERO);
+    }
 
     #[test]
     fn timeout_constant_is_monotonic() {

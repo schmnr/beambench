@@ -181,7 +181,7 @@ pub(crate) fn get_dcb(handle: HANDLE) -> Result<DCB> {
     if unsafe { GetCommState(handle, &mut dcb) } != 0 {
         Ok(dcb)
     } else {
-        Err(super::error::last_os_error())
+        Err(super::error::last_os_error_at("GetCommState"))
     }
 }
 
@@ -233,7 +233,7 @@ pub(crate) fn set_dcb(handle: HANDLE, mut dcb: DCB) -> Result<()> {
     if unsafe { SetCommState(handle, &mut dcb as *mut _) != 0 } {
         Ok(())
     } else {
-        Err(super::error::last_os_error())
+        Err(super::error::last_os_error_at("SetCommState"))
     }
 }
 
@@ -293,6 +293,27 @@ pub(crate) fn set_flow_control(dcb: &mut DCB, flow_control: FlowControl) {
 #[cfg(test)]
 mod opening_dtr_tests {
     use super::*;
+
+    #[test]
+    fn failed_configuration_identifies_the_windows_call() {
+        use windows_sys::Win32::Foundation::INVALID_HANDLE_VALUE;
+
+        let read_error = get_dcb(INVALID_HANDLE_VALUE).err().expect("invalid handle");
+        assert!(read_error.description.starts_with("GetCommState failed: "));
+        assert!(read_error.description.ends_with("(Windows error 6)"));
+
+        let mut dcb: DCB = unsafe { std::mem::zeroed() };
+        dcb.DCBlength = std::mem::size_of::<DCB>() as u32;
+        init(&mut dcb, None);
+        set_baud_rate(&mut dcb, 115_200);
+        set_data_bits(&mut dcb, DataBits::Eight);
+        set_parity(&mut dcb, Parity::None);
+        set_stop_bits(&mut dcb, StopBits::One);
+        set_flow_control(&mut dcb, FlowControl::None);
+        let write_error = set_dcb(INVALID_HANDLE_VALUE, dcb).unwrap_err();
+        assert!(write_error.description.starts_with("SetCommState failed: "));
+        assert!(write_error.description.ends_with("(Windows error 6)"));
+    }
 
     #[test]
     fn first_windows_configuration_keeps_an_explicit_high_dtr() {
