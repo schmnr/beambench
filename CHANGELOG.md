@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Keep Craftgineer and PrintCutCarve artwork previews on a white background
+  so black and transparent designs remain visible in dark mode.
+
 ## 0.2.34
 
 - Connect Craftgineer and PrintCutCarve accounts from the Library or the new

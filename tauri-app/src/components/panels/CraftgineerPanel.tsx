@@ -36,7 +36,7 @@ function Preview({ file, provider }: { file: LibraryFile; provider: LibraryProvi
   return (
     <div
       ref={node}
-      className="flex h-28 items-center justify-center overflow-hidden rounded bg-bb-surface"
+      className="flex h-28 items-center justify-center overflow-hidden rounded bg-white"
     >
       {src && <img src={src} alt="" className="max-h-full max-w-full object-contain" />}
     </div>

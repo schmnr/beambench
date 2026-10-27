@@ -218,6 +218,8 @@ const INTENTIONAL_RAW_COLORS: Readonly<Record<string, readonly string[]>> = {
   './components/machine/MovePanel.tsx': ['bg-amber-500', 'bg-green-500', 'bg-red-500/5', 'border-red-500/50'],
   './components/machine/PreflightDialog.tsx': ['bg-black/50'],
   './components/panels/ArtLibraryPanel.tsx': ['bg-black/50', 'bg-white'],
+  // Artwork previews keep a white background regardless of the surrounding theme.
+  './components/panels/CraftgineerPanel.tsx': ['bg-white'],
   './components/properties/ContextualToolSection.tsx': ['bg-black/50'],
   './components/settings/AboutDialog.tsx': ['bg-black/50'],
   './components/settings/RecoveryDialog.tsx': ['bg-black/50'],
