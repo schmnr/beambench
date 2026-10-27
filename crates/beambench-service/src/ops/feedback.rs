@@ -1365,7 +1365,12 @@ fn known_issues_for(
         issues.insert(
             0,
             KnownIssueWarning {
-                code: "serial_port_unavailable".to_owned(),
+                // An open failure can also come from configuring the driver.
+                // Reserve unavailable for the transport's explicit classification.
+                code: failure
+                    .error_code
+                    .clone()
+                    .unwrap_or_else(|| "serial_open_failed".to_owned()),
                 severity: "warning".to_owned(),
                 message: connection_failure_summary(failure),
             },
@@ -2013,7 +2018,7 @@ mod tests {
             snapshot
                 .known_issues
                 .iter()
-                .any(|issue| issue.code == "serial_port_unavailable")
+                .any(|issue| issue.code == "serial_open_failed")
         );
     }
 
@@ -2254,6 +2259,63 @@ mod tests {
             bundle.machine.port_name.as_deref(),
             Some("/dev/cu.usbserial-10")
         );
+    }
+
+    #[test]
+    fn preview_preserves_report75_device_failure_without_claiming_port_contention() {
+        // The original report did not retain the failing API. Exercise both its
+        // localized error and the precise native error produced after this fix.
+        for detail in [
+            "Μια συσκευή που είναι συνδεδεμένη με το σύστημα δεν λειτουργεί.",
+            "GetCommState failed: Μια συσκευή που είναι συνδεδεμένη με το σύστημα δεν λειτουργεί. (Windows error 31)",
+            "SetCommState failed: A device attached to the system is not functioning. (Windows error 31)",
+        ] {
+            let ctx = ServiceContext::new();
+            let message = format!("transport error: connection failed: {detail}");
+            ctx.push_connection_event(
+                "open_attempt",
+                Some("COM4".to_owned()),
+                Some(115_200),
+                None,
+                None,
+            );
+            ctx.push_connection_event(
+                "open_failed",
+                Some("COM4".to_owned()),
+                Some(115_200),
+                None,
+                Some(message.clone()),
+            );
+            let bundle = preview_feedback_report(&ctx, bug_input()).unwrap();
+            assert_eq!(
+                bundle.machine.session_state,
+                DiagnosticSessionState::HandshakeFailed
+            );
+            assert_eq!(
+                bundle.machine.handshake_message.as_deref(),
+                Some(message.as_str())
+            );
+            assert_eq!(bundle.machine.port_name.as_deref(), Some("COM4"));
+            let issue = bundle
+                .known_issues
+                .iter()
+                .find(|issue| issue.code == "serial_open_failed")
+                .unwrap();
+            assert_eq!(issue.message, message);
+            assert!(bundle.known_issues.iter().all(|issue| !matches!(
+                issue.code.as_str(),
+                "serial_port_unavailable"
+                    | "serial_open_no_response"
+                    | "serial_protocol_unrecognized"
+                    | "no_grbl_response"
+            )));
+            assert!(
+                bundle
+                    .connection_events
+                    .iter()
+                    .all(|event| event.stage != "status_query")
+            );
+        }
     }
 
     #[test]
