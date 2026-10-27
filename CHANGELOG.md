@@ -2,10 +2,21 @@
 
 ## Unreleased
 
+## 0.2.34
+
+- Connect Craftgineer and PrintCutCarve accounts from the Library or the new
+  Connected accounts page in Preferences. Both Library tabs stay visible
+  before connecting. Free and paid accounts can use their own available files.
+- Browse, search, preview and insert saved Craftgineer files and PrintCutCarve
+  designs. PrintCutCarve free samples saved to My Downloads appear in its
+  connected library. Inserted artwork remains in the local project offline.
+- Use browser sign-in and optional secure account storage. A verified paid
+  subscription to either connected service hides the startup ad. Remembered
+  paid access works offline until its verified end date; free files and pack
+  purchases keep the ad.
 - Add documentation-based USB presets for ACMER P1 S Pro 6W/10W,
   P2 10W/20W/33W and S2 Pro 36W/48W, with model-specific workspaces and
   translated setup guidance. Physical testing is pending.
-
 - Import vector PDFs that retain unused text spacing or scaling commands.
   Actual PDF text still requires conversion to paths before importing.
 
