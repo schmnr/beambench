@@ -1,7 +1,9 @@
 # Windows CH340 connection failure investigation
 
 Investigated October 27, 2026 against Beam Bench 0.2.34, source
-`6ecf691eedd5`. The diagnostic correction below is unreleased.
+`6ecf691eedd5`. The initial diagnostic correction is on `main`. The follow-up
+below adds automatic recovery for a documented CH340 initialization fault.
+Neither change has been released.
 
 ## What the report establishes
 
@@ -46,13 +48,51 @@ The leading explanation is rejection during Windows USB/serial driver
 initialization. The original bundle cannot distinguish `CreateFileW`,
 `GetCommState`, `SetCommState` or `SetCommTimeouts`: the vendored serial
 library discarded both the operation and numeric Windows error.
-No specific driver version, physical fault or working compatibility
-fallback is established by these comparisons.
+These comparisons do not establish a specific driver version or physical
+fault in the original report.
 
 The [jSSC 2.8.0 Windows source](https://github.com/scream3r/java-simple-serial-connector/blob/2.8.0/src/cpp/windows/jssc.c%2B%2B)
 also requires successful `GetCommState` and `SetCommState` calls. It uses
 overlapped I/O and different control defaults, but supplies no documented
 CH340 error-31 recovery that can be transplanted and validated here.
+
+## Subsequent recovery evidence
+
+Further investigation found a specific software workaround for the high-baud
+opening failure, rather than a driver-replacement recommendation:
+
+- [GasVosky's January 2025 firsthand report](https://yoko-hama.blogspot.com/2025/01/wch-ch340.html)
+  describes CH340 driver 3.9.2024.9 on Windows 10 rejecting an initial baud
+  above 9600. Applying 9600 with `SetCommState`, then applying the desired
+  baud with another `SetCommState`, restores communication.
+- [TheBackShed's April 2024 hardware investigation](https://thebackshed.com/forum/ViewTopic_mobile.php?P=4&TID=16761)
+  independently reports CH340 Nano boards requiring a 9600-baud connection
+  before they accept normal high-speed programming. Changing the board's
+  bootloader did not alter the behavior. This supports an adapter
+  initialization problem rather than a GRBL handshake change.
+- [SerialInit 0.2](https://sourceforge.net/projects/serialinit/files/serialinit.dll_0.2.zip/)
+  is a published CH340 initialization workaround, also referenced by users
+  in the Arduino and PlatformIO forums. Read-only disassembly of its
+  `_configure_serial_port` function confirms `CreateFileA`, `GetCommState`,
+  a 9600-baud 8N1 `SetCommState`, and timeout configuration. Its main function
+  then closes the handle. No downloaded binary was executed or added to
+  Beam Bench. The inspected executable's SHA-256 is
+  `6f6f45c940b9eaa366f12c50c5e558e9662e714b83c1b3554b8949c957659c2e`.
+
+The application now attempts the requested settings normally. If and only
+if opening configuration returns Win32 `ERROR_GEN_FAILURE`, the target baud
+is above 9600, and Windows identifies that exact port as USB VID/PID
+`1a86:7523`, it applies 9600 and then the requested settings on the same
+handle. There is no baud-rate guessing or serial I/O at 9600. The original
+data format, flow control and DTR/RTS settings are identical across attempts.
+
+The recovered settings are read back and checked, including baud, data bits,
+parity, stop bits and control flags. Recovery failure or mismatched readback
+closes the handle through the existing ownership guard. A 9600-baud port is
+never returned in place of the requested baud. Successful opens, other USB
+chips, unknown identities, access-denied errors, invalid settings, device-open
+errors and failed `GetCommState` calls retain their previous behavior. Runtime
+baud changes do not enter this opening-only recovery.
 
 ## Confirmed application defects and correction
 
@@ -69,10 +109,10 @@ supplied a specific error code. This keeps device/configuration errors
 distinct from explicit port-access failures and from an opened but silent
 or unrecognized controller. The original native detail remains in the bundle.
 
-These are diagnostic corrections. They do not establish that the original
-CH340 connection succeeds. Connection calls, settings, DTR behavior and
-protocol probes are unchanged. No driver replacement or machine command is
-added.
+The earlier diagnostic changes alone did not alter connection behavior.
+The follow-up changes Windows opening configuration as described above;
+GRBL probes and machine commands remain unchanged. There is no driver
+installation, system preference change or new user setting.
 
 ## Validation
 
@@ -87,11 +127,24 @@ error codes. A separate test sets the thread's Windows last-error value to
 31 and checks its preservation; this is an error-propagation test, not an
 emulation of the CH340 driver. Existing DTR tests remain in the same suite.
 
+The recovery regression also runs the production `COMPort::open` and native
+read/write paths through a test-only Win32 boundary that reproduces the
+documented 9600-first fault. Real Windows event handles make cleanup
+observable. With recovery disabled, the original opening path must fail with
+error 31. With recovery enabled, it must reach the requested 115200 baud,
+send a read-only status query and receive a controller status response.
+Tests cover all opening DTR policies and supported flow-control modes, and
+reject failed bootstrap, failed target configuration, mismatched baud or
+control flags, and failed readback. Negative cases verify that no bytes are
+sent and the handle closes. This models the documented driver behavior; it
+is not physical hardware validation.
+
 Commands:
 
 ```sh
 cargo test -p beambench-service --lib ops::feedback::tests
 cargo test -p beambench-serial --lib
+pwsh -File scripts/test-windows-ch340-recovery.ps1
 cargo fmt --all -- --check
 rustfmt --edition 2021 --check vendor/serialport/src/windows/{com,dcb,error}.rs
 git diff --check
@@ -103,8 +156,8 @@ temporarily restored, then passed with the correction. Formatting and diff
 checks passed. The Windows library and tests passed cross-target compilation.
 
 The vendored serial library is checked for `x86_64-pc-windows-msvc` from an
-isolated copy, matching the existing Windows CI setup. Windows CI executes
-the native tests as well as the service/transport suites. No physical CH340
-or laser is available in this environment. An actual driver compatibility
-fix requires an independent Windows/CH340 lab reproduction across driver
-versions; the original report is not marked resolved by this change.
+isolated copy. Windows CI requires the before-and-after recovery regression
+as well as the existing service/transport suites. No physical CH340 or laser
+is available in this environment. The recovery addresses a documented
+initialization fault consistent with the original report; it cannot repair
+all causes of Win32 error 31 or establish which driver the reporter used.
