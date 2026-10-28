@@ -225,7 +225,7 @@ describe('machineStore frame-selected toggle', () => {
       await useMachineStore.getState().emergencyStop();
       expect(mockedMachine.getSessionState).not.toHaveBeenCalled();
       const notifications = useNotificationStore.getState().notifications;
-      expect(notifications.at(-1)).toMatchObject({
+      expect(notifications[notifications.length - 1]).toMatchObject({
         type: 'success', message: i18n.t('notifications.machine.estop_sent'),
       });
     } finally {
