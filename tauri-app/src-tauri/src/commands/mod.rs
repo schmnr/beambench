@@ -14,3 +14,5 @@ pub mod project;
 pub mod quality_test;
 pub mod variable_text;
 pub mod vector;
+
+pub mod remote_host;

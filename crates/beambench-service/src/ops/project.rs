@@ -1227,7 +1227,20 @@ pub fn replace_project(ctx: &ServiceContext, project: Project) -> ServiceResult<
     Ok(())
 }
 
-pub fn replace_project_document(ctx: &ServiceContext, mut project: Project) -> ServiceResult<()> {
+pub fn replace_project_document(ctx: &ServiceContext, project: Project) -> ServiceResult<()> {
+    install_project_document(ctx, project, false)
+}
+
+/// Install an archive whose assets have already been validated by the project reader.
+pub fn install_transferred_project(ctx: &ServiceContext, project: Project) -> ServiceResult<()> {
+    install_project_document(ctx, project, true)
+}
+
+fn install_project_document(
+    ctx: &ServiceContext,
+    mut project: Project,
+    include_assets: bool,
+) -> ServiceResult<()> {
     let _edit_guard = ctx.lock_project_edits();
     {
         let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
@@ -1235,10 +1248,12 @@ pub fn replace_project_document(ctx: &ServiceContext, mut project: Project) -> S
             .project_path
             .lock()
             .map_err(|e| lock_err("project_path", e))?;
-        project.asset_data = guard
-            .as_ref()
-            .map(|p| p.asset_data.clone())
-            .unwrap_or_default();
+        if !include_assets {
+            project.asset_data = guard
+                .as_ref()
+                .map(|p| p.asset_data.clone())
+                .unwrap_or_default();
+        }
         refresh_project_text_caches(&mut project);
         project.dirty = true;
         ctx.document_epoch

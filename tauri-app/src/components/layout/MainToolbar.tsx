@@ -1,3 +1,4 @@
+import { useRemoteHostStore } from '../../stores/remoteHostStore';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useProjectStore } from '../../stores/projectStore';
@@ -108,6 +109,9 @@ export function MainToolbar() {
 
   const activeProfileId = useMachineStore((s) => s.activeProfileId);
   const sessionState = useMachineStore((s) => s.sessionState);
+  const remoteEnabled = useRemoteHostStore((s) => s.enabled);
+  const remoteOnline = useRemoteHostStore((s) => s.online);
+  const remoteSnapshot = useRemoteHostStore((s) => s.snapshot);
   const emergencyStop = useMachineStore((s) => s.emergencyStop);
   const activeProfileName = useMachineStore(
     (s) => (s.profiles ?? []).find((p) => p.id === s.activeProfileId)?.name ?? null,
@@ -218,7 +222,7 @@ export function MainToolbar() {
     return null;
   }
 
-  const normalizedSessionState = sessionState ?? 'disconnected';
+  const normalizedSessionState = remoteEnabled ? (remoteOnline ? remoteSnapshot?.machine.session_state ?? 'disconnected' : 'disconnected') : sessionState ?? 'disconnected';
   const connectionDot = CONNECTION_DOT_COLORS[normalizedSessionState] ?? 'bg-gray-500';
   const connectionLabel = t(`status.connection.${normalizedSessionState}`, {
     defaultValue:
@@ -397,8 +401,8 @@ export function MainToolbar() {
       >
         <span className={`h-2 w-2 rounded-full ${connectionDot}`} />
         <span>
-          {connectionLabel}
-          {normalizedSessionState !== 'disconnected' && activeProfileName ? ` · ${activeProfileName}` : ''}
+          {remoteEnabled ? t('remote_host.host_title', { state: remoteOnline ? connectionLabel : t('remote_host.connection_lost') }) : connectionLabel}
+          {!remoteEnabled && normalizedSessionState !== 'disconnected' && activeProfileName ? ` · ${activeProfileName}` : ''}
         </span>
       </button>
 

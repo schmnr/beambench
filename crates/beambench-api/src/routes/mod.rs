@@ -14,11 +14,14 @@ pub mod materials;
 pub mod preview;
 pub mod profiles;
 pub mod projects;
+pub mod remote;
 pub mod vector;
 pub mod workflows;
 
 #[cfg(test)]
 mod parity_scenarios;
+#[cfg(test)]
+mod remote_tests;
 #[cfg(test)]
 mod workflow_tests;
 
@@ -44,7 +47,9 @@ async fn reject_browser_origins(request: Request, next: Next) -> Result<Response
 
 /// Build the full API router with all endpoint groups.
 pub fn build_router(ctx: Arc<ServiceContext>) -> Router {
+    let remote = remote::RemoteControl::new(ctx.clone());
     Router::new()
+        .nest("/api/v1/remote", remote::router())
         .nest("/api/v1/app", app::router())
         .nest("/api/v1/agent", agent::router())
         .nest("/api/v1/camera", camera::router())
@@ -63,6 +68,11 @@ pub fn build_router(ctx: Arc<ServiceContext>) -> Router {
         .nest("/api/v1/macros", macros::router())
         .nest("/api/v1/export", export::router())
         .nest("/api/v1/workflows", workflows::router())
+        .layer(middleware::from_fn_with_state(
+            remote.clone(),
+            remote::guard,
+        ))
+        .layer(axum::Extension(remote))
         .layer(middleware::from_fn(reject_browser_origins))
         .with_state(ctx)
 }

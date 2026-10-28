@@ -1,3 +1,4 @@
+import { useRemoteHostStore } from '../stores/remoteHostStore';
 import type { ComponentType, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useProjectStore } from '../stores/projectStore';
@@ -37,8 +38,14 @@ function RunInspectorCard({ children }: { children: ReactNode }) {
   );
 }
 
+function LocalMachineContent({ children }: { children: ReactNode }) {
+  const { t } = useTranslation();
+  const remote = useRemoteHostStore((s) => s.enabled);
+  return remote ? <p className="p-2 text-xs text-bb-text-muted">{t('remote_host.remote_controls')}</p> : children;
+}
+
 function MoveContent() {
-  return <RunInspectorCard><MovePanel /></RunInspectorCard>;
+  return <RunInspectorCard><LocalMachineContent><MovePanel /></LocalMachineContent></RunInspectorCard>;
 }
 
 function LaserContent() {
@@ -46,15 +53,15 @@ function LaserContent() {
 }
 
 function CameraPanelContent() {
-  return <RunInspectorCard><CameraContent /></RunInspectorCard>;
+  return <RunInspectorCard><LocalMachineContent><CameraContent /></LocalMachineContent></RunInspectorCard>;
 }
 
 function MacrosContent() {
-  return <RunInspectorCard><MacrosWindow /></RunInspectorCard>;
+  return <RunInspectorCard><LocalMachineContent><MacrosWindow /></LocalMachineContent></RunInspectorCard>;
 }
 
 function ConsoleContent() {
-  return <RunInspectorCard><ConsoleWindow /></RunInspectorCard>;
+  return <RunInspectorCard><LocalMachineContent><ConsoleWindow /></LocalMachineContent></RunInspectorCard>;
 }
 
 function PropertiesContent() {

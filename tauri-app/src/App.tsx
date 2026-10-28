@@ -45,6 +45,7 @@ import { localizeBackendMessage, localizeImportWarning, wrapBackendError } from 
 import { useEventListener } from './hooks/useEventListener';
 import { useAutosave } from './hooks/useAutosave';
 import { useMachinePolling } from './hooks/useMachinePolling';
+import { useRemoteHostPolling } from './hooks/useRemoteHostPolling';
 import { persistenceService } from './services/persistenceService';
 import { cameraService } from './services/cameraService';
 import { captureBrowserCameraFrame } from './services/browserCameraCapture';
@@ -547,6 +548,7 @@ function App() {
 
   useAutosave();
   useMachinePolling();
+  useRemoteHostPolling();
 
   useEffect(() => {
     void cameraService.registerAgentBridge().catch((error) => {
