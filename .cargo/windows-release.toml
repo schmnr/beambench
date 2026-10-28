@@ -1,0 +1,5 @@
+# Pass this file with --config and an explicit --target so host build scripts
+# and proc macros retain their normal runtime. cc also sees crt-static and uses
+# /MT for native C++ dependencies such as Clipper, rather than importing MSVCP140.
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]

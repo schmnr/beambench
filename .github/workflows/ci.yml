@@ -118,7 +118,9 @@ jobs:
         run: npm run lint
 
       - name: Test
-        run: npm run test
+        run: |
+          npm run test
+          node --test ../scripts/check-windows-runtime.test.mjs
 
       - name: Performance budgets
         run: npm run test:perf
@@ -126,8 +128,8 @@ jobs:
       - name: Build
         run: npm run build
 
-  windows-source:
-    name: Windows source regression
+  windows-source-tests:
+    name: Windows source tests
     runs-on: windows-2025
     timeout-minutes: 45
     defaults:
@@ -182,3 +184,64 @@ jobs:
       - name: Test frontend contracts
         working-directory: tauri-app
         run: npm test
+
+  windows-runtime:
+    name: Windows release runtime isolation
+    runs-on: windows-2025
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tauri-app/package-lock.json
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target/x86_64-pc-windows-msvc/release
+          key: ${{ runner.os }}-runtime-release-${{ hashFiles('**/Cargo.lock', '.cargo/windows-release.toml') }}
+      - name: Install frontend dependencies
+        working-directory: tauri-app
+        run: npm ci
+      - name: Build and audit standalone release CLI
+        run: node tauri-app/scripts/build-cli-release.mjs --target x86_64-pc-windows-msvc --out-dir "$env:RUNNER_TEMP/windows-runtime-cli"
+      - name: Build actual release desktop without publishing
+        working-directory: tauri-app
+        run: |
+          $cargoConfig = (Resolve-Path ../.cargo/windows-release.toml).Path
+          npx tauri build --ci --no-sign --no-bundle --target x86_64-pc-windows-msvc -- --locked --config $cargoConfig
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Start CLI and desktop with the VC runtime blocked
+        run: |
+          ./scripts/test-windows-runtime.ps1 `
+            -Cli "$env:RUNNER_TEMP/windows-runtime-cli/beambench-cli.exe" `
+            -Desktop target/x86_64-pc-windows-msvc/release/beambench-tauri.exe `
+            -OutputDirectory "$env:RUNNER_TEMP/windows-runtime-evidence"
+      - name: Test static-runtime remote host lifecycle
+        run: cargo test --locked --release --target x86_64-pc-windows-msvc --config .cargo/windows-release.toml -p beambench-cli --test remote_host
+      - name: Upload runtime isolation evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: Windows-runtime-isolation
+          path: ${{ runner.temp }}/windows-runtime-evidence
+          if-no-files-found: ignore
+
+  windows-source:
+    name: Windows source regression
+    needs: [windows-source-tests, windows-runtime]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require source and runtime checks
+        env:
+          SOURCE_RESULT: ${{ needs.windows-source-tests.result }}
+          RUNTIME_RESULT: ${{ needs.windows-runtime.result }}
+        run: test "$SOURCE_RESULT" = success && test "$RUNTIME_RESULT" = success

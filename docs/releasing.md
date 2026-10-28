@@ -44,6 +44,23 @@ An MSI failure does not discard a valid signed NSIS build, and the workflow
 uploads the generated WiX inputs as a diagnostic artifact when MSI packaging
 fails.
 
+Windows release builds pass `.cargo/windows-release.toml` and an explicit
+`--target x86_64-pc-windows-msvc` to Cargo. This statically links the C and C++
+runtime in both the desktop and CLI, including native geometry dependencies.
+Tauri's default runtime handling alone left `MSVCP140.dll` imports in 0.2.34.
+Keep the explicit target so the flags do not apply to host proc macros and build
+scripts. Desktop bundles are under `target/x86_64-pc-windows-msvc/release/bundle`.
+
+The CLI packager and signed installed-desktop smoke reject ordinary or delayed
+imports of separately installed Visual C++ runtime DLLs. Required Windows CI also
+builds the actual release executables and starts them with invalid application-local
+`MSVCP140.dll`, `VCRUNTIME140.dll` and `VCRUNTIME140_1.dll` files. A dynamically
+linked C++ control must first succeed normally and fail with those files present,
+proving the runner's preinstalled runtimes cannot mask a regression. The desktop
+must reach `Frontend ready` on two launches. This test leaves system DLLs and
+executable bytes unchanged. PR binaries are unsigned; releases still require the
+signed installer and installed-desktop smoke above. No release is published by CI.
+
 The Linux workflow repairs the generated AppImage before signing it. The repair
 removes host-level systemd, Wayland, GLib, and GStreamer libraries that linuxdeploy can
 copy from the build runner even though the host graphics and WebKit stack must

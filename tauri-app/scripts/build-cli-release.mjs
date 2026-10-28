@@ -13,6 +13,7 @@ import {
 } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { checkWindowsRuntime } from '../../scripts/check-windows-runtime.mjs';
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const APP_DIR = resolve(SCRIPT_DIR, '..');
@@ -128,9 +129,12 @@ function run(command, args, options = {}) {
 }
 
 function buildTarget(target, extraEnv = {}) {
+  const windowsConfig = target === 'x86_64-pc-windows-msvc'
+    ? ['--config', join(ROOT_DIR, '.cargo', 'windows-release.toml')]
+    : [];
   run(
     'cargo',
-    ['build', '--locked', '--release', '--package', 'beambench-cli', '--target', target],
+    ['build', '--locked', '--release', '--package', 'beambench-cli', '--target', target, ...windowsConfig],
     { env: extraEnv },
   );
   const extension = target.includes('windows') ? '.exe' : '';
@@ -196,17 +200,10 @@ function buildAndStage(target, destination) {
 }
 
 function verifyPeX86_64(binary) {
-  const bytes = readFileSync(binary);
-  if (bytes.length < 0x40 || bytes.toString('ascii', 0, 2) !== 'MZ') {
-    fail(`${binary} is not a PE executable`);
-  }
-  const peOffset = bytes.readUInt32LE(0x3c);
-  if (peOffset + 6 > bytes.length || bytes.toString('ascii', peOffset, peOffset + 4) !== 'PE\0\0') {
-    fail(`${binary} has an invalid PE header`);
-  }
-  const machine = bytes.readUInt16LE(peOffset + 4);
-  if (machine !== 0x8664) {
-    fail(`${binary} has PE machine 0x${machine.toString(16)}; expected x86_64 (0x8664)`);
+  try {
+    checkWindowsRuntime(binary);
+  } catch (error) {
+    fail(error.message);
   }
 }
 
