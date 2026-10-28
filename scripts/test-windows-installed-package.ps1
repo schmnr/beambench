@@ -1,5 +1,7 @@
+[CmdletBinding(DefaultParameterSetName = 'Installed')]
 param(
-    [Parameter(Mandatory = $true)][string]$Installer,
+    [Parameter(Mandatory = $true, ParameterSetName = 'Installed')][string]$Installer,
+    [Parameter(Mandatory = $true, ParameterSetName = 'Standalone')][string]$DesktopExecutable,
     [Parameter(Mandatory = $true)][string]$OutputDirectory
 )
 
@@ -7,25 +9,35 @@ $ErrorActionPreference = 'Stop'
 if (-not $env:RUNNER_TEMP -or $env:GITHUB_ACTIONS -ne 'true') {
     throw 'Run this installer smoke only on a disposable GitHub Actions Windows runner.'
 }
-$installerPath = (Resolve-Path $Installer).Path
-if ((Get-AuthenticodeSignature $installerPath).Status -ne 'Valid') {
-    throw 'The installer must have a valid Authenticode signature.'
-}
 New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
 $output = (Resolve-Path $OutputDirectory).Path
-$install = Join-Path $env:RUNNER_TEMP ('beambench-installed-' + [guid]::NewGuid().ToString('N'))
-$setup = Start-Process -FilePath $installerPath -ArgumentList @('/S', "/D=$install") -Wait -PassThru
-if ($setup.ExitCode -notin @(0, 3010)) {
-    throw "Installer failed with exit code $($setup.ExitCode)."
+$installerHash = $null
+if ($PSCmdlet.ParameterSetName -eq 'Installed') {
+    $installerPath = (Resolve-Path $Installer).Path
+    if ((Get-AuthenticodeSignature $installerPath).Status -ne 'Valid') {
+        throw 'The installer must have a valid Authenticode signature.'
+    }
+    $installerHash = (Get-FileHash $installerPath -Algorithm SHA256).Hash.ToLowerInvariant()
+    $install = Join-Path $env:RUNNER_TEMP ('beambench-installed-' + [guid]::NewGuid().ToString('N'))
+    $setup = Start-Process -FilePath $installerPath -ArgumentList @('/S', "/D=$install") -Wait -PassThru
+    if ($setup.ExitCode -notin @(0, 3010)) {
+        throw "Installer failed with exit code $($setup.ExitCode)."
+    }
+    $desktop = Join-Path $install 'beambench-tauri.exe'
+} else {
+    # PR CI exercises the actual release binary without release-signing secrets.
+    # The default installer path above still requires both signatures.
+    $desktop = (Resolve-Path $DesktopExecutable).Path
 }
-$desktop = Join-Path $install 'beambench-tauri.exe'
 if (-not (Test-Path $desktop -PathType Leaf)) {
     throw 'The installer did not create the desktop executable.'
 }
 $signature = Get-AuthenticodeSignature $desktop
-if ($signature.Status -ne 'Valid') {
+if ($PSCmdlet.ParameterSetName -eq 'Installed' -and $signature.Status -ne 'Valid') {
     throw 'The installed desktop signature is invalid.'
 }
+& node (Join-Path $PSScriptRoot 'check-windows-runtime.mjs') $desktop
+if ($LASTEXITCODE -ne 0) { throw 'The desktop requires an external Visual C++ runtime.' }
 
 $results = @()
 foreach ($launch in 1..2) {
@@ -58,12 +70,14 @@ foreach ($launch in 1..2) {
 }
 
 @{
-    installerSha256 = (Get-FileHash $installerPath -Algorithm SHA256).Hash.ToLowerInvariant()
+    installerSha256 = $installerHash
     installedSha256 = (Get-FileHash $desktop -Algorithm SHA256).Hash.ToLowerInvariant()
     installedSignature = $signature.Status.ToString()
     installedVersion = (Get-Item $desktop).VersionInfo.ProductVersion
+    mode = $PSCmdlet.ParameterSetName
+    externalVCRuntimeImports = @()
     launches = $results
     paidAccountAndCredentialRestorationTested = $false
-    scope = 'Disposable Windows runner; signed installer and desktop startup/restart. No physical hardware.'
+    scope = 'Disposable Windows runner; actual desktop startup/restart. Installer mode requires Authenticode signatures. No physical hardware.'
 } | ConvertTo-Json -Depth 5 | Set-Content -Path (Join-Path $output 'installed-package.json') -Encoding utf8
-Write-Output 'Signed Windows installer and two actual desktop launches passed.'
+Write-Output "$($PSCmdlet.ParameterSetName) Windows desktop and two actual launches passed."

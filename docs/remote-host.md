@@ -15,8 +15,10 @@ framed selection and executed job agree.
 ## Set up a Windows host
 
 Use the standalone `beambench-cli.exe` from the same build as the laptop's
-Beam Bench app. From a source checkout, `cargo build --release -p beambench-cli`
-produces `target\release\beambench-cli.exe` using the Windows Rust/MSVC toolchain.
+Beam Bench app. From a source checkout, run
+`node tauri-app/scripts/build-cli-release.mjs --target x86_64-pc-windows-msvc`
+using the Windows Rust/MSVC toolchain. The script prints the staged executable's
+path and verifies that it needs no separately installed Visual C++ runtime.
 Run the following commands in PowerShell from the folder containing that executable.
 
 Export the laser's machine profile as a `.bbprofile` from Device Settings, copy
