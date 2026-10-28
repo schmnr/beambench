@@ -343,6 +343,14 @@ async fn prepare(
             "Wait for the host job to finish before transferring a project",
         ));
     }
+    if !matches!(
+        ctx.session.lock().unwrap().as_ref(),
+        Some(beambench_service::runtime::MachineSessionHandle::Grbl(_))
+    ) {
+        return Err(map_service_error(ServiceError::invalid_state(
+            "Connect a GRBL controller on the host before preparing a remote job",
+        )));
+    }
     // Invalidate the old receipt even if the new transfer fails validation.
     remote.state.lock().unwrap().prepared = None;
     let stop_generation = ctx
