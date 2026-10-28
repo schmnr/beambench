@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { useRemoteHostStore } from './remoteHostStore';
 import type {
   DiscoveryScanState,
   SessionState,
@@ -1164,6 +1165,7 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
   },
 
   emergencyStop: async () => {
+    const remote = useRemoteHostStore.getState().enabled;
     // Invalidate UI preparation before waiting for the backend stop request.
     set({
       emergencyStopGeneration: get().emergencyStopGeneration + 1,
@@ -1171,6 +1173,10 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
     });
     try {
       await machineService.emergencyStop();
+      if (remote) {
+        notifySuccess(i18n.t('notifications.machine.estop_sent'));
+        return;
+      }
       const sessionState = await machineService.getSessionState().catch(() => null);
       if (sessionState === 'disconnected') {
         set({

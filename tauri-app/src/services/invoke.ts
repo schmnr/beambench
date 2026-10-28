@@ -8,6 +8,7 @@ const localMachineCommands = new Set([
   'begin_usb_controller_connection',
   'cancel_job',
   'connect_machine',
+  'connect_machine_candidate',
   'continue_controller_connection',
   'disconnect_machine',
   'emergency_stop',

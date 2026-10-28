@@ -60,7 +60,7 @@ describe('machine destination guard', () => {
   });
   it('blocks local motion and laser starts while allowing normal project editing', async () => {
     useRemoteHostStore.setState({ enabled: true });
-    for (const command of ['start_job', 'machine_jog', 'begin_controller_connection', 'quality_test_start', 'quality_test_frame', 'laser_fire_start']) {
+    for (const command of ['start_job', 'machine_jog', 'begin_controller_connection', 'connect_machine_candidate', 'quality_test_start', 'quality_test_frame', 'laser_fire_start']) {
       await expect(invoke(command)).rejects.toThrow('remote host controls');
     }
     expect(tauriInvoke).not.toHaveBeenCalled();
