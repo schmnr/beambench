@@ -4,10 +4,14 @@ use std::time::Duration;
 use std::{io, ptr};
 
 #[cfg(test)]
-use super::test_driver::{CreateFileW, FlushFileBuffers, ReadFile, SetCommTimeouts, WriteFile};
+use super::test_driver::{
+    CloseHandle, CreateFileW, FlushFileBuffers, ReadFile, SetCommTimeouts, WriteFile,
+};
 use windows_sys::Win32::Devices::Communication::*;
+#[cfg(not(test))]
+use windows_sys::Win32::Foundation::CloseHandle;
 use windows_sys::Win32::Foundation::{
-    CloseHandle, DuplicateHandle, DUPLICATE_SAME_ACCESS, GENERIC_READ, GENERIC_WRITE, HANDLE,
+    DuplicateHandle, DUPLICATE_SAME_ACCESS, GENERIC_READ, GENERIC_WRITE, HANDLE,
     INVALID_HANDLE_VALUE, TRUE,
 };
 #[cfg(not(test))]

@@ -5,7 +5,7 @@
 use std::{cell::RefCell, collections::VecDeque, ptr};
 use windows_sys::Win32::{
     Devices::Communication::{self as comm, COMMTIMEOUTS, DCB},
-    Foundation::{GetHandleInformation, SetLastError, BOOL, ERROR_GEN_FAILURE, HANDLE},
+    Foundation::{self, SetLastError, BOOL, ERROR_GEN_FAILURE, HANDLE},
     Security::SECURITY_ATTRIBUTES,
     Storage::FileSystem as fs,
     System::{Threading::CreateEventW, IO::OVERLAPPED},
@@ -55,6 +55,7 @@ struct Driver {
     fault: Fault,
     identity: Option<(u16, u16)>,
     handle: HANDLE,
+    closed: bool,
     current: DCB,
     settings: Vec<Settings>,
     enumeration_count: usize,
@@ -80,6 +81,7 @@ impl Scenario {
                 fault,
                 identity,
                 handle: 0,
+                closed: false,
                 current,
                 settings: Vec::new(),
                 enumeration_count: 0,
@@ -112,11 +114,7 @@ impl Scenario {
             let slot = slot.borrow();
             let driver = slot.as_ref().unwrap();
             if driver.handle != 0 {
-                let mut flags = 0;
-                assert_eq!(
-                    unsafe { GetHandleInformation(driver.handle, &mut flags) },
-                    0
-                );
+                assert!(driver.closed, "the real CloseHandle call must succeed");
             }
         });
     }
@@ -316,4 +314,17 @@ pub unsafe fn FlushFileBuffers(handle: HANDLE) -> BOOL {
         return 1;
     }
     fs::FlushFileBuffers(handle)
+}
+
+pub unsafe fn CloseHandle(handle: HANDLE) -> BOOL {
+    if let Some(result) = with_port(handle, |driver| {
+        let result = Foundation::CloseHandle(handle);
+        // Record the result at close time: another test can immediately reuse
+        // this numeric handle, so probing it after Drop would race.
+        driver.closed = result != 0;
+        result
+    }) {
+        return result;
+    }
+    Foundation::CloseHandle(handle)
 }
