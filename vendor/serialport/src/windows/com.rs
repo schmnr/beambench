@@ -3,14 +3,20 @@ use std::os::windows::prelude::*;
 use std::time::Duration;
 use std::{io, ptr};
 
+#[cfg(test)]
+use super::test_driver::{
+    CloseHandle, CreateFileW, FlushFileBuffers, ReadFile, SetCommTimeouts, WriteFile,
+};
 use windows_sys::Win32::Devices::Communication::*;
+#[cfg(not(test))]
+use windows_sys::Win32::Foundation::CloseHandle;
 use windows_sys::Win32::Foundation::{
-    CloseHandle, DuplicateHandle, DUPLICATE_SAME_ACCESS, GENERIC_READ, GENERIC_WRITE, HANDLE,
+    DuplicateHandle, DUPLICATE_SAME_ACCESS, GENERIC_READ, GENERIC_WRITE, HANDLE,
     INVALID_HANDLE_VALUE, TRUE,
 };
-use windows_sys::Win32::Storage::FileSystem::{
-    CreateFileW, FlushFileBuffers, ReadFile, WriteFile, FILE_ATTRIBUTE_NORMAL, OPEN_EXISTING,
-};
+#[cfg(not(test))]
+use windows_sys::Win32::Storage::FileSystem::{CreateFileW, FlushFileBuffers, ReadFile, WriteFile};
+use windows_sys::Win32::Storage::FileSystem::{FILE_ATTRIBUTE_NORMAL, OPEN_EXISTING};
 use windows_sys::Win32::System::Threading::GetCurrentProcess;
 
 use crate::windows::dcb::{self, DCBBitField};
@@ -88,7 +94,7 @@ impl COMPort {
         dcb::set_parity(&mut dcb, builder.parity);
         dcb::set_stop_bits(&mut dcb, builder.stop_bits);
         dcb::set_flow_control(&mut dcb, builder.flow_control);
-        dcb::set_dcb(handle, dcb)?;
+        dcb::set_dcb_on_open(handle, dcb, &builder.path)?;
 
         // Try to set DTR on best-effort.
         if let Some(dtr) = builder.dtr_on_open {
@@ -469,6 +475,168 @@ impl SerialPort for COMPort {
 mod tests {
     use super::*;
     use crate::tests::timeout::MONOTONIC_DURATIONS;
+    use crate::windows::test_driver::{Fault, Scenario, PORT};
+
+    #[test]
+    fn ch340_recovers_high_baud_open_and_exchanges_status_at_requested_settings() {
+        use std::io::{Read, Write};
+
+        for dtr in [None, Some(false), Some(true)] {
+            for flow in [
+                FlowControl::None,
+                FlowControl::Software,
+                FlowControl::Hardware,
+            ] {
+                let driver = Scenario::install(Fault::Needs9600, Some((0x1a86, 0x7523)));
+                let mut builder = crate::new(PORT, 115_200).flow_control(flow);
+                if let Some(level) = dtr {
+                    builder = builder.dtr_on_open(level);
+                }
+                let mut port = builder.open_native().unwrap();
+                let settings = driver.settings();
+                assert_eq!(
+                    settings.iter().map(|s| s.baud).collect::<Vec<_>>(),
+                    [115_200, 9600, 115_200]
+                );
+                for applied in &settings[1..] {
+                    let mut normalized = applied.clone();
+                    normalized.baud = settings[0].baud;
+                    assert_eq!(normalized, settings[0], "recovery must change only baud");
+                }
+                driver.assert_no_bytes();
+                port.write_all(b"?").unwrap();
+                port.flush().unwrap();
+                let expected = b"<Idle|MPos:1,2,0|FS:0,0>\r\n";
+                let mut response = vec![0; expected.len()];
+                port.read_exact(&mut response).unwrap();
+                assert_eq!(&response, expected);
+                assert_eq!(port.baud_rate().unwrap(), 115_200);
+                drop(port);
+                driver.assert_handle_closed();
+            }
+        }
+    }
+
+    #[test]
+    fn ch340_recovery_failures_close_without_exposing_a_low_baud_port() {
+        for (fault, rates, detail) in [
+            (
+                Fault::BootstrapFails,
+                vec![115_200, 9600],
+                "SetCommState failed",
+            ),
+            (
+                Fault::TargetStillFails,
+                vec![115_200, 9600, 115_200],
+                "SetCommState failed",
+            ),
+            (
+                Fault::ReadbackMismatch,
+                vec![115_200, 9600, 115_200],
+                "did not retain",
+            ),
+            (
+                Fault::ReadbackFlagsMismatch,
+                vec![115_200, 9600, 115_200],
+                "did not retain",
+            ),
+            (
+                Fault::ReadbackFails,
+                vec![115_200, 9600, 115_200],
+                "GetCommState failed",
+            ),
+        ] {
+            let driver = Scenario::install(fault, Some((0x1a86, 0x7523)));
+            let error = crate::new(PORT, 115_200).open_native().unwrap_err();
+            assert!(error.description.contains(detail), "{error}");
+            assert_eq!(
+                driver.settings().iter().map(|s| s.baud).collect::<Vec<_>>(),
+                rates
+            );
+            driver.assert_no_bytes();
+            driver.assert_handle_closed();
+        }
+    }
+
+    #[test]
+    fn ch340_recovery_does_not_run_for_other_devices_or_unknown_identity() {
+        for identity in [
+            None,
+            Some((0x0403, 0x6001)),
+            Some((0x10c4, 0xea60)),
+            Some((0x1a86, 0x5523)),
+        ] {
+            let driver = Scenario::install(Fault::Needs9600, identity);
+            let error = crate::new(PORT, 115_200).open_native().unwrap_err();
+            assert!(error.description.ends_with("(Windows error 31)"));
+            assert_eq!(
+                driver.settings().iter().map(|s| s.baud).collect::<Vec<_>>(),
+                [115_200]
+            );
+            driver.assert_no_bytes();
+            driver.assert_handle_closed();
+        }
+    }
+
+    #[test]
+    fn healthy_ch340_and_unrelated_failures_do_not_enter_recovery() {
+        use windows_sys::Win32::Foundation::{
+            ERROR_ACCESS_DENIED, ERROR_GEN_FAILURE, ERROR_INVALID_PARAMETER,
+        };
+
+        let driver = Scenario::install(Fault::Healthy, Some((0x1a86, 0x7523)));
+        let port = crate::new(PORT, 115_200).open_native().unwrap();
+        assert_eq!(driver.settings().len(), 1);
+        assert_eq!(driver.enumeration_count(), 0);
+        drop(port);
+        driver.assert_handle_closed();
+        drop(driver);
+
+        for (fault, baud, rates, detail) in [
+            (
+                Fault::RejectAll(ERROR_ACCESS_DENIED),
+                115_200,
+                vec![115_200],
+                "SetCommState failed",
+            ),
+            (
+                Fault::RejectAll(ERROR_INVALID_PARAMETER),
+                115_200,
+                vec![115_200],
+                "SetCommState failed",
+            ),
+            (
+                Fault::RejectAll(ERROR_GEN_FAILURE),
+                9600,
+                vec![9600],
+                "SetCommState failed",
+            ),
+            (
+                Fault::InitialReadFails,
+                115_200,
+                vec![],
+                "GetCommState failed",
+            ),
+            (Fault::OpenFails, 115_200, vec![], "CreateFileW failed"),
+            (
+                Fault::TimeoutsFail,
+                115_200,
+                vec![115_200],
+                "SetCommTimeouts failed",
+            ),
+        ] {
+            let driver = Scenario::install(fault, Some((0x1a86, 0x7523)));
+            let error = crate::new(PORT, baud).open_native().unwrap_err();
+            assert!(error.description.contains(detail), "{error}");
+            assert_eq!(
+                driver.settings().iter().map(|s| s.baud).collect::<Vec<_>>(),
+                rates
+            );
+            assert_eq!(driver.enumeration_count(), 0);
+            driver.assert_no_bytes();
+            driver.assert_handle_closed();
+        }
+    }
 
     #[test]
     fn missing_port_identifies_device_open_without_claiming_configuration() {

@@ -163,12 +163,8 @@ jobs:
             target
           key: ${{ runner.os }}-cargo-source-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Test Windows initial DTR configuration
-        run: |
-          $serialTestRoot = Join-Path $env:RUNNER_TEMP 'beambench-serialport-tests'
-          Copy-Item vendor/serialport $serialTestRoot -Recurse
-          Add-Content (Join-Path $serialTestRoot 'Cargo.toml') "`n[workspace]"
-          cargo test --manifest-path "$serialTestRoot/Cargo.toml" --target-dir target/serialport-regression --lib
+      - name: Reproduce and recover Windows CH340 initialization failure
+        run: ./scripts/test-windows-ch340-recovery.ps1
 
       - name: Test planning and machine-service behavior
         run: cargo test -p beambench-service -p beambench-planner -p beambench-grbl -p beambench-serial -p beambench-tauri

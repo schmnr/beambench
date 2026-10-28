@@ -1,10 +1,17 @@
 use std::mem::MaybeUninit;
 use windows_sys::Win32::Devices::Communication::{
-    GetCommState, SetCommState, DCB, EVENPARITY, NOPARITY, ODDPARITY, ONESTOPBIT, TWOSTOPBITS,
+    DCB, EVENPARITY, NOPARITY, ODDPARITY, ONESTOPBIT, TWOSTOPBITS,
 };
-use windows_sys::Win32::Foundation::HANDLE;
+use windows_sys::Win32::Foundation::{GetLastError, ERROR_GEN_FAILURE, HANDLE};
 
-use crate::{DataBits, FlowControl, Parity, Result, StopBits};
+#[cfg(not(test))]
+use super::enumerate::available_ports;
+#[cfg(test)]
+use super::test_driver::{available_ports, GetCommState, SetCommState};
+#[cfg(not(test))]
+use windows_sys::Win32::Devices::Communication::{GetCommState, SetCommState};
+
+use crate::{DataBits, Error, ErrorKind, FlowControl, Parity, Result, SerialPortType, StopBits};
 
 /// DTR control modes
 #[allow(dead_code)]
@@ -235,6 +242,52 @@ pub(crate) fn set_dcb(handle: HANDLE, mut dcb: DCB) -> Result<()> {
     } else {
         Err(super::error::last_os_error_at("SetCommState"))
     }
+}
+
+/// Some CH340 Windows drivers reject the first high-baud configuration until
+/// the UART has been initialized at 9600. Retry only that specific opening
+/// failure, on the same handle and with identical control-line settings.
+pub(crate) fn set_dcb_on_open(handle: HANDLE, dcb: DCB, path: &str) -> Result<()> {
+    if unsafe { SetCommState(handle, &dcb) } != 0 {
+        return Ok(());
+    }
+    let code = unsafe { GetLastError() };
+    let error = super::error::os_error_at(code, "SetCommState");
+    if code != ERROR_GEN_FAILURE || dcb.BaudRate <= 9600 {
+        return Err(error);
+    }
+    let name = path.strip_prefix(r"\\.\").unwrap_or(path);
+    let is_ch340 = available_ports().map_or(false, |ports| {
+        ports.into_iter().any(|port| {
+            port.port_name.eq_ignore_ascii_case(name)
+                && matches!(port.port_type, SerialPortType::UsbPort(info)
+                    if info.vid == 0x1a86 && info.pid == 0x7523)
+        })
+    });
+    if !is_ch340 {
+        return Err(error);
+    }
+
+    let mut initial = dcb;
+    initial.BaudRate = 9600;
+    set_dcb(handle, initial)?;
+    set_dcb(handle, dcb)?;
+    let actual = get_dcb(handle)?;
+    if actual.BaudRate != dcb.BaudRate
+        || actual.ByteSize != dcb.ByteSize
+        || actual.Parity != dcb.Parity
+        || actual.StopBits != dcb.StopBits
+        || actual._bitfield & 0x7fff != dcb._bitfield & 0x7fff
+    {
+        return Err(Error::new(
+            ErrorKind::Io(std::io::ErrorKind::InvalidData),
+            format!(
+                "CH340 initialization did not retain the requested serial settings (requested {} baud, read back {} baud)",
+                dcb.BaudRate, actual.BaudRate
+            ),
+        ));
+    }
+    Ok(())
 }
 
 pub(crate) fn set_baud_rate(dcb: &mut DCB, baud_rate: u32) {

@@ -11,8 +11,10 @@ use windows_sys::Win32::System::Diagnostics::Debug::{
 use crate::{Error, ErrorKind};
 
 pub fn last_os_error() -> Error {
-    let errno = errno();
+    os_error(errno())
+}
 
+fn os_error(errno: u32) -> Error {
     let kind = match errno {
         ERROR_FILE_NOT_FOUND | ERROR_PATH_NOT_FOUND | ERROR_ACCESS_DENIED => ErrorKind::NoDevice,
         _ => ErrorKind::Io(io::ErrorKind::Other),
@@ -26,7 +28,11 @@ pub fn last_os_error() -> Error {
 
 pub fn last_os_error_at(operation: &str) -> Error {
     // Capture GetLastError before formatting or any other Windows call.
-    let error = last_os_error();
+    os_error_at(errno(), operation)
+}
+
+pub fn os_error_at(errno: u32, operation: &str) -> Error {
+    let error = os_error(errno);
     Error::new(error.kind(), format!("{operation} failed: {error}"))
 }
 
