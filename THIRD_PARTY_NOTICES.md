@@ -1,5 +1,14 @@
 # Third-Party Notices
 
+## GLib Rust bindings security backport
+
+The Linux desktop uses the MIT-licensed `glib` 0.18.5 Rust bindings through
+Tauri's GTK3 stack. Beam Bench vendors that compatible version with upstream's
+fix for RUSTSEC-2024-0429, passing a mutable output pointer in
+`VariantStrIter::impl_get`. See `vendor/glib/LICENSE`,
+`vendor/glib/README.beambench.md`, and `docs/dependency-security.md` for the
+original source, fix and optimized regression evidence.
+
 ## Potrace bitmap tracing
 
 Beam Bench contains a Rust port and modification of Potrace 1.16:

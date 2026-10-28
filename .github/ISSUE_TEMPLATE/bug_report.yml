@@ -25,7 +25,7 @@ body:
     attributes:
       label: Beam Bench version
       description: Find this in Help > About Beam Bench.
-      placeholder: "0.1.10"
+      placeholder: "0.2.35"
     validations:
       required: true
 

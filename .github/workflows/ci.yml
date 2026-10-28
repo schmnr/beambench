@@ -57,6 +57,9 @@ jobs:
 
       - uses: taiki-e/install-action@nextest
 
+      - name: Test optimized GLib string iterator security backport
+        run: cargo run --locked --release --manifest-path scripts/glib-variant-probe/Cargo.toml
+
       - name: Cache Cargo
         uses: actions/cache@v6
         with:

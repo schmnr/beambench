@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+## 0.2.35
+
+- Run desktop jobs on a stationary Beam Bench host with a USB-connected laser.
+  Transfer the project, preview and preflight against the host's machine profile,
+  then start explicitly. Jobs continue when the laptop disconnects, and reconnecting
+  does not replay Start. Host setup is documented for Linux and Windows.
+- Recover Windows CH340 serial initialization failures while preserving the
+  requested baud rate and complete port settings. Connection diagnostics retain
+  the original native Windows error when recovery is unavailable.
+- Fix fresh Windows installations failing with a missing `MSVCP140.dll`.
+  Desktop and CLI release executables now include their C and C++ runtime.
+  Windows CI verifies actual startup with those runtime DLLs blocked.
+- Handle Windows host Ctrl+Break through the clean controller shutdown path.
+- Update Rustls to 0.23.46 and backport the GLib string-iterator safety fix to
+  the compatible GTK3 dependency. Test the GLib fix with optimizations enabled.
+- Refresh the repository overview, platform downloads, Windows build instructions,
+  remote-host documentation and release information.
+
 - Keep Craftgineer and PrintCutCarve artwork previews on a white background
   so black and transparent designs remain visible in dark mode.
 
