@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.2.36
+
 - Continue GRBL baud detection when Windows rejects serial settings, keeping
   later baud rates and the classic GRBL reset fallback reachable. Preserve
   missing-port, access-denied and I/O failures.
