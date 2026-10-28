@@ -173,6 +173,8 @@ mod tests {
 
     #[tokio::test]
     async fn import_asset_no_project_returns_not_found() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("nonexistent.png");
         let ctx = Arc::new(ServiceContext::new());
         let app = crate::routes::build_router(ctx);
 
@@ -182,7 +184,9 @@ mod tests {
                     .method("POST")
                     .uri("/api/v1/assets/import")
                     .header("content-type", "application/json")
-                    .body(axum::body::Body::from(r#"{"path":"/tmp/nonexistent.png"}"#))
+                    .body(axum::body::Body::from(
+                        serde_json::json!({"path":path}).to_string(),
+                    ))
                     .unwrap(),
             )
             .await

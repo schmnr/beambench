@@ -169,6 +169,12 @@ jobs:
       - name: Test planning and machine-service behavior
         run: cargo test -p beambench-service -p beambench-planner -p beambench-grbl -p beambench-serial -p beambench-tauri
 
+      - name: Test remote host startup, authentication and Windows shutdown
+        run: cargo test -p beambench-cli --test remote_host
+
+      - name: Test remote job execution and reconnect behavior
+        run: cargo test -p beambench-api
+
       - name: Install frontend dependencies
         working-directory: tauri-app
         run: npm ci

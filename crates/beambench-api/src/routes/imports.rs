@@ -234,11 +234,10 @@ mod tests {
                     .method("POST")
                     .uri("/api/v1/projects/import/svg")
                     .header("content-type", "application/json")
-                    .body(axum::body::Body::from(format!(
-                        r#"{{"file_path":"{}","layer_id":"{}"}}"#,
-                        svg_path.to_string_lossy(),
-                        Uuid::new_v4()
-                    )))
+                    .body(axum::body::Body::from(
+                        serde_json::json!({"file_path": svg_path, "layer_id": Uuid::new_v4()})
+                            .to_string(),
+                    ))
                     .unwrap(),
             )
             .await
@@ -264,11 +263,10 @@ mod tests {
                     .method("POST")
                     .uri("/api/v1/projects/import/svg")
                     .header("content-type", "application/json")
-                    .body(axum::body::Body::from(format!(
-                        r#"{{"file_path":"{}","layer_id":"{}"}}"#,
-                        svg_path.to_string_lossy(),
-                        layer_id
-                    )))
+                    .body(axum::body::Body::from(
+                        serde_json::json!({"file_path": svg_path, "layer_id": layer_id})
+                            .to_string(),
+                    ))
                     .unwrap(),
             )
             .await
@@ -302,11 +300,10 @@ mod tests {
                     .method("POST")
                     .uri("/api/v1/projects/import/dxf")
                     .header("content-type", "application/json")
-                    .body(axum::body::Body::from(format!(
-                        r#"{{"file_path":"{}","layer_id":"{}"}}"#,
-                        dxf_path.to_string_lossy(),
-                        layer_id
-                    )))
+                    .body(axum::body::Body::from(
+                        serde_json::json!({"file_path": dxf_path, "layer_id": layer_id})
+                            .to_string(),
+                    ))
                     .unwrap(),
             )
             .await
@@ -332,11 +329,10 @@ mod tests {
                     .method("POST")
                     .uri("/api/v1/projects/import/pdf")
                     .header("content-type", "application/json")
-                    .body(axum::body::Body::from(format!(
-                        r#"{{"file_path":"{}","layer_id":"{}"}}"#,
-                        pdf_path.to_string_lossy(),
-                        layer_id
-                    )))
+                    .body(axum::body::Body::from(
+                        serde_json::json!({"file_path": pdf_path, "layer_id": layer_id})
+                            .to_string(),
+                    ))
                     .unwrap(),
             )
             .await
@@ -366,11 +362,9 @@ mod tests {
                     .method("POST")
                     .uri("/api/v1/projects/import/ai")
                     .header("content-type", "application/json")
-                    .body(axum::body::Body::from(format!(
-                        r#"{{"file_path":"{}","layer_id":"{}"}}"#,
-                        ai_path.to_string_lossy(),
-                        layer_id
-                    )))
+                    .body(axum::body::Body::from(
+                        serde_json::json!({"file_path": ai_path, "layer_id": layer_id}).to_string(),
+                    ))
                     .unwrap(),
             )
             .await

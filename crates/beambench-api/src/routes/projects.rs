@@ -640,6 +640,8 @@ mod tests {
 
     #[tokio::test]
     async fn save_as_without_project_returns_404() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("test.lzrproj");
         let ctx = Arc::new(ServiceContext::new());
         let app = crate::routes::build_router(ctx);
 
@@ -649,7 +651,9 @@ mod tests {
                     .method("POST")
                     .uri("/api/v1/projects/save-as")
                     .header("content-type", "application/json")
-                    .body(axum::body::Body::from(r#"{"path":"/tmp/test.lzrproj"}"#))
+                    .body(axum::body::Body::from(
+                        serde_json::json!({"path":path}).to_string(),
+                    ))
                     .unwrap(),
             )
             .await
@@ -662,7 +666,8 @@ mod tests {
     async fn replace_route_clears_path_and_history() {
         let ctx = Arc::new(ServiceContext::new());
         *ctx.project.lock().unwrap() = Some(Project::new("Original"));
-        *ctx.project_path.lock().unwrap() = Some(std::path::PathBuf::from("/tmp/original.lzrproj"));
+        let directory = tempfile::tempdir().unwrap();
+        *ctx.project_path.lock().unwrap() = Some(directory.path().join("original.lzrproj"));
         ctx.push_project_undo_snapshot(&Project::new("Original"))
             .unwrap();
         let app = crate::routes::build_router(ctx.clone());

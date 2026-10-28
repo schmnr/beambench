@@ -335,10 +335,9 @@ mod tests {
                     .method("POST")
                     .uri("/api/v1/export/dxf")
                     .header("content-type", "application/json")
-                    .body(axum::body::Body::from(format!(
-                        r#"{{"path":"{}","selection_only": false}}"#,
-                        out_path.to_string_lossy()
-                    )))
+                    .body(axum::body::Body::from(
+                        serde_json::json!({"path": out_path, "selection_only": false}).to_string(),
+                    ))
                     .unwrap(),
             )
             .await

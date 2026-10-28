@@ -1,4 +1,4 @@
-# Run a laser from a remote Linux host
+# Run a laser from a remote Beam Bench host
 
 The desktop can prepare artwork locally and transfer a complete project to a
 stationary Beam Bench host. The host owns the USB controller, planning, preflight
@@ -11,6 +11,48 @@ connects the host to a USB serial GRBL controller. Other controller families,
 remote camera capture, jogging, raw console and macros are not exposed by the
 remote desktop panel. Selection origin requires **Cut selected graphics** so the
 framed selection and executed job agree.
+
+## Set up a Windows host
+
+Use the standalone `beambench-cli.exe` from the same build as the laptop's
+Beam Bench app. From a source checkout, `cargo build --release -p beambench-cli`
+produces `target\release\beambench-cli.exe` using the Windows Rust/MSVC toolchain.
+Run the following commands in PowerShell from the folder containing that executable.
+
+Export the laser's machine profile as a `.bbprofile` from Device Settings, copy
+it to the Windows host, and import it once while the host process is stopped:
+
+```powershell
+.\beambench-cli.exe host import-profile "C:\Laser\machine.bbprofile"
+```
+
+Generate a private token and start the host:
+
+```powershell
+$tokenBytes = New-Object byte[] 32
+$tokenGenerator = [Security.Cryptography.RandomNumberGenerator]::Create()
+$tokenGenerator.GetBytes($tokenBytes)
+$tokenGenerator.Dispose()
+$env:BEAMBENCH_API_TOKEN = [BitConverter]::ToString($tokenBytes).Replace("-", "")
+.\beambench-cli.exe host serve --network --port 5900
+```
+
+Save the generated token in your password manager and enter it in the laptop's
+Remote host settings. Reuse that token on later starts. PowerShell's `$env:`
+assignment applies to that terminal and its children; it does not persist after
+the terminal closes. Scope any Windows Firewall inbound rule for TCP port 5900
+to the intended private LAN. Use the host's LAN address in the laptop app,
+for example `http://laser-host:5900`.
+
+Select the host's COM port, such as `COM3`, in **Host laser setup**. The port list
+comes from the Windows host, independently of the laptop's operating system.
+Keep the host terminal open and Windows awake while a job runs. Use Ctrl+C or
+Ctrl+Break in the host terminal for a clean shutdown that stops streaming and
+disconnects the controller. The host is a console application; Windows service
+installation is outside this workflow.
+
+The desktop connection and job controls below are the same on Windows, macOS
+and Linux. A laptop disconnection leaves the Windows host's job running.
 
 ## Set up the Linux host
 
@@ -122,8 +164,8 @@ immediately. Any authenticated client can send emergency stop; it bypasses the
 ownership gate. The token is the security boundary, so share it only with trusted
 operators. Ownership IDs coordinate clients; they are not separate user accounts.
 
-The host process, Linux computer and USB connection must remain running. Use a
-systemd service for a stationary installation, with the same unprivileged user
+The host process, host computer and USB connection must remain running. On Linux,
+use a systemd service for a stationary installation, with the same unprivileged user
 and settings directory used for profile import. For example:
 
 ```ini
