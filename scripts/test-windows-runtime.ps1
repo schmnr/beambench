@@ -1,6 +1,8 @@
+[CmdletBinding(DefaultParameterSetName = 'Executables')]
 param(
-    [Parameter(Mandatory = $true)][string]$Cli,
-    [Parameter(Mandatory = $true)][string]$Desktop,
+    [Parameter(Mandatory = $true, ParameterSetName = 'Executables')][string]$Cli,
+    [Parameter(Mandatory = $true, ParameterSetName = 'Executables')][string]$Desktop,
+    [Parameter(Mandatory = $true, ParameterSetName = 'Control')][switch]$ControlOnly,
     [Parameter(Mandatory = $true)][string]$OutputDirectory
 )
 
@@ -9,8 +11,6 @@ $PSNativeCommandUseErrorActionPreference = $false
 if (-not $env:RUNNER_TEMP -or $env:GITHUB_ACTIONS -ne 'true') {
     throw 'Run this runtime isolation test only on a disposable GitHub Actions Windows runner.'
 }
-$cliPath = (Resolve-Path $Cli).Path
-$desktopPath = (Resolve-Path $Desktop).Path
 New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
 $output = (Resolve-Path $OutputDirectory).Path
 $testRoot = Join-Path $env:RUNNER_TEMP ('Beam Bench runtime isolation ' + [guid]::NewGuid().ToString('N'))
@@ -87,15 +87,22 @@ int main() {
     $blocked = $false
     try {
         $code = Invoke-Probe -executable $control -arguments @() -name 'control-blocked'
-        $blocked = $code -eq -1073741701 # STATUS_INVALID_IMAGE_FORMAT, 0xC000007B
+        # Depending on the loader path, malformed DLLs report either the
+        # general bad-image status or the more specific missing-MZ status.
+        $blocked = $code -in @(-1073741701, -1073741521) # 0xC000007B, 0xC000012F
     } catch {
         $cause = $_.Exception
         while ($cause.InnerException) { $cause = $cause.InnerException }
         if ($cause -isnot [System.ComponentModel.Win32Exception] -or $cause.NativeErrorCode -ne 193) { throw }
         $blocked = $true # ERROR_BAD_EXE_FORMAT
     }
-    if (-not $blocked) { throw 'The invalid local DLLs did not block the dynamic positive control.' }
+    @{ dynamicControlBlocked = $blocked; exitCode = $code } | ConvertTo-Json |
+        Set-Content (Join-Path $output 'control-result.json') -Encoding utf8
+    if (-not $blocked) { throw "The invalid local DLLs did not block the dynamic positive control. Exit code: $code" }
+    if ($ControlOnly) { exit 0 }
 
+    $cliPath = (Resolve-Path $Cli).Path
+    $desktopPath = (Resolve-Path $Desktop).Path
     & node (Join-Path $PSScriptRoot 'check-windows-runtime.mjs') $cliPath $desktopPath
     if ($LASTEXITCODE -ne 0) { throw 'A release executable imports the external VC runtime.' }
     $cliDir = Join-Path $testRoot 'cli'

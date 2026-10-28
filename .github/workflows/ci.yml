@@ -200,7 +200,10 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: tauri-app/package-lock.json
-      - uses: actions/cache@v6
+      - name: Verify runtime isolation control
+        run: ./scripts/test-windows-runtime.ps1 -ControlOnly -OutputDirectory "$env:RUNNER_TEMP/windows-runtime-evidence/control-precheck"
+      - uses: actions/cache/restore@v6
+        id: runtime-cache
         with:
           path: |
             ~/.cargo/registry
@@ -211,8 +214,10 @@ jobs:
         working-directory: tauri-app
         run: npm ci
       - name: Build and audit standalone release CLI
+        id: runtime-cli
         run: node tauri-app/scripts/build-cli-release.mjs --target x86_64-pc-windows-msvc --out-dir "$env:RUNNER_TEMP/windows-runtime-cli"
       - name: Build actual release desktop without publishing
+        id: runtime-desktop
         working-directory: tauri-app
         run: |
           $cargoConfig = (Resolve-Path ../.cargo/windows-release.toml).Path
@@ -224,8 +229,12 @@ jobs:
             -Cli "$env:RUNNER_TEMP/windows-runtime-cli/beambench-cli.exe" `
             -Desktop target/x86_64-pc-windows-msvc/release/beambench-tauri.exe `
             -OutputDirectory "$env:RUNNER_TEMP/windows-runtime-evidence"
-      - name: Test static-runtime remote host lifecycle
-        run: cargo test --locked --release --target x86_64-pc-windows-msvc --config .cargo/windows-release.toml -p beambench-cli --test remote_host
+      - name: Test static-runtime geometry and remote host lifecycle
+        run: |
+          cargo test --locked --release --target x86_64-pc-windows-msvc --config .cargo/windows-release.toml -p beambench-core --lib
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cargo test --locked --release --target x86_64-pc-windows-msvc --config .cargo/windows-release.toml -p beambench-cli --test remote_host
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Upload runtime isolation evidence
         if: always()
         uses: actions/upload-artifact@v7
@@ -233,6 +242,15 @@ jobs:
           name: Windows-runtime-isolation
           path: ${{ runner.temp }}/windows-runtime-evidence
           if-no-files-found: ignore
+      - name: Cache completed release builds
+        if: always() && steps.runtime-cli.outcome == 'success' && steps.runtime-desktop.outcome == 'success' && steps.runtime-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target/x86_64-pc-windows-msvc/release
+          key: ${{ steps.runtime-cache.outputs.cache-primary-key }}
 
   windows-source:
     name: Windows source regression
