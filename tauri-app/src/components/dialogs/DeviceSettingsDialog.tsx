@@ -449,17 +449,24 @@ function ConnectionTab({ active }: { active: boolean }) {
     selectedUsbDeviceId,
     selectedPort,
   );
+  const serialPortMissing =
+    transportKind === SERIAL_TRANSPORT &&
+    !(availablePorts ?? []).some((port) => port.port_name === selectedPort);
   const isConnectDisabled =
-    endpointMissing || loading || connectionPending || incompatibleUsbDriver;
+    endpointMissing || serialPortMissing || loading || connectionPending || incompatibleUsbDriver;
 
   const visiblePorts = visibleSerialPorts(availablePorts ?? [], showAllPorts, selectedPort);
   const hiddenPortCount = hiddenSerialPortCount(availablePorts ?? [], selectedPort);
 
   useEffect(() => {
-    if (isConnected || selectedPort !== '') return;
+    if (
+      isConnected ||
+      selectedPort !== '' ||
+      activeProfile?.connection_preference?.type === 'serial'
+    ) return;
     const preferredPort = preferredSerialPortName(visiblePorts);
     if (preferredPort) setSelectedPort(preferredPort);
-  }, [isConnected, selectedPort, visiblePorts]);
+  }, [activeProfile?.connection_preference?.type, isConnected, selectedPort, visiblePorts]);
 
   useEffect(() => {
     if (isConnected || selectedUsbDeviceId !== '') return;

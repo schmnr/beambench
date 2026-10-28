@@ -982,6 +982,55 @@ describe('DeviceSettingsDialog', () => {
     expect(screen.queryByText('No controller info available')).toBeNull();
   });
 
+  it('only reconnects a saved serial port while it is present in discovery', () => {
+    const connect = vi.fn();
+    const disconnect = vi.fn();
+    const port = (port_name: string) => ({
+      port_name, description: '', manufacturer: '', vid: null, pid: null,
+    });
+    const profile = makeProfile({
+      connection_preference: {
+        type: 'serial', port_name: 'COM3', baud_rate: 115200,
+        controller_selection: { mode: 'known_driver', driver: 'grbl' },
+      },
+    });
+    useMachineStore.setState({
+      sessionState: 'disconnected',
+      connectedPort: null,
+      availablePorts: [port('COM1')],
+      profiles: [profile],
+      activeProfileId: profile.id,
+      loading: false,
+      controllerConnectionChallenge: null,
+      connect,
+      disconnect,
+      refreshPorts: vi.fn().mockResolvedValue(undefined),
+    });
+
+    render(<DeviceSettingsDialog onClose={vi.fn()} />);
+    const connectButton = screen.getByRole('button', { name: 'Connect' }) as HTMLButtonElement;
+    expect(connectButton.disabled).toBe(true);
+    fireEvent.click(connectButton);
+    expect(connect).not.toHaveBeenCalled();
+
+    act(() => useMachineStore.setState({ availablePorts: [port('COM1'), port('COM3')] }));
+    expect((screen.getByLabelText('Port') as HTMLSelectElement).value).toBe('COM3');
+    expect(connectButton.disabled).toBe(false);
+    fireEvent.click(connectButton);
+    expect(connect).toHaveBeenCalledExactlyOnceWith('COM3', 115200);
+
+    act(() => useMachineStore.setState({ availablePorts: [port('COM1')] }));
+    expect(connectButton.disabled).toBe(true);
+    fireEvent.click(connectButton);
+    expect(connect).toHaveBeenCalledTimes(1);
+
+    act(() => useMachineStore.setState({ sessionState: 'ready', connectedPort: 'COM3' }));
+    const disconnectButton = screen.getByRole('button', { name: 'Disconnect' }) as HTMLButtonElement;
+    expect(disconnectButton.disabled).toBe(false);
+    fireEvent.click(disconnectButton);
+    expect(disconnect).toHaveBeenCalledOnce();
+  });
+
   it('allows retrying connection from transient states', async () => {
     const connect = vi.fn();
 

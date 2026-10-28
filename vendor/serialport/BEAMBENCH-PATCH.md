@@ -30,3 +30,10 @@ before asserting it later. The default and explicit-low opening policies are
 unchanged. This lets the native xTool D1 adapter match Studio's high opening
 level without the intermediate low transition. The Windows CI job runs the
 vendor library unit tests for the initial DCB flags as well as service tests.
+
+Windows `src/windows/enumerate.rs` always merges unique COM port names from
+`HARDWARE\DEVICEMAP\SERIALCOMM` into SetupAPI discovery, preserving SetupAPI's
+USB metadata. Previously the merge ran only when the registry contained more
+ports, omitting registry-only ports when the counts were equal or smaller.
+The Windows vendor library tests cover both cases, duplicates and empty lists.
+This fixes incomplete discovery; it cannot restore a port absent from Windows.

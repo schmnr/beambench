@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Disable serial Connect when the selected port is absent from discovery. Keep
+  saved port preferences so the same port can be selected when it returns.
+- Include Windows registry-only COM ports even when SetupAPI finds the same
+  number of ports or more. Preserve USB information for ports found by both.
+
 ## 0.2.35
 
 - Run desktop jobs on a stationary Beam Bench host with a USB-connected laser.

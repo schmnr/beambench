@@ -551,22 +551,22 @@ pub fn available_ports() -> Result<Vec<SerialPortInfo>> {
             });
         }
     }
-    // ports identified through the registry have no additional information
-    let mut raw_ports_set = get_registry_com_ports();
-    if raw_ports_set.len() > ports.len() {
-        // remove any duplicates. HashSet makes this relatively cheap
-        for port in ports.iter() {
-            raw_ports_set.remove(&port.port_name);
-        }
-        // add remaining ports as "unknown" type
-        for raw_port in raw_ports_set {
-            ports.push(SerialPortInfo {
-                port_name: raw_port,
-                port_type: SerialPortType::Unknown,
-            })
-        }
-    }
+    merge_registry_com_ports(&mut ports, get_registry_com_ports());
     Ok(ports)
+}
+
+fn merge_registry_com_ports(ports: &mut Vec<SerialPortInfo>, mut raw_ports_set: HashSet<String>) {
+    // Compare names, not counts: either discovery source can contain unique ports.
+    // Keep the richer SetupAPI metadata for ports present in both sources.
+    for port in ports.iter() {
+        raw_ports_set.remove(&port.port_name);
+    }
+    for port_name in raw_ports_set {
+        ports.push(SerialPortInfo {
+            port_name,
+            port_type: SerialPortType::Unknown,
+        });
+    }
 }
 
 #[cfg(test)]
@@ -574,6 +574,56 @@ mod tests {
     use super::*;
 
     use quickcheck_macros::quickcheck;
+
+    #[test]
+    fn registry_merge_uses_names_instead_of_counts() {
+        let setup_ports = vec![
+            SerialPortInfo {
+                port_name: "COM1".into(),
+                port_type: SerialPortType::UsbPort(crate::UsbPortInfo {
+                    vid: 0x1a86,
+                    pid: 0x7523,
+                    serial_number: Some("controller".into()),
+                    manufacturer: Some("USB serial".into()),
+                    product: Some("Controller".into()),
+                    #[cfg(feature = "usbportinfo-interface")]
+                    interface: None,
+                }),
+            },
+            SerialPortInfo {
+                port_name: "COM4".into(),
+                port_type: SerialPortType::BluetoothPort,
+            },
+        ];
+        for names in [vec!["COM1", "COM3"], vec!["COM3"], vec!["COM1"], vec![]] {
+            let mut ports = setup_ports.clone();
+            merge_registry_com_ports(
+                &mut ports,
+                names.iter().map(|name| (*name).into()).collect(),
+            );
+
+            assert_eq!(&ports[..2], setup_ports.as_slice());
+            if names.contains(&"COM3") {
+                assert_eq!(ports.len(), 3);
+                assert_eq!(ports[2].port_name, "COM3");
+                assert_eq!(ports[2].port_type, SerialPortType::Unknown);
+            } else {
+                assert_eq!(ports.len(), 2);
+            }
+        }
+    }
+
+    #[test]
+    fn registry_merge_handles_empty_setupapi_discovery() {
+        let mut ports = Vec::new();
+        merge_registry_com_ports(&mut ports, HashSet::new());
+        assert!(ports.is_empty());
+
+        merge_registry_com_ports(&mut ports, ["COM3".into()].into_iter().collect());
+        assert_eq!(ports.len(), 1);
+        assert_eq!(ports[0].port_name, "COM3");
+        assert_eq!(ports[0].port_type, SerialPortType::Unknown);
+    }
 
     #[test]
     fn from_utf16_lossy_trimmed_trimming_empty() {
