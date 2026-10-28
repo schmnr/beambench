@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { useProjectStore } from '../../stores/projectStore';
 import { RemoteHostPanel } from './RemoteHostPanel';
 import { remoteHostService } from '../../services/remoteHostService';
 import {
@@ -42,6 +43,8 @@ const review = {
   workspace: makeProject().workspace,
 } as unknown as RemoteReview;
 
+const initialProjectState = useProjectStore.getState();
+
 describe('remote host controls', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -61,7 +64,34 @@ describe('remote host controls', () => {
   afterEach(() => {
     cleanup();
     useRemoteHostStore.setState({ enabled: false });
+    useProjectStore.setState(initialProjectState, true);
   });
+  it('edits laptop placement and captures user origin from the host before transfer', async () => {
+    const setStartFrom = vi.fn().mockResolvedValue(undefined);
+    const setJobOrigin = vi.fn().mockResolvedValue(undefined);
+    const setUserOrigin = vi.fn().mockResolvedValue(undefined);
+    useProjectStore.setState({
+      project: makeProject({ start_from: 'user_origin', user_origin: null }),
+      setStartFrom,
+      setJobOrigin,
+      setUserOrigin,
+    });
+    vi.mocked(remoteHostService.request).mockResolvedValue({ position: [12, 34] });
+    render(<RemoteHostPanel />);
+    fireEvent.change(screen.getByRole('combobox', { name: 'Start From' }), {
+      target: { value: 'current_position' },
+    });
+    expect(setStartFrom).toHaveBeenCalledWith('current_position');
+    fireEvent.change(screen.getByRole('combobox', { name: 'Job Origin' }), {
+      target: { value: 'center' },
+    });
+    expect(setJobOrigin).toHaveBeenCalledWith('center');
+    fireEvent.click(screen.getByRole('button', { name: 'Set here' }));
+    await waitFor(() => expect(setUserOrigin).toHaveBeenCalledWith(12, 34));
+    expect(remoteHostService.request).toHaveBeenCalledWith('remote/origin', {});
+    await waitFor(() => expect(useRemoteHostStore.getState().busy).toBe(false));
+  });
+
   it('requires both confirmations and sends one explicit start', async () => {
     render(<RemoteHostPanel />);
     const start = screen.getByRole('button', { name: 'Start on host' });

@@ -170,6 +170,7 @@ pub fn router() -> Router<Arc<ServiceContext>> {
     Router::new()
         .route("/claim", post(claim))
         .route("/connect", post(connect))
+        .route("/origin", post(capture_origin))
         .route("/release", post(release))
         .route("/status", get(status))
         .route("/review", get(review))
@@ -254,6 +255,31 @@ fn snapshot(
     Ok(Json(
         json!({"protocol_version":1,"boot_id":remote.boot_id,"owned":owned,"transfer_id":transfer_id,"consumed":consumed,"busy":remote.busy.load(std::sync::atomic::Ordering::Acquire),"project_name":project_name,"machine":machine,"progress":progress,"profiles":profiles::list_profiles(ctx).map_err(map_service_error)?,"active_profile_id":profiles::get_active_profile_id(ctx).map_err(map_service_error)?}),
     ))
+}
+async fn capture_origin(
+    State(ctx): State<Arc<ServiceContext>>,
+    Extension(remote): Extension<Arc<RemoteControl>>,
+) -> Result<Json<Value>, ApiError> {
+    if remote.active() {
+        return Err(conflict("Wait for the host job before capturing an origin"));
+    }
+    tokio::task::spawn_blocking(move || {
+        let mut session = ctx.session.lock().unwrap();
+        let session = session.as_mut().ok_or_else(|| {
+            map_service_error(ServiceError::invalid_state("Connect the host laser first"))
+        })?;
+        let position = session
+            .fresh_work_position(Duration::from_secs(1))
+            .map_err(|e| map_service_error(ServiceError::machine(e)))?
+            .ok_or_else(|| {
+                map_service_error(ServiceError::invalid_state(
+                    "The host controller does not report a work position",
+                ))
+            })?;
+        Ok(Json(json!({"position":[position.x,position.y]})))
+    })
+    .await
+    .map_err(|_| map_service_error(ServiceError::internal("Host origin capture failed")))?
 }
 #[derive(Deserialize)]
 struct ConnectBody {

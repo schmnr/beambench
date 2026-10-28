@@ -192,6 +192,7 @@ pub async fn remote_host_request(
         | "/api/v1/remote/start"
         | "/api/v1/remote/frame"
         | "/api/v1/remote/connect"
+        | "/api/v1/remote/origin"
         | "/api/v1/machine/home"
         | "/api/v1/machine/unlock"
         | "/api/v1/machine/emergency-stop"

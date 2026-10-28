@@ -5,8 +5,22 @@ import { remoteJobActive, useRemoteHostStore } from '../../stores/remoteHostStor
 import { useProjectStore } from '../../stores/projectStore';
 import { useUiStore } from '../../stores/uiStore';
 import { sessionJobOptions } from '../../types/jobOptions';
+import type { StartFromMode, AnchorPoint } from '../../types/project';
 import type { PortInfo } from '../../types/machine';
 import { PreviewWindow } from '../dialogs/PreviewWindow';
+
+const START_FROM_MODES = ['absolute_coords', 'current_position', 'user_origin'] as const;
+const JOB_ANCHORS = [
+  'top_left',
+  'top_center',
+  'top_right',
+  'center_left',
+  'center',
+  'center_right',
+  'bottom_left',
+  'bottom_center',
+  'bottom_right',
+] as const;
 
 const field =
   'w-full min-w-0 rounded border border-bb-border bg-bb-bg px-2 py-1.5 text-xs text-bb-text';
@@ -18,6 +32,9 @@ export function RemoteHostPanel() {
   const state = useRemoteHostStore();
   const { snapshot, review, busy, online } = state;
   const project = useProjectStore((s) => s.project);
+  const setStartFrom = useProjectStore((s) => s.setStartFrom);
+  const setJobOrigin = useProjectStore((s) => s.setJobOrigin);
+  const setUserOrigin = useProjectStore((s) => s.setUserOrigin);
   const [showSettings, setShowSettings] = useState(false);
   const [address, setAddress] = useState(state.url);
   const [token, setToken] = useState('');
@@ -331,6 +348,68 @@ export function RemoteHostPanel() {
               </div>
             </div>
           </details>
+          {project && (
+            <div className="grid grid-cols-2 gap-2">
+              <label className="flex min-w-0 flex-col gap-1">
+                {t('panels.machine.laser.start_from_label')}
+                <select
+                  className={field}
+                  value={project.start_from}
+                  disabled={busy}
+                  onChange={(e) => void setStartFrom(e.target.value as StartFromMode)}
+                >
+                  {START_FROM_MODES.map((mode) => (
+                    <option key={mode} value={mode}>
+                      {t(`panels.machine.laser.start_from.${mode}`)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex min-w-0 flex-col gap-1">
+                {t('panels.machine.laser.job_origin')}
+                <select
+                  className={field}
+                  value={project.job_origin}
+                  disabled={busy || project.start_from === 'absolute_coords'}
+                  onChange={(e) => void setJobOrigin(e.target.value as AnchorPoint)}
+                >
+                  {JOB_ANCHORS.map((anchor) => (
+                    <option key={anchor} value={anchor}>
+                      {t(`panels.machine.laser.anchor.${anchor}`)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          )}
+          {project?.start_from === 'user_origin' && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-bb-text-muted">
+                {project.user_origin
+                  ? t('panels.machine.laser.user_origin_saved', {
+                      x: project.user_origin[0].toFixed(1),
+                      y: project.user_origin[1].toFixed(1),
+                    })
+                  : t('panels.machine.laser.user_origin_not_set')}
+              </span>
+              <button
+                className={button}
+                disabled={!ready}
+                onClick={() =>
+                  void run(async () => {
+                    const result = await remoteHostService.request<{ position: [number, number] }>(
+                      'remote/origin',
+                      {},
+                    );
+                    await setUserOrigin(...result.position);
+                    useRemoteHostStore.setState({ review: null });
+                  })
+                }
+              >
+                {t('panels.machine.laser.set_user_origin_here')}
+              </button>
+            </div>
+          )}
           <button
             className={`${control} border-bb-accent bg-bb-bg text-bb-accent hover:bg-bb-hover`}
             disabled={!ready || !project || !(profileId || snapshot.active_profile_id)}

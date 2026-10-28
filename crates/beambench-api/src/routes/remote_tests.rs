@@ -392,3 +392,64 @@ async fn stop_invalidates_prepared_motion_including_delayed_start_and_frame_requ
     }
     assert_eq!(controller.lock().unwrap().lines.len(), before);
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn unhomed_host_can_prepare_frame_and_start_from_current_position() {
+    for start_from in [
+        beambench_common::StartFromMode::CurrentPosition,
+        beambench_common::StartFromMode::UserOrigin,
+    ] {
+        let (ctx, profile, mut project, controller) = fixture();
+        ctx.machine_coordinates_valid
+            .store(false, std::sync::atomic::Ordering::Release);
+        project.start_from = start_from;
+        controller.lock().unwrap().release = true;
+        let app = super::build_router(ctx.clone());
+        let id = Uuid::new_v4();
+        call(&app, id, "remote/claim", Some(json!({}))).await;
+        let (status, origin) = call(&app, id, "remote/origin", Some(json!({}))).await;
+        assert_eq!(status, StatusCode::OK, "{origin}");
+        if start_from == beambench_common::StartFromMode::UserOrigin {
+            project.user_origin = Some((
+                origin["position"][0].as_f64().unwrap(),
+                origin["position"][1].as_f64().unwrap(),
+            ));
+        }
+        let receipt = prepare_fixture(&app, id, &profile, &project).await;
+        let (status, value) = call(
+            &app,
+            id,
+            "remote/frame",
+            Some(json!({"transfer_id":receipt["transfer_id"],"confirm_motion":true})),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{value}");
+        tokio::time::timeout(Duration::from_secs(5), async {
+            while ctx
+                .job_tick_loop_running
+                .load(std::sync::atomic::Ordering::Acquire)
+            {
+                tokio::time::sleep(Duration::from_millis(20)).await;
+            }
+        })
+        .await
+        .unwrap();
+        let (status, review) = call(&app, id, "remote/review", None).await;
+        assert_eq!(status, StatusCode::OK, "{review}");
+        assert_ne!(review["preflight"]["outcome"], "fail", "{review}");
+        let (status,value)=call(&app,id,"remote/start",Some(json!({"transfer_id":receipt["transfer_id"],"confirm_motion":true,"confirm_laser_on":true,"confirm_advisories":true}))).await;
+        assert_eq!(status, StatusCode::OK, "{value}");
+        tokio::time::timeout(Duration::from_secs(5), async {
+            while ctx
+                .job_tick_loop_running
+                .load(std::sync::atomic::Ordering::Acquire)
+            {
+                tokio::time::sleep(Duration::from_millis(20)).await;
+            }
+        })
+        .await
+        .unwrap();
+        let (_, snapshot) = call(&app, id, "remote/status", None).await;
+        assert_eq!(snapshot["progress"]["state"], "completed", "{snapshot}");
+    }
+}

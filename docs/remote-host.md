@@ -85,7 +85,11 @@ on that host's desktop session remaining open.
 3. Select the host machine profile, refresh the host USB ports and connect the
    host laser. Confirm motion before homing. Unlock only after checking the
    controller's alarm and the physical machine.
-4. Edit artwork, layers and materials as usual on the laptop. Choose **Transfer
+4. Edit artwork, layers and materials as usual on the laptop. Choose the project's
+   **Start From** mode and job anchor in the remote panel. For a machine without
+   homing switches, use **Current Position** and verify placement with a completed
+   laser-off frame. For **User Origin**, use **Set user origin here** to capture
+   a fresh position from the host before transferring. Choose **Transfer
    and check project**. The complete portable archive, including embedded image
    assets, is transferred. The compressed archive limit is 64 MiB; the existing
    project reader also bounds expanded content. Later laptop edits do not alter
