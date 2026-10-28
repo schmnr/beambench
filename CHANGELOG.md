@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Continue GRBL baud detection when Windows rejects serial settings, keeping
+  later baud rates and the classic GRBL reset fallback reachable. Preserve
+  missing-port, access-denied and I/O failures.
 - Disable serial Connect when the selected port is absent from discovery. Keep
   saved port preferences so the same port can be selected when it returns.
 - Include Windows registry-only COM ports even when SetupAPI finds the same

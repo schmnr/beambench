@@ -1232,21 +1232,62 @@ fn open_grbl_for_connection(
     baud_rate: u32,
     allow_reset_fallback: bool,
 ) -> ServiceResult<(Box<GrblSession>, u32)> {
+    detect_grbl_connection(
+        ctx,
+        &port_name,
+        baud_rate,
+        allow_reset_fallback,
+        |baud, reset| {
+            if reset {
+                try_grbl_banner_handshake(ctx, &port_name, baud).map(|attempt| match attempt {
+                    GrblBannerAttempt::Connected(session) => GrblStatusAttempt::Connected(session),
+                    GrblBannerAttempt::NoBanner { garbage_seen } => GrblStatusAttempt::NoResponse {
+                        garbage_seen,
+                        readable_data_seen: false,
+                    },
+                })
+            } else {
+                try_grbl_status_handshake(ctx, &port_name, baud)
+            }
+        },
+    )
+}
+
+fn detect_grbl_connection(
+    ctx: &ServiceContext,
+    port_name: &str,
+    baud_rate: u32,
+    allow_reset_fallback: bool,
+    mut probe: impl FnMut(u32, bool) -> ServiceResult<GrblStatusAttempt>,
+) -> ServiceResult<(Box<GrblSession>, u32)> {
     let attempted_bauds = grbl_detection_baud_rates(baud_rate);
     let mut any_data_seen = false;
     let mut unreadable_data_seen = false;
+    let mut port_opened = false;
+    let mut first_settings_error = None;
 
     for &candidate_baud in &attempted_bauds {
-        match try_grbl_status_handshake(ctx, &port_name, candidate_baud)? {
-            GrblStatusAttempt::Connected(session) => return Ok((session, candidate_baud)),
-            GrblStatusAttempt::NoResponse {
+        match probe(candidate_baud, false) {
+            Ok(GrblStatusAttempt::Connected(session)) => return Ok((session, candidate_baud)),
+            Ok(GrblStatusAttempt::NoResponse {
                 garbage_seen,
                 readable_data_seen,
-            } => {
+            }) => {
+                port_opened = true;
                 unreadable_data_seen |= garbage_seen;
                 any_data_seen |= garbage_seen || readable_data_seen;
             }
+            Err(error) if windows_rejected_serial_settings(&error) => {
+                first_settings_error.get_or_insert(error);
+            }
+            Err(error) => return Err(error),
         }
+    }
+
+    // If every configuration failed, preserve the native error instead of
+    // claiming that the port opened and the controller stayed silent.
+    if !port_opened && let Some(error) = first_settings_error {
+        return Err(error);
     }
 
     // An explicitly selected classic GRBL adapter may reset a controller that
@@ -1256,17 +1297,22 @@ fn open_grbl_for_connection(
         for reset_baud in ordered_baud_rates(baud_rate, &[STANDARD_GRBL_BAUD_RATE]) {
             ctx.push_connection_event(
                 "reset_retry",
-                Some(port_name.clone()),
+                Some(port_name.to_string()),
                 Some(reset_baud),
                 Some("No active status response; retrying classic GRBL with a reset".to_string()),
                 None,
             );
-            match try_grbl_banner_handshake(ctx, &port_name, reset_baud)? {
-                GrblBannerAttempt::Connected(session) => return Ok((session, reset_baud)),
-                GrblBannerAttempt::NoBanner { garbage_seen } => {
+            match probe(reset_baud, true) {
+                Ok(GrblStatusAttempt::Connected(session)) => return Ok((session, reset_baud)),
+                Ok(GrblStatusAttempt::NoResponse {
+                    garbage_seen,
+                    readable_data_seen,
+                }) => {
                     unreadable_data_seen |= garbage_seen;
-                    any_data_seen |= garbage_seen;
+                    any_data_seen |= garbage_seen || readable_data_seen;
                 }
+                Err(error) if windows_rejected_serial_settings(&error) => continue,
+                Err(error) => return Err(error),
             }
         }
     }
@@ -1291,12 +1337,18 @@ fn open_grbl_for_connection(
     };
     ctx.push_connection_event(
         "grbl_probe_failed",
-        Some(port_name),
+        Some(port_name.to_string()),
         Some(baud_rate),
         None,
         Some(error.clone()),
     );
     Err(ServiceError::machine(error))
+}
+
+fn windows_rejected_serial_settings(error: &ServiceError) -> bool {
+    // The call name and numeric suffix come from the vendored serial layer,
+    // independently of the language Windows uses for the error description.
+    error.message.contains("SetCommState failed: ") && error.message.ends_with("(Windows error 87)")
 }
 
 fn finish_grbl_connection(
@@ -8168,6 +8220,156 @@ mod tests {
     #[test]
     fn selected_baud_is_not_duplicated_in_detection_order() {
         assert_eq!(smoothieware_detection_baud_rates(115_200), vec![115_200]);
+    }
+
+    fn rejected_grbl_settings() -> ServiceError {
+        ServiceError::machine(
+            "transport error: connection failed: SetCommState failed: O parâmetro está incorreto. (Windows error 87)",
+        )
+    }
+
+    fn connected_grbl_probe() -> GrblStatusAttempt {
+        GrblStatusAttempt::Connected(Box::new(GrblSession::new(Box::new(
+            beambench_serial::MockSerialTransport::new("baud-fallback-controller"),
+        ))))
+    }
+
+    fn silent_grbl_probe() -> GrblStatusAttempt {
+        GrblStatusAttempt::NoResponse {
+            garbage_seen: false,
+            readable_data_seen: false,
+        }
+    }
+
+    #[test]
+    fn grbl_detection_reaches_lower_baud_after_windows_rejects_high_rates() {
+        let ctx = ServiceContext::new();
+        let mut attempts = Vec::new();
+        let (_, baud) = detect_grbl_connection(&ctx, "COM1", 115_200, false, |baud, reset| {
+            assert!(!reset);
+            attempts.push(baud);
+            match baud {
+                115_200 => Ok(silent_grbl_probe()),
+                57_600 => Ok(connected_grbl_probe()),
+                _ => Err(rejected_grbl_settings()),
+            }
+        })
+        .expect("unsupported fallback rates must not prevent a supported connection");
+        assert_eq!(baud, 57_600);
+        assert_eq!(attempts, [115_200, 921_600, 460_800, 230_400, 57_600]);
+    }
+
+    #[test]
+    fn grbl_detection_reaches_classic_reset_after_rejected_baud_rates() {
+        for (configured_baud, expected_resets) in
+            [(115_200, vec![115_200]), (921_600, vec![921_600, 115_200])]
+        {
+            let ctx = ServiceContext::new();
+            let mut resets = Vec::new();
+            let (_, baud) =
+                detect_grbl_connection(&ctx, "COM1", configured_baud, true, |baud, reset| {
+                    if reset {
+                        resets.push(baud);
+                    }
+                    if baud != 115_200 {
+                        Err(rejected_grbl_settings())
+                    } else if reset {
+                        Ok(connected_grbl_probe())
+                    } else {
+                        Ok(silent_grbl_probe())
+                    }
+                })
+                .expect("classic GRBL reset must remain reachable");
+            assert_eq!(baud, 115_200);
+            assert_eq!(resets, expected_resets);
+            assert_eq!(ctx.recent_connection_events()[0].stage, "reset_retry");
+        }
+    }
+
+    #[test]
+    fn grbl_detection_recovers_from_an_unsupported_selected_baud() {
+        let ctx = ServiceContext::new();
+        let mut attempts = Vec::new();
+        let (_, baud) = detect_grbl_connection(&ctx, "COM1", 921_600, false, |baud, reset| {
+            assert!(!reset);
+            attempts.push(baud);
+            if baud == 921_600 {
+                Err(rejected_grbl_settings())
+            } else {
+                Ok(connected_grbl_probe())
+            }
+        })
+        .expect("the standard rate should still be tried");
+        assert_eq!(baud, 115_200);
+        assert_eq!(attempts, [921_600, 115_200]);
+    }
+
+    #[test]
+    fn grbl_detection_keeps_auto_detection_non_resetting_after_rejected_rates() {
+        let ctx = ServiceContext::new();
+        let mut attempts = Vec::new();
+        let error = detect_grbl_connection(&ctx, "COM1", 115_200, false, |baud, reset| {
+            assert!(!reset);
+            attempts.push(baud);
+            if baud == 115_200 {
+                Ok(silent_grbl_probe())
+            } else {
+                Err(rejected_grbl_settings())
+            }
+        })
+        .err()
+        .expect("silent port must not connect");
+        assert_eq!(attempts, GRBL_DETECTION_BAUD_RATES);
+        assert!(error.message.contains("[serial_open_no_response]"));
+        assert!(
+            !ctx.recent_connection_events()
+                .iter()
+                .any(|event| event.stage == "reset_retry")
+        );
+    }
+
+    #[test]
+    fn grbl_detection_retains_the_native_error_when_no_settings_are_accepted() {
+        let ctx = ServiceContext::new();
+        let original = rejected_grbl_settings().with_details(json!({"native_code": 87}));
+        let error = detect_grbl_connection(&ctx, "COM1", 115_200, true, |_, reset| {
+            assert!(!reset);
+            Err(original.clone())
+        })
+        .err()
+        .expect("port never opened");
+        assert_eq!(error.message, original.message);
+        assert_eq!(error.details, original.details);
+    }
+
+    #[test]
+    fn grbl_detection_stops_on_transport_failures_during_a_baud_sweep() {
+        for message in [
+            "SetCommState failed: Device failure (Windows error 31)",
+            "CreateFileW failed: Access denied (Windows error 5)",
+            "CreateFileW failed: File not found (Windows error 2)",
+            "CreateFileW failed: Invalid parameter (Windows error 87)",
+            "GetCommState failed: Invalid parameter (Windows error 87)",
+            "ReadFile failed: Invalid parameter (Windows error 87)",
+        ] {
+            let ctx = ServiceContext::new();
+            let original = ServiceError::machine(message).with_details(json!({"port": "COM1"}));
+            let mut attempts = Vec::new();
+            let error = detect_grbl_connection(&ctx, "COM1", 115_200, true, |baud, reset| {
+                assert!(!reset);
+                attempts.push(baud);
+                if baud == 115_200 {
+                    Ok(silent_grbl_probe())
+                } else {
+                    Err(original.clone())
+                }
+            })
+            .err()
+            .expect("native transport failure must stop detection");
+            assert_eq!(attempts, [115_200, 921_600]);
+            assert_eq!(error.message, original.message);
+            assert_eq!(error.details, original.details);
+        }
     }
 
     #[test]

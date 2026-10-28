@@ -1590,16 +1590,15 @@ mod tests {
         result
     }
     async fn connection_failure() -> std::result::Result<Tokens, TokenRequestError> {
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let address = listener.local_addr().unwrap();
-        drop(listener);
+        // Binding port zero always assigns a nonzero port. Connecting to zero
+        // forces a connector failure without an address another fixture can reuse.
         receive_tokens(
             reqwest::Client::builder()
                 .no_proxy()
                 .timeout(Duration::from_secs(5))
                 .build()
                 .unwrap()
-                .post(format!("http://{address}/token")),
+                .post("http://127.0.0.1:0/token"),
         )
         .await
     }
