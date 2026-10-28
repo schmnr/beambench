@@ -31,6 +31,8 @@ unacceptable safety risk, or cannot be maintained.
 Maintainer work should finish committed on `main`, with completed pull requests
 merged and their temporary branches removed. Keep required checks in place.
 Publishing a binary release is a separate step from merging source changes.
+See [dependency security](docs/dependency-security.md) before replacing a
+maintained backport or dismissing a dependency alert.
 
 ## Development setup
 
@@ -67,6 +69,11 @@ npm run lint
 The vendored `pdf417` crate is third-party source and is excluded from workspace
 linting. Avoid running multiple Cargo commands against the same target directory
 at once because they contend for build artifacts.
+
+Windows release packages need the static-runtime Cargo configuration in
+[the README](README.md#build-from-source). The normal development build and a
+portable release package use different runtime-linking settings. Linux CI also
+runs the [optimized GLib iterator probe](docs/dependency-security.md).
 
 ## Safety-sensitive behavior
 
