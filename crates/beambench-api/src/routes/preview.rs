@@ -100,6 +100,8 @@ mod tests {
 
     #[tokio::test]
     async fn export_gcode_without_project_returns_not_found() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("test.gcode");
         let ctx = Arc::new(ServiceContext::new());
         let app = crate::routes::build_router(ctx);
 
@@ -110,7 +112,7 @@ mod tests {
                     .uri("/api/v1/preview/export/gcode")
                     .header("content-type", "application/json")
                     .body(axum::body::Body::from(
-                        r#"{"output_path": "/tmp/test.gcode"}"#,
+                        serde_json::json!({"output_path": path}).to_string(),
                     ))
                     .unwrap(),
             )

@@ -55,7 +55,12 @@ impl HostCmd {
                         }
                     });
                     println!("Beam Bench host listening on {}. Keep this process running; no job resumes after a host restart.", server.listen_addr());
-                    let result = tokio::select! { result = server.run() => result, signal = shutdown_signal() => signal.map_err(Into::into) };
+                    // Install stop handlers before the listener can accept requests.
+                    let result = tokio::select! {
+                        biased;
+                        signal = shutdown_signal() => signal.map_err(Into::into),
+                        result = server.run() => result,
+                    };
                     poller.abort();
                     // A host shutdown is distinct from a laptop disconnect.
                     let shutdown = tokio::task::spawn_blocking(move || machine::prepare_shutdown(&ctx)).await?;
@@ -74,6 +79,14 @@ async fn shutdown_signal() -> std::io::Result<()> {
             tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;
         tokio::select! { result = tokio::signal::ctrl_c() => result, _ = terminate.recv() => Ok(()) }
     }
-    #[cfg(not(unix))]
+    #[cfg(windows)]
+    {
+        // Launchers stop an isolated Windows process group with Ctrl+Break.
+        // Handle it through the same controller shutdown path as Ctrl+C.
+        let mut interrupt = tokio::signal::windows::ctrl_c()?;
+        let mut terminate = tokio::signal::windows::ctrl_break()?;
+        tokio::select! { _ = interrupt.recv() => Ok(()), _ = terminate.recv() => Ok(()) }
+    }
+    #[cfg(not(any(unix, windows)))]
     tokio::signal::ctrl_c().await
 }
