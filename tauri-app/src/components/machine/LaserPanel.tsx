@@ -1,3 +1,5 @@
+import { RemoteHostPanel } from './RemoteHostPanel';
+import { useRemoteHostStore } from '../../stores/remoteHostStore';
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useProjectStore } from '../../stores/projectStore';
@@ -135,7 +137,7 @@ function CheckboxRow(props: {
   );
 }
 
-export function LaserPanel() {
+function LocalLaserPanel() {
   const { t, i18n } = useTranslation();
   const { orientation } = usePanelHost();
   const displayUnit = useAppStore((s) => s.settings?.display_unit) ?? 'mm';
@@ -1147,4 +1149,22 @@ export function LaserPanel() {
       {showDevicesDialog && <DeviceSettingsDialog onClose={() => setShowDevicesDialog(false)} />}
     </div>
   );
+}
+
+
+export function LaserPanel() {
+  const { t } = useTranslation();
+  const enabled = useRemoteHostStore((s) => s.enabled);
+  const busy = useRemoteHostStore((s) => s.busy);
+  const localSession = useMachineStore((s) => s.sessionState);
+  return <div className="flex min-w-0 flex-col gap-3">
+    <label className="flex flex-col gap-1 text-xs text-bb-text-muted">{t('remote_host.mode')}
+      <select className="rounded border border-bb-border bg-bb-bg px-2 py-1.5 text-bb-text" value={enabled ? 'remote' : 'local'} disabled={busy || (!enabled && localSession !== 'disconnected')} onChange={(e) => useRemoteHostStore.setState({ enabled: e.target.value === 'remote' })}>
+        <option value="local">{t('remote_host.local')}</option>
+        <option value="remote">{t('remote_host.remote')}</option>
+      </select>
+    </label>
+    {!enabled && localSession !== 'disconnected' && <p className="text-xs text-bb-text-muted">{t('remote_host.disconnect_local')}</p>}
+    {enabled ? <RemoteHostPanel /> : <LocalLaserPanel />}
+  </div>;
 }

@@ -11,6 +11,7 @@ use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
 
+mod host;
 mod workflows;
 
 const DESIGN_RENDER_SCHEMA_VERSION: u32 = 1;
@@ -61,6 +62,11 @@ struct ConfirmFlags {
 #[derive(Subcommand)]
 #[allow(clippy::large_enum_variant)]
 enum Commands {
+    /// Run a stationary host without the desktop UI
+    Host {
+        #[command(subcommand)]
+        command: host::HostCmd,
+    },
     /// Native art-library workflows, including insertion and selection snapshots
     ArtLibrary {
         #[command(subcommand)]
@@ -1501,6 +1507,7 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
         confirm_air_assist: cli.confirm_air_assist,
     };
     match cli.command {
+        Commands::Host { command } => command.run()?,
         Commands::ArtLibrary { command } => command.run(confirmations)?,
         Commands::VariableText { command } => command.run(confirmations)?,
         Commands::QualityTest { command } => command.run(confirmations)?,

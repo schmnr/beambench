@@ -127,7 +127,7 @@ struct ConnectionChange {
 
 // One lazy worker per provider. A blocked wallet consumes at most that one thread;
 // timeouts never start another. Generation checks remove late credential writes.
-struct Vault {
+pub(crate) struct Vault {
     sender: std::sync::mpsc::SyncSender<VaultJob>,
     generation: Arc<AtomicU64>,
 }
@@ -137,7 +137,7 @@ struct VaultJob {
     read: bool,
     reply: oneshot::Sender<Result<Option<Zeroizing<String>>>>,
 }
-fn install_credential_store() -> Result<()> {
+pub(crate) fn install_credential_store() -> Result<()> {
     #[cfg(target_os = "macos")]
     let store = apple_native_keyring_store::keychain::Store::new();
     #[cfg(target_os = "windows")]
@@ -159,7 +159,7 @@ impl Vault {
     fn with_initializer(initialize: fn() -> Result<()>, service: &'static str) -> Self {
         Self::with_provider(initialize, service, "craftgineer")
     }
-    fn with_provider(
+    pub(crate) fn with_provider(
         initialize: fn() -> Result<()>,
         service: &'static str,
         user: &'static str,
@@ -225,7 +225,7 @@ impl Vault {
             .expect("create credential worker");
         Self { sender, generation }
     }
-    async fn call(
+    pub(crate) async fn call(
         &self,
         value: Option<Zeroizing<String>>,
         read: bool,

@@ -103,3 +103,9 @@ and restarting the app. Keep it out of URLs, shell history and shared logs.
 
 Network mode uses HTTP. Use it only on a trusted network or through an encrypted
 tunnel. Token authentication does not encrypt project data or traffic.
+
+## Stationary remote host
+
+`beambench host serve` runs the shared machine API without the desktop UI.
+Use `--network` with `BEAMBENCH_API_TOKEN` for a trusted LAN, or tunnel its default
+loopback listener. See [remote host setup and desktop workflow](remote-host.md).

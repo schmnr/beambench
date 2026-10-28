@@ -240,6 +240,7 @@ fn main() {
         .manage(CloseShutdown::default())
         .manage(FrontendReady::default())
         .manage(commands::connected_library::ConnectedLibrary::default())
+        .manage(commands::remote_host::RemoteHost::default())
         .on_window_event({
             let ctx = ctx.clone();
             move |window, event| {
@@ -350,6 +351,10 @@ fn main() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            commands::remote_host::remote_host_settings,
+            commands::remote_host::remote_host_configure,
+            commands::remote_host::remote_host_request,
+            commands::remote_host::remote_host_prepare,
             commands::connected_library::connected_library_status,
             commands::connected_library::connected_library_connect,
             commands::connected_library::connected_library_cancel,

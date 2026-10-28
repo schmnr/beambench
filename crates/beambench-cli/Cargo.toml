@@ -24,7 +24,8 @@ dirs = { workspace = true }
 uuid = { workspace = true }
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
 
-[dev-dependencies]
-tempfile = { workspace = true }
 beambench-api = { path = "../beambench-api" }
 tokio = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

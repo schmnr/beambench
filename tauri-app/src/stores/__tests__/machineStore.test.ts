@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import i18n from '../../i18n';
+import { useRemoteHostStore } from '../remoteHostStore';
 import {
   consumeSuppressedProfileEvent,
   resetSuppressedProfileEvents,
@@ -214,6 +215,22 @@ describe('machineStore frame-selected toggle', () => {
 
     useMachineStore.getState().setFrameSelectedOnly(false);
     expect(useMachineStore.getState().frameSelectedOnly).toBe(false);
+  });
+
+  it('acknowledges a remote stop without attributing the laptop connection state to the host', async () => {
+    mockedMachine.emergencyStop.mockResolvedValue(undefined);
+    mockedMachine.getSessionState.mockResolvedValue('disconnected');
+    useRemoteHostStore.setState({ enabled: true });
+    try {
+      await useMachineStore.getState().emergencyStop();
+      expect(mockedMachine.getSessionState).not.toHaveBeenCalled();
+      const notifications = useNotificationStore.getState().notifications;
+      expect(notifications[notifications.length - 1]).toMatchObject({
+        type: 'success', message: i18n.t('notifications.machine.estop_sent'),
+      });
+    } finally {
+      useRemoteHostStore.setState({ enabled: false });
+    }
   });
 
   it('emergency stop reflects an automatic reopen recovery as disconnected', async () => {

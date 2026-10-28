@@ -1,3 +1,4 @@
+import { useRemoteHostStore } from '../stores/remoteHostStore';
 import { useEffect, useRef } from 'react';
 import { useMachineStore } from '../stores/machineStore';
 import { useVariableTextStore } from '../stores/variableTextStore';
@@ -8,6 +9,7 @@ import { useVariableTextStore } from '../stores/variableTextStore';
  * - Job poll (250ms): active when job is running or paused
  */
 export function useMachinePolling() {
+  const remote = useRemoteHostStore((s) => s.enabled);
   const sessionState = useMachineStore((s) => s.sessionState);
   const jobProgress = useMachineStore((s) => s.jobProgress);
   const refreshStatus = useMachineStore((s) => s.refreshStatus);
@@ -18,6 +20,7 @@ export function useMachinePolling() {
   // Backend session discovery: if the CLI/API connects while the frontend
   // thinks it is disconnected, keep probing cheaply until the store catches up.
   useEffect(() => {
+    if (remote) return;
     if (sessionState !== 'disconnected') return;
 
     hydrateSession();
@@ -27,10 +30,11 @@ export function useMachinePolling() {
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [sessionState, hydrateSession]);
+  }, [remote, sessionState, hydrateSession]);
 
   // Status polling: active when connected, adaptive interval
   useEffect(() => {
+    if (remote) return;
     const connectedStates = ['ready', 'running', 'paused', 'alarm'];
     if (!connectedStates.includes(sessionState)) return;
 
@@ -46,12 +50,13 @@ export function useMachinePolling() {
     }, interval_ms);
 
     return () => clearInterval(interval);
-  }, [sessionState, refreshStatus, refreshSessionState]);
+  }, [remote, sessionState, refreshStatus, refreshSessionState]);
 
   // Job polling: active while a staged, ready, running, or paused job can change state
   // Auto-clear terminal job states after a brief display period
   const prevJobStateRef = useRef<string | null>(null);
   useEffect(() => {
+    if (remote) return;
     const currentState = jobProgress?.state ?? null;
     const prevState = prevJobStateRef.current;
     prevJobStateRef.current = currentState;
@@ -83,5 +88,5 @@ export function useMachinePolling() {
       }, 3000);
       return () => clearTimeout(timeout);
     }
-  }, [jobProgress, refreshJobProgress]);
+  }, [remote, jobProgress, refreshJobProgress]);
 }

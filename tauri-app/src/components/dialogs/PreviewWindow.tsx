@@ -46,6 +46,7 @@ const DEFAULT_LAYER_COLORS = [
 const SPEED_OPTIONS = [0.1, 0.25, 0.5, 1, 2, 4, 8, 16, 24, 40];
 
 interface PreviewWindowProps {
+  title?: string;
   data: PreviewData | null;
   previewState: PreviewState;
   manualRefreshRequired?: boolean;
@@ -78,6 +79,7 @@ function formatDistance(mm: number, unit: 'mm' | 'inches' = 'mm'): string {
 }
 
 export function PreviewWindow({
+  title,
   data,
   previewState,
   manualRefreshRequired = false,
@@ -442,7 +444,7 @@ export function PreviewWindow({
 
   return createPortal(
     <MovableResizableDialogFrame
-      title={t('dialog.preview.title')}
+      title={title ?? t('dialog.preview.title')}
       titleId="preview-window-title"
       testId="preview-window"
       initialWidth={900}

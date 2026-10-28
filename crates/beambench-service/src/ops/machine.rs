@@ -4787,7 +4787,18 @@ pub fn start_job_with_options_confirming_advisories(
     job_options: &planning::SessionJobOptions,
     allow_advisories: bool,
 ) -> ServiceResult<JobProgress> {
-    let estop_generation = ctx.emergency_stop_generation.load(Ordering::Acquire);
+    let generation = ctx.emergency_stop_generation.load(Ordering::Acquire);
+    start_job_at_generation(ctx, job_options, allow_advisories, generation)
+}
+
+/// Bind a queued remote Start to the stop generation the operator reviewed.
+pub fn start_job_at_generation(
+    ctx: &ServiceContext,
+    job_options: &planning::SessionJobOptions,
+    allow_advisories: bool,
+    estop_generation: u64,
+) -> ServiceResult<JobProgress> {
+    ensure_no_emergency_stop_since(ctx, estop_generation)?;
     force_laser_fire_stop(ctx, "job_start")?;
     // Acquired before any lock: the OS call can block for seconds, and status,
     // jog and E-stop must not wait on it.
@@ -5725,7 +5736,47 @@ pub fn frame_job(
     laser_on_override: bool,
     feed_rate: Option<f64>,
 ) -> ServiceResult<JobProgress> {
-    let estop_generation = ctx.emergency_stop_generation.load(Ordering::Acquire);
+    frame_job_with_policy(
+        ctx,
+        frame_mode,
+        selected_object_ids,
+        laser_on_override,
+        feed_rate,
+        false,
+        None,
+    )
+}
+
+/// Remote framing is one laser-off pass, regardless of a host profile's local
+/// laser-on/continuous framing preferences or custom job start/end commands.
+pub fn frame_job_laser_off_once(
+    ctx: &ServiceContext,
+    selected_object_ids: &[String],
+    estop_generation: u64,
+) -> ServiceResult<JobProgress> {
+    frame_job_with_policy(
+        ctx,
+        "rectangular",
+        selected_object_ids,
+        false,
+        None,
+        true,
+        Some(estop_generation),
+    )
+}
+
+fn frame_job_with_policy(
+    ctx: &ServiceContext,
+    frame_mode: &str,
+    selected_object_ids: &[String],
+    laser_on_override: bool,
+    feed_rate: Option<f64>,
+    laser_off_once: bool,
+    expected_generation: Option<u64>,
+) -> ServiceResult<JobProgress> {
+    let estop_generation = expected_generation
+        .unwrap_or_else(|| ctx.emergency_stop_generation.load(Ordering::Acquire));
+    ensure_no_emergency_stop_since(ctx, estop_generation)?;
     force_laser_fire_stop(ctx, "frame_start")?;
     let frame_feed_rate = feed_rate.unwrap_or(DEFAULT_MOVE_FEED_RATE_MM_MIN);
     require_positive_finite(frame_feed_rate, "feed_rate")?;
@@ -5765,7 +5816,7 @@ pub fn frame_job(
             )
         )
     };
-    let frame_power = if ruida_frame {
+    let frame_power = if ruida_frame || laser_off_once {
         0.0
     } else {
         frame_power_percent(laser_on_override, &profile)
@@ -5955,7 +6006,11 @@ pub fn frame_job(
     // Frame G-code must honor the active profile: constant-power machines
     // need M3 (M4 dims toward zero at framing speeds) and the profile's
     // s_value_max caps laser-on framing power.
-    let frame_gcode_config = super::output::build_gcode_config(&project.optimization, &profile);
+    let mut frame_gcode_config = super::output::build_gcode_config(&project.optimization, &profile);
+    if laser_off_once {
+        frame_gcode_config.gcode_prefix.clear();
+        frame_gcode_config.gcode_suffix.clear();
+    }
 
     let mut session_lock = ctx.session.lock().map_err(|e| lock_err("session", e))?;
     ensure_no_emergency_stop_since(ctx, estop_generation)?;
@@ -6045,7 +6100,7 @@ pub fn frame_job(
     install_job_resources(
         ctx,
         sleep,
-        profile.frame_continuously.then_some(prepared),
+        (profile.frame_continuously && !laser_off_once).then_some(prepared),
         estop_generation,
     )?;
     *job_lock = Some(job);

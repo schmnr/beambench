@@ -222,7 +222,19 @@ fn check_format_supported(manifest: &[u8]) -> Result<(), PersistenceError> {
 
 fn load_project_with_limits(path: &Path, limits: LoadLimits) -> Result<Project, PersistenceError> {
     let file = std::fs::File::open(path)?;
-    let mut archive = zip::ZipArchive::new(file)?;
+    load_project_reader(file, limits)
+}
+
+/// Read a portable project without extracting caller-controlled paths.
+pub fn load_project_from_bytes(bytes: &[u8]) -> Result<Project, PersistenceError> {
+    load_project_reader(std::io::Cursor::new(bytes), LoadLimits::default())
+}
+
+fn load_project_reader(
+    reader: impl Read + std::io::Seek,
+    limits: LoadLimits,
+) -> Result<Project, PersistenceError> {
+    let mut archive = zip::ZipArchive::new(reader)?;
 
     if archive.len() > limits.assets + 2 {
         return Err(PersistenceError::Validation(
