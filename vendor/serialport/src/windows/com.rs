@@ -535,6 +535,24 @@ mod tests {
                 }
             }
         }
+
+        let driver = Scenario::interface_only(
+            ERROR_FILE_NOT_FOUND,
+            vec![interface(INTERFACE_PORT, INTERFACE_PATH)],
+        );
+        driver.require_ch340_bootstrap();
+        let mut port = crate::new(INTERFACE_PORT, 115_200).open_native().unwrap();
+        assert_eq!(
+            driver.settings().iter().map(|s| s.baud).collect::<Vec<_>>(),
+            [115_200, 9600, 115_200]
+        );
+        port.write_all(b"?").unwrap();
+        let expected = b"<Idle|MPos:1,2,0|FS:0,0>\r\n";
+        let mut response = vec![0; expected.len()];
+        port.read_exact(&mut response).unwrap();
+        assert_eq!(&response, expected);
+        drop(port);
+        driver.assert_handle_closed();
     }
 
     #[test]

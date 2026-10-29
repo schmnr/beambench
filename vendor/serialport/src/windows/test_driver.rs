@@ -140,6 +140,10 @@ impl Scenario {
         DRIVER.with(|slot| slot.borrow_mut().as_mut().unwrap().interface_error = Some(error));
     }
 
+    pub fn require_ch340_bootstrap(&self) {
+        DRIVER.with(|slot| slot.borrow_mut().as_mut().unwrap().fault = Fault::Needs9600);
+    }
+
     pub fn open_paths(&self) -> Vec<String> {
         DRIVER.with(|slot| slot.borrow().as_ref().unwrap().open_paths.clone())
     }
