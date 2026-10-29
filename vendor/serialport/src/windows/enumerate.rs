@@ -4,10 +4,12 @@ use std::ptr;
 use windows_sys::core::GUID;
 use windows_sys::Win32::Devices::DeviceAndDriverInstallation::{
     CM_Get_DevNode_Status, CM_Get_Device_IDW, CM_Get_Parent, SetupDiClassGuidsFromNameW,
-    SetupDiDestroyDeviceInfoList, SetupDiEnumDeviceInfo, SetupDiGetClassDevsW,
-    SetupDiGetDeviceInstanceIdW, SetupDiGetDeviceRegistryPropertyW, SetupDiOpenDevRegKey,
-    CR_SUCCESS, DICS_FLAG_GLOBAL, DIGCF_PRESENT, DIREG_DEV, HDEVINFO, MAX_DEVICE_ID_LEN,
-    SPDRP_FRIENDLYNAME, SPDRP_HARDWAREID, SPDRP_MFG, SP_DEVINFO_DATA,
+    SetupDiDestroyDeviceInfoList, SetupDiEnumDeviceInfo, SetupDiEnumDeviceInterfaces,
+    SetupDiGetClassDevsW, SetupDiGetDeviceInstanceIdW, SetupDiGetDeviceInterfaceDetailW,
+    SetupDiGetDeviceRegistryPropertyW, SetupDiOpenDevRegKey, CR_SUCCESS, DICS_FLAG_GLOBAL,
+    DIGCF_DEVICEINTERFACE, DIGCF_PRESENT, DIREG_DEV, HDEVINFO, MAX_DEVICE_ID_LEN,
+    SPDRP_FRIENDLYNAME, SPDRP_HARDWAREID, SPDRP_MFG, SPINT_ACTIVE, SP_DEVICE_INTERFACE_DATA,
+    SP_DEVICE_INTERFACE_DETAIL_DATA_W, SP_DEVINFO_DATA,
 };
 use windows_sys::Win32::Foundation::{FALSE, FILETIME, INVALID_HANDLE_VALUE, MAX_PATH};
 use windows_sys::Win32::System::Registry::{
@@ -36,6 +38,10 @@ fn from_utf16_lossy_trimmed(utf16: &[u16]) -> String {
 /// and SetupDiGetDeviceInstanceId in order to enumerate devices.
 /// https://msdn.microsoft.com/en-us/windows/hardware/drivers/install/enumerating-installed-devices
 fn get_ports_guids() -> Result<Vec<GUID>> {
+    #[cfg(test)]
+    if super::test_driver::legacy_discovery_disabled() {
+        return Ok(Vec::new());
+    }
     // SetupDiGetClassDevs returns the devices associated with a particular class of devices.
     // We want the list of devices which are listed as COM ports (generally those that show up in the
     // Device Manager as "Ports (COM & LPT)" which is otherwise known as the "Ports" class).
@@ -437,6 +443,10 @@ impl PortDevice {
 ///
 /// port of https://learn.microsoft.com/en-us/windows/win32/sysinfo/enumerating-registry-subkeys
 fn get_registry_com_ports() -> HashSet<String> {
+    #[cfg(test)]
+    if super::test_driver::legacy_discovery_disabled() {
+        return HashSet::new();
+    }
     let mut ports_list = HashSet::new();
 
     let reg_key = as_utf16("HARDWARE\\DEVICEMAP\\SERIALCOMM");
@@ -521,11 +531,129 @@ fn get_registry_com_ports() -> HashSet<String> {
     ports_list
 }
 
+// Drivers can publish live COM interfaces outside the Ports/Modem setup classes,
+// and an interface can still open when its legacy COM alias is missing.
+// https://learn.microsoft.com/en-us/windows-hardware/drivers/install/guid-devinterface-comport
+pub(super) fn com_port_interfaces() -> Vec<(SerialPortInfo, String)> {
+    #[cfg(test)]
+    if let Some(interfaces) = super::test_driver::com_port_interfaces() {
+        return interfaces;
+    }
+
+    let guid = GUID::from_u128(0x86e0d1e0_8089_11d0_9ce4_08003e301f73);
+    let devices = PortDevices {
+        hdi: unsafe {
+            SetupDiGetClassDevsW(&guid, ptr::null(), 0, DIGCF_PRESENT | DIGCF_DEVICEINTERFACE)
+        },
+        dev_idx: 0,
+    };
+    if devices.hdi == INVALID_HANDLE_VALUE {
+        return Vec::new();
+    }
+    let mut ports = Vec::new();
+    for index in 0.. {
+        let mut interface: SP_DEVICE_INTERFACE_DATA = unsafe { std::mem::zeroed() };
+        interface.cbSize = std::mem::size_of::<SP_DEVICE_INTERFACE_DATA>() as u32;
+        if unsafe {
+            SetupDiEnumDeviceInterfaces(devices.hdi, ptr::null(), &guid, index, &mut interface)
+        } == FALSE
+        {
+            break;
+        }
+        if interface.Flags & SPINT_ACTIVE == 0 {
+            continue;
+        }
+
+        let mut bytes = 0;
+        unsafe {
+            SetupDiGetDeviceInterfaceDetailW(
+                devices.hdi,
+                &interface,
+                ptr::null_mut(),
+                0,
+                &mut bytes,
+                ptr::null_mut(),
+            );
+        }
+        let header = std::mem::size_of::<SP_DEVICE_INTERFACE_DETAIL_DATA_W>();
+        if (bytes as usize) < header {
+            continue;
+        }
+        // The variable-size structure needs pointer alignment, not Vec<u8> alignment.
+        let mut buffer = vec![0usize; (bytes as usize).div_ceil(std::mem::size_of::<usize>())];
+        let detail = buffer.as_mut_ptr() as *mut SP_DEVICE_INTERFACE_DETAIL_DATA_W;
+        let mut device = PortDevice {
+            hdi: devices.hdi,
+            devinfo_data: unsafe { std::mem::zeroed() },
+        };
+        device.devinfo_data.cbSize = std::mem::size_of::<SP_DEVINFO_DATA>() as u32;
+        unsafe { (*detail).cbSize = header as u32 };
+        if unsafe {
+            SetupDiGetDeviceInterfaceDetailW(
+                devices.hdi,
+                &interface,
+                detail,
+                bytes,
+                ptr::null_mut(),
+                &mut device.devinfo_data,
+            )
+        } == FALSE
+            || device.problem() != Some(0)
+        {
+            continue;
+        }
+        let path = unsafe {
+            let start = std::ptr::addr_of!((*detail).DevicePath) as *const u16;
+            let offset = start as usize - detail as usize;
+            std::slice::from_raw_parts(start, (bytes as usize - offset) / 2)
+        };
+        let Some(end) = path.iter().position(|c| *c == 0) else {
+            continue;
+        };
+        let path = String::from_utf16_lossy(&path[..end]);
+        if path.is_empty() {
+            continue;
+        }
+        let name = device.name();
+        ports.push((
+            SerialPortInfo {
+                port_name: if name.is_empty() { path.clone() } else { name },
+                port_type: device.port_type(),
+            },
+            path,
+        ));
+    }
+    ports
+}
+
+pub(super) fn interface_for_com_port(name: &str) -> Option<String> {
+    let name = name.strip_prefix(r"\\.\").unwrap_or(name);
+    // Never reinterpret arbitrary paths or choose another COM port.
+    if name.len() <= 3
+        || !name
+            .get(..3)
+            .is_some_and(|prefix| prefix.eq_ignore_ascii_case("COM"))
+        || !name[3..].bytes().all(|b| b.is_ascii_digit())
+    {
+        return None;
+    }
+    let mut matching = com_port_interfaces()
+        .into_iter()
+        .filter(|(port, _)| port.port_name.eq_ignore_ascii_case(name))
+        .map(|(_, path)| path);
+    let path = matching.next()?;
+    // A conflicting registration is not proof of which physical device was requested.
+    matching
+        .all(|other| other.eq_ignore_ascii_case(&path))
+        .then_some(path)
+}
+
 /// List available serial ports on the system.
 pub fn available_ports() -> Result<Vec<SerialPortInfo>> {
     let mut ports = Vec::new();
-    for guid in get_ports_guids()? {
-        let port_devices = PortDevices::new(&guid);
+    let guids = get_ports_guids();
+    for guid in guids.as_ref().into_iter().flatten() {
+        let port_devices = PortDevices::new(guid);
         for mut port_device in port_devices {
             // Ignore nonfunctional devices
             if port_device.problem() != Some(0) {
@@ -551,7 +679,23 @@ pub fn available_ports() -> Result<Vec<SerialPortInfo>> {
             });
         }
     }
+    for (port, _) in com_port_interfaces() {
+        if let Some(existing) = ports
+            .iter_mut()
+            .find(|p| p.port_name.eq_ignore_ascii_case(&port.port_name))
+        {
+            if matches!(existing.port_type, SerialPortType::Unknown) {
+                existing.port_type = port.port_type;
+            }
+        } else {
+            ports.push(port);
+        }
+    }
     merge_registry_com_ports(&mut ports, get_registry_com_ports());
+    if ports.is_empty() {
+        // A setup-class lookup failure must not discard working interface/registry ports.
+        guids?;
+    }
     Ok(ports)
 }
 
@@ -574,6 +718,47 @@ mod tests {
     use super::*;
 
     use quickcheck_macros::quickcheck;
+
+    #[test]
+    fn interface_discovery_finds_a_port_with_no_legacy_registration() {
+        use super::super::test_driver::{interface, Scenario, INTERFACE_PATH, INTERFACE_PORT};
+        use windows_sys::Win32::Foundation::ERROR_FILE_NOT_FOUND;
+
+        let _driver = Scenario::interface_only(
+            ERROR_FILE_NOT_FOUND,
+            vec![interface(INTERFACE_PORT, INTERFACE_PATH)],
+        );
+        assert!(get_ports_guids().unwrap().is_empty());
+        assert!(get_registry_com_ports().is_empty());
+        assert_eq!(
+            available_ports().unwrap(),
+            [interface(INTERFACE_PORT, INTERFACE_PATH).0],
+            "live interface missing from discovery"
+        );
+        for name in [
+            INTERFACE_PORT.to_string(),
+            INTERFACE_PORT.to_lowercase(),
+            format!(r"\\.\{INTERFACE_PORT}"),
+        ] {
+            assert_eq!(
+                interface_for_com_port(&name).as_deref(),
+                Some(INTERFACE_PATH)
+            );
+        }
+        for name in ["", "COM", "COM3x", "LPT1", "𐀀123", "ＣOM3", INTERFACE_PATH] {
+            assert_eq!(interface_for_com_port(name), None);
+        }
+    }
+
+    #[test]
+    fn native_interface_scan_returns_only_nonempty_paths() {
+        // Real SetupAPI calls, read-only and without opening or resetting devices.
+        for (port, path) in com_port_interfaces() {
+            assert!(!port.port_name.is_empty());
+            assert!(!path.is_empty());
+            assert!(!path.contains('\0'));
+        }
+    }
 
     #[test]
     fn registry_merge_uses_names_instead_of_counts() {

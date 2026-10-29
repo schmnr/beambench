@@ -11,8 +11,8 @@ use windows_sys::Win32::Devices::Communication::*;
 #[cfg(not(test))]
 use windows_sys::Win32::Foundation::CloseHandle;
 use windows_sys::Win32::Foundation::{
-    DuplicateHandle, DUPLICATE_SAME_ACCESS, GENERIC_READ, GENERIC_WRITE, HANDLE,
-    INVALID_HANDLE_VALUE, TRUE,
+    DuplicateHandle, GetLastError, DUPLICATE_SAME_ACCESS, ERROR_FILE_NOT_FOUND,
+    ERROR_PATH_NOT_FOUND, GENERIC_READ, GENERIC_WRITE, HANDLE, INVALID_HANDLE_VALUE, TRUE,
 };
 #[cfg(not(test))]
 use windows_sys::Win32::Storage::FileSystem::{CreateFileW, FlushFileBuffers, ReadFile, WriteFile};
@@ -67,7 +67,7 @@ impl COMPort {
 
         let share_mode = 0;
 
-        let handle = unsafe {
+        let open = |name: &[u16]| unsafe {
             CreateFileW(
                 name.as_ptr(),
                 GENERIC_READ | GENERIC_WRITE,
@@ -78,9 +78,23 @@ impl COMPort {
                 0 as HANDLE,
             )
         };
-
+        let mut handle = open(&name);
         if handle == INVALID_HANDLE_VALUE {
-            return Err(super::error::last_os_error_at("CreateFileW"));
+            let code = unsafe { GetLastError() };
+            let original = super::error::last_os_error_at("CreateFileW");
+            if !matches!(code, ERROR_FILE_NOT_FOUND | ERROR_PATH_NOT_FOUND) {
+                return Err(original);
+            }
+            let Some(path) = super::enumerate::interface_for_com_port(&builder.path) else {
+                return Err(original);
+            };
+            let path = path.encode_utf16().chain(Some(0)).collect::<Vec<_>>();
+            handle = open(&path);
+            if handle == INVALID_HANDLE_VALUE {
+                return Err(super::error::last_os_error_at(
+                    "CreateFileW (COM device interface)",
+                ));
+            }
         }
 
         // create the COMPort here so the handle is getting closed
@@ -476,6 +490,145 @@ mod tests {
     use super::*;
     use crate::tests::timeout::MONOTONIC_DURATIONS;
     use crate::windows::test_driver::{Fault, Scenario, PORT};
+
+    #[test]
+    fn missing_com_alias_recovers_via_exact_live_interface_and_exchanges_status() {
+        use crate::windows::test_driver::{interface, INTERFACE_PATH, INTERFACE_PORT};
+        use std::io::{Read, Write};
+        use windows_sys::Win32::Foundation::{ERROR_FILE_NOT_FOUND, ERROR_PATH_NOT_FOUND};
+
+        for error in [ERROR_FILE_NOT_FOUND, ERROR_PATH_NOT_FOUND] {
+            for dtr in [None, Some(false), Some(true)] {
+                for flow in [
+                    FlowControl::None,
+                    FlowControl::Software,
+                    FlowControl::Hardware,
+                ] {
+                    let driver = Scenario::interface_only(
+                        error,
+                        vec![interface(INTERFACE_PORT, INTERFACE_PATH)],
+                    );
+                    let discovered = crate::available_ports().unwrap();
+                    assert_eq!(discovered, [interface(INTERFACE_PORT, INTERFACE_PATH).0]);
+                    let mut builder = crate::new(INTERFACE_PORT, 115_200).flow_control(flow);
+                    if let Some(dtr) = dtr {
+                        builder = builder.dtr_on_open(dtr);
+                    }
+                    let mut port = builder.open_native().unwrap();
+                    assert_eq!(
+                        driver.open_paths(),
+                        [format!(r"\\.\{INTERFACE_PORT}"), INTERFACE_PATH.into()]
+                    );
+                    assert_eq!(port.name().as_deref(), Some(INTERFACE_PORT));
+                    assert_eq!(port.baud_rate().unwrap(), 115_200);
+                    assert_eq!(port.flow_control().unwrap(), flow);
+                    assert_eq!(driver.settings().len(), 1);
+                    driver.assert_no_bytes();
+                    port.write_all(b"?").unwrap();
+                    port.flush().unwrap();
+                    let expected = b"<Idle|MPos:1,2,0|FS:0,0>\r\n";
+                    let mut response = vec![0; expected.len()];
+                    port.read_exact(&mut response).unwrap();
+                    assert_eq!(&response, expected);
+                    drop(port);
+                    driver.assert_handle_closed();
+                }
+            }
+        }
+
+        let driver = Scenario::interface_only(
+            ERROR_FILE_NOT_FOUND,
+            vec![interface(INTERFACE_PORT, INTERFACE_PATH)],
+        );
+        driver.require_ch340_bootstrap();
+        let mut port = crate::new(INTERFACE_PORT, 115_200).open_native().unwrap();
+        assert_eq!(
+            driver.settings().iter().map(|s| s.baud).collect::<Vec<_>>(),
+            [115_200, 9600, 115_200]
+        );
+        port.write_all(b"?").unwrap();
+        let expected = b"<Idle|MPos:1,2,0|FS:0,0>\r\n";
+        let mut response = vec![0; expected.len()];
+        port.read_exact(&mut response).unwrap();
+        assert_eq!(&response, expected);
+        drop(port);
+        driver.assert_handle_closed();
+    }
+
+    #[test]
+    fn interface_recovery_never_selects_another_or_ambiguous_com_device() {
+        use crate::windows::test_driver::{interface, INTERFACE_PATH, INTERFACE_PORT};
+        use windows_sys::Win32::Foundation::ERROR_FILE_NOT_FOUND;
+
+        for interfaces in [
+            vec![],
+            vec![interface("COM65533", INTERFACE_PATH)],
+            vec![
+                interface(INTERFACE_PORT, INTERFACE_PATH),
+                interface(INTERFACE_PORT, r"\\?\other-controller"),
+            ],
+        ] {
+            let driver = Scenario::interface_only(ERROR_FILE_NOT_FOUND, interfaces);
+            let error = crate::new(INTERFACE_PORT, 115_200)
+                .open_native()
+                .unwrap_err();
+            assert_eq!(error.kind(), ErrorKind::NoDevice);
+            assert!(error.description.ends_with("(Windows error 2)"), "{error}");
+            assert_eq!(driver.open_paths(), [format!(r"\\.\{INTERFACE_PORT}")]);
+            assert!(driver.settings().is_empty());
+            driver.assert_no_bytes();
+            driver.assert_handle_closed();
+        }
+    }
+
+    #[test]
+    fn interface_recovery_preserves_access_and_native_open_errors() {
+        use crate::windows::test_driver::{interface, INTERFACE_PATH, INTERFACE_PORT};
+        use windows_sys::Win32::Foundation::{
+            ERROR_ACCESS_DENIED, ERROR_FILE_NOT_FOUND, ERROR_GEN_FAILURE, ERROR_INVALID_PARAMETER,
+        };
+
+        for code in [
+            ERROR_ACCESS_DENIED,
+            ERROR_GEN_FAILURE,
+            ERROR_INVALID_PARAMETER,
+        ] {
+            let driver =
+                Scenario::interface_only(code, vec![interface(INTERFACE_PORT, INTERFACE_PATH)]);
+            let error = crate::new(INTERFACE_PORT, 115_200)
+                .open_native()
+                .unwrap_err();
+            assert!(
+                error
+                    .description
+                    .ends_with(&format!("(Windows error {code})")),
+                "{error}"
+            );
+            assert_eq!(driver.enumeration_count(), 0);
+            assert_eq!(driver.open_paths().len(), 1);
+            driver.assert_no_bytes();
+            driver.assert_handle_closed();
+        }
+        let driver = Scenario::interface_only(
+            ERROR_FILE_NOT_FOUND,
+            vec![interface(INTERFACE_PORT, INTERFACE_PATH)],
+        );
+        driver.fail_interface_open(ERROR_ACCESS_DENIED);
+        let error = crate::new(INTERFACE_PORT, 115_200)
+            .open_native()
+            .unwrap_err();
+        assert_eq!(error.kind(), ErrorKind::NoDevice);
+        assert!(
+            error
+                .description
+                .starts_with("CreateFileW (COM device interface) failed:"),
+            "{error}"
+        );
+        assert!(error.description.ends_with("(Windows error 5)"), "{error}");
+        assert_eq!(driver.open_paths().len(), 2);
+        driver.assert_no_bytes();
+        driver.assert_handle_closed();
+    }
 
     #[test]
     fn ch340_recovers_high_baud_open_and_exchanges_status_at_requested_settings() {

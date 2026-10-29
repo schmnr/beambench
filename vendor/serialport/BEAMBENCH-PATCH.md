@@ -36,4 +36,15 @@ Windows `src/windows/enumerate.rs` always merges unique COM port names from
 USB metadata. Previously the merge ran only when the registry contained more
 ports, omitting registry-only ports when the counts were equal or smaller.
 The Windows vendor library tests cover both cases, duplicates and empty lists.
-This fixes incomplete discovery; it cannot restore a port absent from Windows.
+The same backend also enumerates present, active `GUID_DEVINTERFACE_COMPORT`
+interfaces independently of setup classes. It retains associated USB metadata
+and includes working interface/registry results if setup-class lookup fails.
+When `CreateFileW` cannot find a COM alias, `com.rs` can open the live interface
+registered to that exact COM name instead. It preserves requested settings and
+rejects ambiguous mappings. Access errors do not trigger fallback. This fixes
+discovery/opening for live interfaces without a working legacy registration; it
+cannot restore a physically absent device or install a missing driver.
+
+The before-and-after Windows regressions and their modeled-device limits are
+described in `docs/testing/windows-serial-interface-recovery.md` in the repository
+root. The existing CH340 initialization recovery remains required.

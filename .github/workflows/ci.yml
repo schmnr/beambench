@@ -168,7 +168,7 @@ jobs:
             target
           key: ${{ runner.os }}-cargo-source-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Reproduce and recover Windows CH340 initialization failure
+      - name: Reproduce and recover Windows serial discovery and CH340 failures
         run: ./scripts/test-windows-ch340-recovery.ps1
 
       - name: Test planning and machine-service behavior

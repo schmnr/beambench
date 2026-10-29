@@ -14,6 +14,27 @@ use windows_sys::Win32::{
 use crate::{Result, SerialPortInfo, SerialPortType, UsbPortInfo};
 
 pub const PORT: &str = "COM_BEAMBENCH_CH340";
+pub const INTERFACE_PORT: &str = "COM65534";
+pub const INTERFACE_PATH: &str =
+    r"\\?\usb#vid_1a86&pid_7523#beambench#{86e0d1e0-8089-11d0-9ce4-08003e301f73}";
+
+pub fn interface(port: &str, path: &str) -> (SerialPortInfo, String) {
+    (
+        SerialPortInfo {
+            port_name: port.into(),
+            port_type: SerialPortType::UsbPort(UsbPortInfo {
+                vid: 0x1a86,
+                pid: 0x7523,
+                serial_number: Some("beambench-test".into()),
+                manufacturer: Some("Test driver".into()),
+                product: Some("Test serial controller".into()),
+                #[cfg(feature = "usbportinfo-interface")]
+                interface: None,
+            }),
+        },
+        path.into(),
+    )
+}
 
 #[derive(Clone, Copy)]
 pub enum Fault {
@@ -62,6 +83,11 @@ struct Driver {
     verified: bool,
     tx: Vec<u8>,
     rx: VecDeque<u8>,
+    alias: String,
+    interfaces: Option<Vec<(SerialPortInfo, String)>>,
+    alias_error: Option<u32>,
+    interface_error: Option<u32>,
+    open_paths: Vec<String>,
 }
 
 thread_local! {
@@ -88,9 +114,38 @@ impl Scenario {
                 verified: false,
                 tx: Vec::new(),
                 rx: VecDeque::new(),
+                alias: PORT.into(),
+                interfaces: None,
+                alias_error: None,
+                interface_error: None,
+                open_paths: Vec::new(),
             });
         });
         Self
+    }
+
+    pub fn interface_only(error: u32, interfaces: Vec<(SerialPortInfo, String)>) -> Self {
+        let scenario = Self::install(Fault::Healthy, Some((0x1a86, 0x7523)));
+        DRIVER.with(|slot| {
+            let mut slot = slot.borrow_mut();
+            let driver = slot.as_mut().unwrap();
+            driver.alias = INTERFACE_PORT.into();
+            driver.alias_error = Some(error);
+            driver.interfaces = Some(interfaces);
+        });
+        scenario
+    }
+
+    pub fn fail_interface_open(&self, error: u32) {
+        DRIVER.with(|slot| slot.borrow_mut().as_mut().unwrap().interface_error = Some(error));
+    }
+
+    pub fn require_ch340_bootstrap(&self) {
+        DRIVER.with(|slot| slot.borrow_mut().as_mut().unwrap().fault = Fault::Needs9600);
+    }
+
+    pub fn open_paths(&self) -> Vec<String> {
+        DRIVER.with(|slot| slot.borrow().as_ref().unwrap().open_paths.clone())
     }
 
     pub fn settings(&self) -> Vec<Settings> {
@@ -137,10 +192,31 @@ fn with_port<T>(handle: HANDLE, apply: impl FnOnce(&mut Driver) -> T) -> Option<
     })
 }
 
+pub fn legacy_discovery_disabled() -> bool {
+    DRIVER.with(|slot| {
+        slot.borrow()
+            .as_ref()
+            .is_some_and(|driver| driver.interfaces.is_some())
+    })
+}
+
+pub fn com_port_interfaces() -> Option<Vec<(SerialPortInfo, String)>> {
+    DRIVER.with(|slot| {
+        let mut slot = slot.borrow_mut();
+        let driver = slot.as_mut()?;
+        let interfaces = driver.interfaces.clone()?;
+        driver.enumeration_count += 1;
+        Some(interfaces)
+    })
+}
+
 pub fn available_ports() -> Result<Vec<SerialPortInfo>> {
     if let Some(ports) = DRIVER.with(|slot| {
         slot.borrow_mut().as_mut().map(|driver| {
             driver.enumeration_count += 1;
+            if let Some(interfaces) = &driver.interfaces {
+                return interfaces.iter().map(|(port, _)| port.clone()).collect();
+            }
             vec![SerialPortInfo {
                 port_name: PORT.into(),
                 port_type: match driver.identity {
@@ -175,21 +251,40 @@ pub unsafe fn CreateFileW(
         len += 1;
     }
     let path = String::from_utf16_lossy(std::slice::from_raw_parts(name, len));
-    if path.ends_with(PORT) {
-        if let Some(handle) = DRIVER.with(|slot| {
-            slot.borrow_mut().as_mut().map(|driver| {
-                if matches!(driver.fault, Fault::OpenFails) {
-                    SetLastError(ERROR_GEN_FAILURE);
-                    return -1;
-                }
-                // A real kernel handle makes the production Drop cleanup observable.
-                driver.handle = CreateEventW(ptr::null(), 0, 0, ptr::null());
-                assert_ne!(driver.handle, 0);
-                driver.handle
-            })
-        }) {
-            return handle;
-        }
+    if let Some(handle) = DRIVER.with(|slot| {
+        slot.borrow_mut().as_mut().and_then(|driver| {
+            let alias = path
+                .strip_prefix(r"\\.\")
+                .unwrap_or(&path)
+                .eq_ignore_ascii_case(&driver.alias);
+            let interface = driver.interfaces.as_ref().is_some_and(|interfaces| {
+                interfaces
+                    .iter()
+                    .any(|(_, name)| name.eq_ignore_ascii_case(&path))
+            });
+            if !alias && !interface {
+                return None;
+            }
+            driver.open_paths.push(path.clone());
+            if let Some(error) = if alias {
+                driver.alias_error
+            } else {
+                driver.interface_error
+            } {
+                SetLastError(error);
+                return Some(-1);
+            }
+            if matches!(driver.fault, Fault::OpenFails) {
+                SetLastError(ERROR_GEN_FAILURE);
+                return Some(-1);
+            }
+            // A real kernel handle makes the production Drop cleanup observable.
+            driver.handle = CreateEventW(ptr::null(), 0, 0, ptr::null());
+            assert_ne!(driver.handle, 0);
+            Some(driver.handle)
+        })
+    }) {
+        return handle;
     }
     fs::CreateFileW(
         name,
@@ -245,6 +340,9 @@ pub unsafe fn SetCommState(handle: HANDLE, input: *const DCB) -> BOOL {
             return 0;
         }
         driver.current = dcb;
+        if driver.interfaces.is_some() {
+            driver.verified = true;
+        }
         1
     }) {
         return result;

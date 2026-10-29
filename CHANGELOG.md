@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Discover live Windows serial device interfaces even when the port is missing
+  from the legacy setup-class and registry lists. Keep USB device information.
+- Recover a missing Windows COM alias by opening its exact live serial device
+  interface. Preserve baud and control settings, and stop on access errors or
+  conflicting device registrations.
+
 ## 0.2.36
 
 - Continue GRBL baud detection when Windows rejects serial settings, keeping
