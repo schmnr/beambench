@@ -148,7 +148,7 @@ jobs:
 
       - name: Verify release source
         run: |
-          cargo test -p beambench-service -p beambench-planner -p beambench-grbl -p beambench-tauri
+          cargo test -p beambench-service -p beambench-planner -p beambench-grbl -p beambench-project -p beambench-xtool -p beambench-tauri
           npm --prefix tauri-app test
 
       - name: Install Artifact Signing CLI

@@ -172,7 +172,7 @@ jobs:
         run: ./scripts/test-windows-ch340-recovery.ps1
 
       - name: Test planning and machine-service behavior
-        run: cargo test -p beambench-service -p beambench-planner -p beambench-grbl -p beambench-serial -p beambench-tauri
+        run: cargo test -p beambench-service -p beambench-planner -p beambench-grbl -p beambench-project -p beambench-xtool -p beambench-serial -p beambench-tauri
 
       - name: Test remote host startup, authentication and Windows shutdown
         run: cargo test -p beambench-cli --test remote_host

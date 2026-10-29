@@ -123,7 +123,7 @@ jobs:
 
       - name: Verify release source
         run: |
-          cargo test -p beambench-service -p beambench-planner -p beambench-grbl
+          cargo test -p beambench-service -p beambench-planner -p beambench-grbl -p beambench-project -p beambench-xtool
           npm --prefix tauri-app test
 
       - name: Import Apple Developer ID certificate

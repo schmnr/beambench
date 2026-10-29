@@ -157,15 +157,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "arbitrary"
-version = "1.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c3d036a3c4ab069c7b410a2ce876bd74808d2d0888a82667669f8e783a898bf1"
-dependencies = [
- "derive_arbitrary",
-]
-
-[[package]]
 name = "arboard"
 version = "3.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -454,7 +445,7 @@ checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
 
 [[package]]
 name = "beambench-api"
-version = "0.2.36"
+version = "0.2.37"
 dependencies = [
  "axum",
  "base64 0.22.1",
@@ -481,14 +472,14 @@ dependencies = [
 
 [[package]]
 name = "beambench-buildinfo"
-version = "0.2.36"
+version = "0.2.37"
 dependencies = [
  "vergen",
 ]
 
 [[package]]
 name = "beambench-camera"
-version = "0.2.36"
+version = "0.2.37"
 dependencies = [
  "beambench-common",
  "chrono",
@@ -502,7 +493,7 @@ dependencies = [
 
 [[package]]
 name = "beambench-cli"
-version = "0.2.36"
+version = "0.2.37"
 dependencies = [
  "base64 0.22.1",
  "beambench-api",
@@ -529,7 +520,7 @@ dependencies = [
 
 [[package]]
 name = "beambench-common"
-version = "0.2.36"
+version = "0.2.37"
 dependencies = [
  "chrono",
  "regex",
@@ -541,7 +532,7 @@ dependencies = [
 
 [[package]]
 name = "beambench-core"
-version = "0.2.36"
+version = "0.2.37"
 dependencies = [
  "ab_glyph",
  "barcoders",
@@ -575,7 +566,7 @@ dependencies = [
 
 [[package]]
 name = "beambench-discovery"
-version = "0.2.36"
+version = "0.2.37"
 dependencies = [
  "beambench-common",
  "beambench-serial",
@@ -585,7 +576,7 @@ dependencies = [
 
 [[package]]
 name = "beambench-dsp"
-version = "0.2.36"
+version = "0.2.37"
 dependencies = [
  "beambench-common",
  "beambench-planner",
@@ -596,7 +587,7 @@ dependencies = [
 
 [[package]]
 name = "beambench-galvo"
-version = "0.2.36"
+version = "0.2.37"
 dependencies = [
  "beambench-common",
  "beambench-planner",
@@ -607,7 +598,7 @@ dependencies = [
 
 [[package]]
 name = "beambench-gcode"
-version = "0.2.36"
+version = "0.2.37"
 dependencies = [
  "serde",
  "serde_json",
@@ -616,7 +607,7 @@ dependencies = [
 
 [[package]]
 name = "beambench-grbl"
-version = "0.2.36"
+version = "0.2.37"
 dependencies = [
  "beambench-common",
  "beambench-core",
@@ -634,7 +625,7 @@ dependencies = [
 
 [[package]]
 name = "beambench-lihuiyu"
-version = "0.2.36"
+version = "0.2.37"
 dependencies = [
  "beambench-common",
  "beambench-planner",
@@ -646,7 +637,7 @@ dependencies = [
 
 [[package]]
 name = "beambench-marlin"
-version = "0.2.36"
+version = "0.2.37"
 dependencies = [
  "beambench-common",
  "beambench-core",
@@ -661,7 +652,7 @@ dependencies = [
 
 [[package]]
 name = "beambench-planner"
-version = "0.2.36"
+version = "0.2.37"
 dependencies = [
  "beambench-common",
  "beambench-core",
@@ -685,7 +676,7 @@ dependencies = [
 
 [[package]]
 name = "beambench-preview"
-version = "0.2.36"
+version = "0.2.37"
 dependencies = [
  "beambench-common",
  "beambench-planner",
@@ -698,7 +689,7 @@ dependencies = [
 
 [[package]]
 name = "beambench-project"
-version = "0.2.36"
+version = "0.2.37"
 dependencies = [
  "beambench-common",
  "beambench-core",
@@ -709,12 +700,12 @@ dependencies = [
  "thiserror 2.0.18",
  "tracing",
  "uuid",
- "zip 2.4.2",
+ "zip",
 ]
 
 [[package]]
 name = "beambench-raster"
-version = "0.2.36"
+version = "0.2.37"
 dependencies = [
  "beambench-common",
  "image",
@@ -726,7 +717,7 @@ dependencies = [
 
 [[package]]
 name = "beambench-ruida"
-version = "0.2.36"
+version = "0.2.37"
 dependencies = [
  "beambench-common",
  "beambench-planner",
@@ -739,7 +730,7 @@ dependencies = [
 
 [[package]]
 name = "beambench-serial"
-version = "0.2.36"
+version = "0.2.37"
 dependencies = [
  "beambench-common",
  "serde",
@@ -751,7 +742,7 @@ dependencies = [
 
 [[package]]
 name = "beambench-service"
-version = "0.2.36"
+version = "0.2.37"
 dependencies = [
  "base64 0.22.1",
  "beambench-buildinfo",
@@ -790,12 +781,12 @@ dependencies = [
  "u-nesting-d2",
  "uuid",
  "zbus",
- "zip 2.4.2",
+ "zip",
 ]
 
 [[package]]
 name = "beambench-smoothieware"
-version = "0.2.36"
+version = "0.2.37"
 dependencies = [
  "beambench-common",
  "beambench-core",
@@ -810,7 +801,7 @@ dependencies = [
 
 [[package]]
 name = "beambench-streamer"
-version = "0.2.36"
+version = "0.2.37"
 dependencies = [
  "beambench-common",
  "beambench-core",
@@ -826,7 +817,7 @@ dependencies = [
 
 [[package]]
 name = "beambench-tauri"
-version = "0.2.36"
+version = "0.2.37"
 dependencies = [
  "apple-native-keyring-store",
  "arboard",
@@ -876,7 +867,7 @@ dependencies = [
 
 [[package]]
 name = "beambench-xtool"
-version = "0.2.36"
+version = "0.2.37"
 dependencies = [
  "beambench-common",
  "beambench-core",
@@ -887,7 +878,7 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.18",
  "uuid",
- "zip 2.4.2",
+ "zip",
 ]
 
 [[package]]
@@ -1883,17 +1874,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "derive_arbitrary"
-version = "1.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e567bd82dcff979e4b03460c307b3cdc9e96fde3d73bed1496d2bc75d9dd62a"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.117",
-]
-
-[[package]]
 name = "derive_builder"
 version = "0.20.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2318,6 +2298,7 @@ checksum = "843fba2746e448b37e26a819579957415c8cef339bf08564fe8b7ddbd959573c"
 dependencies = [
  "crc32fast",
  "miniz_oxide",
+ "zlib-rs",
 ]
 
 [[package]]
@@ -3696,9 +3677,9 @@ dependencies = [
 
 [[package]]
 name = "libc"
-version = "0.2.183"
+version = "0.2.191"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b5b646652bf6661599e1da8901b3b9522896f01e736bad5f723fe7a3a27f899d"
+checksum = "65cd87c9a6d60536580b316ad985726104730a5151c99845f2490428ef91240a"
 
 [[package]]
 name = "libdbus-sys"
@@ -4119,6 +4100,18 @@ checksum = "598beaf3cc6fdd9a5dfb1630c2800c7acd31df7aaf0f565796fba2b53ca1af1b"
 dependencies = [
  "bitflags 1.3.2",
  "cfg-if 1.0.4",
+ "libc",
+]
+
+[[package]]
+name = "nix"
+version = "0.31.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cf20d2fde8ff38632c426f1165ed7436270b44f199fc55284c38276f9db47c3d"
+dependencies = [
+ "bitflags 2.13.1",
+ "cfg-if 1.0.4",
+ "cfg_aliases",
  "libc",
 ]
 
@@ -5998,7 +5991,7 @@ dependencies = [
  "io-kit-sys 0.4.1",
  "libudev",
  "mach2 0.4.3",
- "nix",
+ "nix 0.26.4",
  "scopeguard",
  "unescaper",
  "windows-sys 0.52.0",
@@ -6697,7 +6690,6 @@ dependencies = [
  "tokio",
  "url",
  "windows-sys 0.60.2",
- "zip 4.6.1",
 ]
 
 [[package]]
@@ -7340,6 +7332,12 @@ dependencies = [
  "thiserror 2.0.18",
  "utf-8",
 ]
+
+[[package]]
+name = "typed-path"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9ce898823d8cd0f028662d2f349694b1af0a5cc9be83f1d213a00d3147445e1e"
 
 [[package]]
 name = "typeid"
@@ -8960,32 +8958,26 @@ dependencies = [
 
 [[package]]
 name = "zip"
-version = "2.4.2"
+version = "9.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fabe6324e908f85a1c52063ce7aa26b68dcb7eb6dbc83a2d148403c9bc3eba50"
+checksum = "1156b39d142a34b999c2310a50455e0cb3760bf7efad0122f796d813bee26ccb"
 dependencies = [
- "arbitrary",
  "crc32fast",
- "crossbeam-utils",
- "displaydoc",
  "flate2",
+ "getrandom 0.4.2",
  "indexmap 2.14.1",
  "memchr",
- "thiserror 2.0.18",
+ "nix 0.31.3",
+ "typed-path",
+ "windows-sys 0.61.2",
  "zopfli",
 ]
 
 [[package]]
-name = "zip"
-version = "4.6.1"
+name = "zlib-rs"
+version = "0.6.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "caa8cd6af31c3b31c6631b8f483848b91589021b28fffe50adada48d4f4d2ed1"
-dependencies = [
- "arbitrary",
- "crc32fast",
- "indexmap 2.14.1",
- "memchr",
-]
+checksum = "b268e58e7c693d7c271f93ffc4ba3b380412554231c85bf61ca7af91042a4112"
 
 [[package]]
 name = "zmij"

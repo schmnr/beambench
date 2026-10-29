@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 0.2.37
+
+- Update ZIP dependencies and reject project archives with conflicting local
+  and central file headers. Keep compatibility with projects saved by 0.2.36.
+- Remove the updater's unused legacy ZIP dependency while retaining the
+  shipped Windows, macOS and Linux update formats.
+
 - Discover live Windows serial device interfaces even when the port is missing
   from the legacy setup-class and registry lists. Keep USB device information.
 - Recover a missing Windows COM alias by opening its exact live serial device

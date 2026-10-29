@@ -24,7 +24,10 @@ tauri-plugin-dialog = "2"
 tauri-plugin-opener = "2"
 tauri-plugin-process = "2"
 tauri-plugin-shell = "2"
-tauri-plugin-updater = "2"
+# Current updates use raw NSIS/AppImage packages and macOS tar.gz archives.
+# macOS archive support is unconditional; the legacy Windows ZIP/Linux tar
+# feature would add a separate, vulnerable ZIP dependency we do not use.
+tauri-plugin-updater = { version = "2", default-features = false, features = ["rustls-tls"] }
 tauri-plugin-window-state = "2"
 serde = { workspace = true }
 serde_json = { workspace = true }

@@ -1,9 +1,8 @@
 # Windows CH340 connection failure investigation
 
 Investigated October 27, 2026 against Beam Bench 0.2.34, source
-`6ecf691eedd5`. The initial diagnostic correction is on `main`. The follow-up
-below adds automatic recovery for a documented CH340 initialization fault.
-Neither change has been released.
+`6ecf691eedd5`. The diagnostic correction and automatic recovery for the
+documented CH340 initialization fault below were released in 0.2.35.
 
 ## What the report establishes
 

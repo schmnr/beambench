@@ -27,7 +27,6 @@ copyrights. Regenerate it with `node scripts/generate-license-report.mjs`.
 | Cargo | [anyhow](https://github.com/dtolnay/anyhow) | 1.0.104 | MIT OR Apache-2.0 |
 | Cargo | [apple-native-keyring-store](https://github.com/open-source-cooperative/apple-native-keyring-store.git) | 1.0.2 | MIT OR Apache-2.0 |
 | Cargo | [approx](https://github.com/brendanzab/approx) | 0.5.1 | Apache-2.0 |
-| Cargo | [arbitrary](https://github.com/rust-fuzz/arbitrary/) | 1.4.2 | MIT OR Apache-2.0 |
 | Cargo | [arboard](https://github.com/1Password/arboard) | 3.6.1 | MIT OR Apache-2.0 |
 | Cargo | [arrayref](https://github.com/droundy/arrayref) | 0.3.9 | BSD-2-Clause |
 | Cargo | [arrayvec](https://github.com/bluss/arrayvec) | 0.7.6 | MIT OR Apache-2.0 |
@@ -152,7 +151,6 @@ copyrights. Regenerate it with `node scripts/generate-license-report.mjs`.
 | Cargo | [datamatrix](https://github.com/jannschu/datamatrix-rs/) | 0.3.2 | Apache-2.0 OR MIT |
 | Cargo | [dbus](https://github.com/diwic/dbus-rs) | 0.9.12 | Apache-2.0/MIT |
 | Cargo | [deranged](https://github.com/jhpratt/deranged) | 0.5.8 | MIT OR Apache-2.0 |
-| Cargo | [derive_arbitrary](https://github.com/rust-fuzz/arbitrary) | 1.4.2 | MIT OR Apache-2.0 |
 | Cargo | [derive_builder_core](https://github.com/colin-kiegel/rust-derive-builder) | 0.20.2 | MIT OR Apache-2.0 |
 | Cargo | [derive_builder_macro](https://github.com/colin-kiegel/rust-derive-builder) | 0.20.2 | MIT OR Apache-2.0 |
 | Cargo | [derive_builder](https://github.com/colin-kiegel/rust-derive-builder) | 0.20.2 | MIT OR Apache-2.0 |
@@ -327,7 +325,7 @@ copyrights. Regenerate it with `node scripts/generate-license-report.mjs`.
 | Cargo | [leb128fmt](https://github.com/bluk/leb128fmt) | 0.1.0 | MIT OR Apache-2.0 |
 | Cargo | libappindicator-sys | 0.9.0 | Apache-2.0 OR MIT |
 | Cargo | libappindicator | 0.9.0 | Apache-2.0 OR MIT |
-| Cargo | [libc](https://github.com/rust-lang/libc) | 0.2.183 | MIT OR Apache-2.0 |
+| Cargo | [libc](https://github.com/rust-lang/libc) | 0.2.191 | MIT OR Apache-2.0 |
 | Cargo | [libdbus-sys](https://github.com/diwic/dbus-rs) | 0.2.7 | Apache-2.0/MIT |
 | Cargo | [libloading](https://github.com/nagisa/rust_libloading/) | 0.7.4 | ISC |
 | Cargo | [libloading](https://github.com/nagisa/rust_libloading/) | 0.8.9 | ISC |
@@ -371,6 +369,7 @@ copyrights. Regenerate it with `node scripts/generate-license-report.mjs`.
 | Cargo | [ndk](https://github.com/rust-mobile/ndk) | 0.9.0 | MIT OR Apache-2.0 |
 | Cargo | [new_debug_unreachable](https://github.com/mbrubeck/rust-debug-unreachable) | 1.0.6 | MIT |
 | Cargo | [nix](https://github.com/nix-rust/nix) | 0.26.4 | MIT |
+| Cargo | [nix](https://github.com/nix-rust/nix) | 0.31.3 | MIT |
 | Cargo | [nokhwa-bindings-linux](https://github.com/l1npengtul/nokhwa) | 0.1.4 | Apache-2.0 |
 | Cargo | [nokhwa-bindings-macos](https://github.com/l1npengtul/nokhwa) | 0.2.4 | Apache-2.0 |
 | Cargo | [nokhwa-bindings-windows](https://github.com/l1npengtul/nokhwa) | 0.4.6 | Apache-2.0 |
@@ -647,6 +646,7 @@ copyrights. Regenerate it with `node scripts/generate-license-report.mjs`.
 | Cargo | [try-lock](https://github.com/seanmonstar/try-lock) | 0.2.5 | MIT |
 | Cargo | [ttf-parser](https://github.com/harfbuzz/ttf-parser) | 0.25.1 | MIT OR Apache-2.0 |
 | Cargo | [tungstenite](https://github.com/snapview/tungstenite-rs) | 0.28.0 | MIT OR Apache-2.0 |
+| Cargo | [typed-path](https://github.com/chipsenkbeil/typed-path) | 0.13.0 | MIT OR Apache-2.0 |
 | Cargo | [typeid](https://github.com/dtolnay/typeid) | 1.0.3 | MIT OR Apache-2.0 |
 | Cargo | [typenum](https://github.com/paholg/typenum) | 1.20.1 | MIT OR Apache-2.0 |
 | Cargo | [u-geometry](https://github.com/iyulab/u-geometry) | 0.1.0 | MIT |
@@ -809,8 +809,8 @@ copyrights. Regenerate it with `node scripts/generate-license-report.mjs`.
 | Cargo | [zerotrie](https://github.com/unicode-org/icu4x) | 0.2.3 | Unicode-3.0 |
 | Cargo | [zerovec-derive](https://github.com/unicode-org/icu4x) | 0.11.2 | Unicode-3.0 |
 | Cargo | [zerovec](https://github.com/unicode-org/icu4x) | 0.11.5 | Unicode-3.0 |
-| Cargo | [zip](https://github.com/zip-rs/zip2.git) | 2.4.2 | MIT |
-| Cargo | [zip](https://github.com/zip-rs/zip2.git) | 4.6.1 | MIT |
+| Cargo | [zip](https://github.com/zip-rs/zip2) | 9.1.3 | MIT |
+| Cargo | [zlib-rs](https://github.com/trifectatechfoundation/zlib-rs) | 0.6.8 | Zlib |
 | Cargo | [zmij](https://github.com/dtolnay/zmij) | 1.0.21 | MIT |
 | Cargo | [zopfli](https://github.com/zopfli-rs/zopfli) | 0.8.3 | Apache-2.0 |
 | Cargo | [zune-core](https://github.com/etemesi254/zune-image/tree/dev/zune-core) | 0.4.12 | MIT OR Apache-2.0 OR Zlib |
@@ -1394,37 +1394,6 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-```
-
-### 04dc52136d82
-
-Packages: Cargo:zip@2.4.2, Cargo:zip@4.6.1
-
-```text
-The MIT License (MIT)
-
-Copyright (c) 2014 Mathijs van de Nes
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-Some files in the "tests/data" subdirectory of this repository are under other
-licences; see files named LICENSE.*.txt for details.
 ```
 
 ### 055a17110636
@@ -5891,7 +5860,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ### 30fefc3a7d6a
 
-Packages: Cargo:adler2@2.0.1, Cargo:allocator-api2@0.2.21, Cargo:anyhow@1.0.104, Cargo:async-channel@2.5.0, Cargo:async-executor@1.14.0, Cargo:async-io@2.6.0, Cargo:async-lock@3.4.2, Cargo:async-process@2.5.0, Cargo:async-recursion@1.1.1, Cargo:async-signal@0.2.14, Cargo:async-task@4.7.1, Cargo:async-trait@0.1.89, Cargo:atomic-waker@1.1.2, Cargo:blocking@1.6.2, Cargo:camino@1.2.2, Cargo:cargo-platform@0.1.9, Cargo:cargo-platform@0.3.3, Cargo:cargo_metadata@0.19.2, Cargo:cargo_metadata@0.23.1, Cargo:concurrent-queue@2.5.0, Cargo:const_fn@0.4.12, Cargo:displaydoc@0.2.5, Cargo:dtoa@1.0.11, Cargo:dyn-clone@1.0.20, Cargo:endi@1.1.1, Cargo:erased-serde@0.4.10, Cargo:event-listener-strategy@0.5.4, Cargo:event-listener@5.4.2, Cargo:fastrand@2.3.0, Cargo:flume@0.11.1, Cargo:futures-lite@2.6.1, Cargo:hermit-abi@0.5.2, Cargo:home@0.5.12, Cargo:is-terminal@0.4.17, Cargo:itoa@1.0.17, Cargo:leb128fmt@0.1.0, Cargo:linux-raw-sys@0.12.1, Cargo:linux-raw-sys@0.4.15, Cargo:minimal-lexical@0.2.1, Cargo:num_enum@0.7.6, Cargo:num_enum_derive@0.7.6, Cargo:nusb@0.2.5, Cargo:once_cell@1.21.4, Cargo:ordered-stream@0.2.0, Cargo:parking@2.2.1, Cargo:paste@1.0.15, Cargo:pathdiff@0.2.3, Cargo:pin-project-lite@0.2.17, Cargo:piper@0.2.5, Cargo:polling@3.11.0, Cargo:prettyplease@0.2.37, Cargo:proc-macro-crate@1.3.1, Cargo:proc-macro-crate@2.0.2, Cargo:proc-macro-crate@3.5.0, Cargo:proc-macro2@1.0.106, Cargo:quote@1.0.45, Cargo:ref-cast-impl@1.0.25, Cargo:ref-cast@1.0.25, Cargo:rustc-hash@1.1.0, Cargo:rustc-hash@2.1.1, Cargo:rustix@0.38.44, Cargo:rustix@1.1.4, Cargo:rustversion@1.0.22, Cargo:semver@1.0.27, Cargo:serde-untagged@0.1.9, Cargo:serde@1.0.228, Cargo:serde_core@1.0.228, Cargo:serde_derive@1.0.228, Cargo:serde_derive_internals@0.29.1, Cargo:serde_json@1.0.149, Cargo:serde_path_to_error@0.1.20, Cargo:serde_repr@0.1.20, Cargo:servo_arc@0.4.3, Cargo:syn@1.0.109, Cargo:syn@2.0.117, Cargo:system-deps@6.2.2, Cargo:thiserror-impl@1.0.69, Cargo:thiserror-impl@2.0.18, Cargo:thiserror@1.0.69, Cargo:thiserror@2.0.18, Cargo:typeid@1.0.3, Cargo:unicode-ident@1.0.24, Cargo:utf-8@0.7.6, Cargo:wasi@0.11.1+wasi-snapshot-preview1, Cargo:wasm-streams@0.5.0, Cargo:wit-bindgen-core@0.51.0, Cargo:wit-bindgen-rust-macro@0.51.0, Cargo:wit-bindgen-rust@0.51.0, Cargo:wit-bindgen@0.51.0, Cargo:x11-dl@2.21.0, Cargo:x11@2.21.0, Cargo:zmij@1.0.21, Cargo:zvariant_utils@3.3.1
+Packages: Cargo:adler2@2.0.1, Cargo:allocator-api2@0.2.21, Cargo:anyhow@1.0.104, Cargo:async-channel@2.5.0, Cargo:async-executor@1.14.0, Cargo:async-io@2.6.0, Cargo:async-lock@3.4.2, Cargo:async-process@2.5.0, Cargo:async-recursion@1.1.1, Cargo:async-signal@0.2.14, Cargo:async-task@4.7.1, Cargo:async-trait@0.1.89, Cargo:atomic-waker@1.1.2, Cargo:blocking@1.6.2, Cargo:camino@1.2.2, Cargo:cargo-platform@0.1.9, Cargo:cargo-platform@0.3.3, Cargo:cargo_metadata@0.19.2, Cargo:cargo_metadata@0.23.1, Cargo:concurrent-queue@2.5.0, Cargo:const_fn@0.4.12, Cargo:displaydoc@0.2.5, Cargo:dtoa@1.0.11, Cargo:dyn-clone@1.0.20, Cargo:endi@1.1.1, Cargo:erased-serde@0.4.10, Cargo:event-listener-strategy@0.5.4, Cargo:event-listener@5.4.2, Cargo:fastrand@2.3.0, Cargo:flume@0.11.1, Cargo:futures-lite@2.6.1, Cargo:hermit-abi@0.5.2, Cargo:home@0.5.12, Cargo:is-terminal@0.4.17, Cargo:itoa@1.0.17, Cargo:leb128fmt@0.1.0, Cargo:linux-raw-sys@0.12.1, Cargo:linux-raw-sys@0.4.15, Cargo:minimal-lexical@0.2.1, Cargo:num_enum@0.7.6, Cargo:num_enum_derive@0.7.6, Cargo:nusb@0.2.5, Cargo:once_cell@1.21.4, Cargo:ordered-stream@0.2.0, Cargo:parking@2.2.1, Cargo:paste@1.0.15, Cargo:pathdiff@0.2.3, Cargo:pin-project-lite@0.2.17, Cargo:piper@0.2.5, Cargo:polling@3.11.0, Cargo:prettyplease@0.2.37, Cargo:proc-macro-crate@1.3.1, Cargo:proc-macro-crate@2.0.2, Cargo:proc-macro-crate@3.5.0, Cargo:proc-macro2@1.0.106, Cargo:quote@1.0.45, Cargo:ref-cast-impl@1.0.25, Cargo:ref-cast@1.0.25, Cargo:rustc-hash@1.1.0, Cargo:rustc-hash@2.1.1, Cargo:rustix@0.38.44, Cargo:rustix@1.1.4, Cargo:rustversion@1.0.22, Cargo:semver@1.0.27, Cargo:serde-untagged@0.1.9, Cargo:serde@1.0.228, Cargo:serde_core@1.0.228, Cargo:serde_derive@1.0.228, Cargo:serde_derive_internals@0.29.1, Cargo:serde_json@1.0.149, Cargo:serde_path_to_error@0.1.20, Cargo:serde_repr@0.1.20, Cargo:servo_arc@0.4.3, Cargo:syn@1.0.109, Cargo:syn@2.0.117, Cargo:system-deps@6.2.2, Cargo:thiserror-impl@1.0.69, Cargo:thiserror-impl@2.0.18, Cargo:thiserror@1.0.69, Cargo:thiserror@2.0.18, Cargo:typed-path@0.13.0, Cargo:typeid@1.0.3, Cargo:unicode-ident@1.0.24, Cargo:utf-8@0.7.6, Cargo:wasi@0.11.1+wasi-snapshot-preview1, Cargo:wasm-streams@0.5.0, Cargo:wit-bindgen-core@0.51.0, Cargo:wit-bindgen-rust-macro@0.51.0, Cargo:wit-bindgen-rust@0.51.0, Cargo:wit-bindgen@0.51.0, Cargo:x11-dl@2.21.0, Cargo:x11@2.21.0, Cargo:zmij@1.0.21, Cargo:zvariant_utils@3.3.1
 
 ```text
 Permission is hereby granted, free of charge, to any
@@ -11656,7 +11625,7 @@ Apache License
 
 ### 66a2ea9ed607
 
-Packages: Cargo:arbitrary@1.4.2, Cargo:derive_arbitrary@1.4.2, Cargo:unicode-script@0.5.8
+Packages: Cargo:unicode-script@0.5.8
 
 ```text
 MIT License
@@ -11863,7 +11832,7 @@ SOFTWARE.
 
 ### 6ac8711fb340
 
-Packages: Cargo:spin@0.9.9
+Packages: Cargo:spin@0.9.9, Cargo:zip@9.1.3
 
 ```text
 The MIT License (MIT)
@@ -12360,6 +12329,32 @@ Apache License
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
    See the License for the specific language governing permissions and
    limitations under the License.
+```
+
+### 6ddf0fba55d4
+
+Packages: Cargo:zlib-rs@0.6.8
+
+```text
+(C) 2024 Trifecta Tech Foundation
+
+This software is provided 'as-is', without any express or implied
+warranty. In no event will the authors be held liable for any damages
+arising from the use of this software.
+
+Permission is granted to anyone to use this software for any purpose,
+including commercial applications, and to alter it and redistribute it
+freely, subject to the following restrictions:
+
+1. The origin of this software must not be misrepresented; you must not
+   claim that you wrote the original software. If you use this software
+   in a product, an acknowledgment in the product documentation would be
+   appreciated but is not required.
+
+2. Altered source versions must be plainly marked as such, and must not be
+   misrepresented as being the original software.
+
+3. This notice may not be removed or altered from any source distribution.
 ```
 
 ### 6e972f314e81
@@ -15514,7 +15509,7 @@ SOFTWARE.
 
 ### 85ad950cce87
 
-Packages: Cargo:allocator-api2@0.2.21, Cargo:anyhow@1.0.104, Cargo:async-trait@0.1.89, Cargo:dtoa@1.0.11, Cargo:dyn-clone@1.0.20, Cargo:erased-serde@0.4.10, Cargo:itoa@1.0.17, Cargo:libc@0.2.183, Cargo:mach2@0.4.3, Cargo:mach2@0.5.0, Cargo:num_enum@0.7.6, Cargo:num_enum_derive@0.7.6, Cargo:osakit@0.3.1, Cargo:paste@1.0.15, Cargo:prettyplease@0.2.37, Cargo:proc-macro2@1.0.106, Cargo:quote@1.0.45, Cargo:ref-cast-impl@1.0.25, Cargo:ref-cast@1.0.25, Cargo:rustc-hash@2.1.1, Cargo:rustversion@1.0.22, Cargo:ryu@1.0.23, Cargo:semver@1.0.27, Cargo:serde-untagged@0.1.9, Cargo:serde@1.0.228, Cargo:serde_core@1.0.228, Cargo:serde_derive@1.0.228, Cargo:serde_derive_internals@0.29.1, Cargo:serde_json@1.0.149, Cargo:serde_path_to_error@0.1.20, Cargo:serde_repr@0.1.20, Cargo:serde_urlencoded@0.7.1, Cargo:syn@2.0.117, Cargo:thiserror-impl@1.0.69, Cargo:thiserror-impl@2.0.18, Cargo:thiserror@1.0.69, Cargo:thiserror@2.0.18, Cargo:typeid@1.0.3, Cargo:unicode-ident@1.0.24, Cargo:utf-8@0.7.6, Cargo:utf8parse@0.2.2, Cargo:wasm-streams@0.5.0
+Packages: Cargo:allocator-api2@0.2.21, Cargo:anyhow@1.0.104, Cargo:async-trait@0.1.89, Cargo:dtoa@1.0.11, Cargo:dyn-clone@1.0.20, Cargo:erased-serde@0.4.10, Cargo:itoa@1.0.17, Cargo:libc@0.2.191, Cargo:mach2@0.4.3, Cargo:mach2@0.5.0, Cargo:num_enum@0.7.6, Cargo:num_enum_derive@0.7.6, Cargo:osakit@0.3.1, Cargo:paste@1.0.15, Cargo:prettyplease@0.2.37, Cargo:proc-macro2@1.0.106, Cargo:quote@1.0.45, Cargo:ref-cast-impl@1.0.25, Cargo:ref-cast@1.0.25, Cargo:rustc-hash@2.1.1, Cargo:rustversion@1.0.22, Cargo:ryu@1.0.23, Cargo:semver@1.0.27, Cargo:serde-untagged@0.1.9, Cargo:serde@1.0.228, Cargo:serde_core@1.0.228, Cargo:serde_derive@1.0.228, Cargo:serde_derive_internals@0.29.1, Cargo:serde_json@1.0.149, Cargo:serde_path_to_error@0.1.20, Cargo:serde_repr@0.1.20, Cargo:serde_urlencoded@0.7.1, Cargo:syn@2.0.117, Cargo:thiserror-impl@1.0.69, Cargo:thiserror-impl@2.0.18, Cargo:thiserror@1.0.69, Cargo:thiserror@2.0.18, Cargo:typed-path@0.13.0, Cargo:typeid@1.0.3, Cargo:unicode-ident@1.0.24, Cargo:utf-8@0.7.6, Cargo:utf8parse@0.2.2, Cargo:wasm-streams@0.5.0
 
 ```text
 Apache License
@@ -19780,7 +19775,7 @@ THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH RE
 
 ### 954f335b8baf
 
-Packages: Cargo:arbitrary@1.4.2, Cargo:arrayvec@0.7.6, Cargo:async-channel@2.5.0, Cargo:async-executor@1.14.0, Cargo:async-io@2.6.0, Cargo:async-lock@3.4.2, Cargo:async-process@2.5.0, Cargo:async-recursion@1.1.1, Cargo:async-signal@0.2.14, Cargo:async-task@4.7.1, Cargo:atomic-waker@1.1.2, Cargo:autocfg@1.5.0, Cargo:base64@0.21.7, Cargo:base64@0.22.1, Cargo:bitflags@1.3.2, Cargo:bitflags@2.13.1, Cargo:blocking@1.6.2, Cargo:bs58@0.5.1, Cargo:bumpalo@3.20.2, Cargo:camino@1.2.2, Cargo:cast@0.3.0, Cargo:cc@1.2.57, Cargo:cexpr@0.6.0, Cargo:cfg-if@0.1.10, Cargo:cfg-if@1.0.4, Cargo:cocoa-foundation@0.2.1, Cargo:cocoa@0.20.2, Cargo:concurrent-queue@2.5.0, Cargo:core-foundation-sys@0.7.0, Cargo:core-foundation-sys@0.8.7, Cargo:core-foundation@0.10.1, Cargo:core-foundation@0.7.0, Cargo:core-graphics-types@0.2.0, Cargo:core-graphics@0.19.2, Cargo:core-graphics@0.25.0, Cargo:criterion-plot@0.5.0, Cargo:criterion@0.5.1, Cargo:crossbeam-channel@0.5.15, Cargo:crossbeam-deque@0.8.6, Cargo:crossbeam-epoch@0.9.20, Cargo:crossbeam-utils@0.8.21, Cargo:data-url@0.3.2, Cargo:derive_arbitrary@1.4.2, Cargo:displaydoc@0.2.5, Cargo:either@1.15.0, Cargo:equivalent@1.0.2, Cargo:errno@0.3.14, Cargo:euclid@0.22.13, Cargo:event-listener-strategy@0.5.4, Cargo:event-listener@5.4.2, Cargo:fastrand@2.3.0, Cargo:filetime@0.2.29, Cargo:find-msvc-tools@0.1.9, Cargo:flate2@1.1.9, Cargo:fnv@1.0.7, Cargo:form_urlencoded@1.2.2, Cargo:futures-lite@2.6.1, Cargo:gethostname@1.1.0, Cargo:gif@0.13.3, Cargo:gif@0.14.1, Cargo:glob@0.3.3, Cargo:hash32@0.3.1, Cargo:hashbrown@0.12.3, Cargo:hashbrown@0.15.5, Cargo:hashbrown@0.17.1, Cargo:heapless@0.8.0, Cargo:heck@0.4.1, Cargo:heck@0.5.0, Cargo:hermit-abi@0.5.2, Cargo:html5ever@0.38.0, Cargo:httparse@1.10.1, Cargo:hyper-rustls@0.27.7, Cargo:id-arena@2.3.0, Cargo:idna@1.1.0, Cargo:idna_adapter@1.2.1, Cargo:indexmap@1.9.3, Cargo:indexmap@2.14.1, Cargo:itertools@0.10.5, Cargo:itertools@0.11.0, Cargo:jni@0.21.1, Cargo:jobserver@0.1.34, Cargo:js-sys@0.3.91, Cargo:keyboard-types@0.7.0, Cargo:lazy_static@1.5.0, Cargo:lazycell@1.3.0, Cargo:leb128fmt@0.1.0, Cargo:libappindicator@0.9.0, Cargo:linux-raw-sys@0.12.1, Cargo:linux-raw-sys@0.4.15, Cargo:lock_api@0.4.14, Cargo:log@0.4.29, Cargo:markup5ever@0.38.0, Cargo:matrixmultiply@0.3.10, Cargo:metal@0.18.0, Cargo:mime@0.3.17, Cargo:muda@0.19.3, Cargo:nasm-rs@0.3.2, Cargo:num-bigint@0.4.6, Cargo:num-complex@0.4.6, Cargo:num-integer@0.1.46, Cargo:num-iter@0.1.46, Cargo:num-rational@0.4.2, Cargo:num-traits@0.2.19, Cargo:num@0.4.3, Cargo:nusb@0.2.5, Cargo:once_cell@1.21.4, Cargo:openssl-probe@0.2.1, Cargo:ordered-stream@0.2.0, Cargo:parking@2.2.1, Cargo:parking_lot@0.12.5, Cargo:parking_lot_core@0.9.12, Cargo:peeking_take_while@0.1.2, Cargo:percent-encoding@2.3.2, Cargo:piper@0.2.5, Cargo:pkg-config@0.3.32, Cargo:png@0.17.16, Cargo:png@0.18.1, Cargo:polling@3.11.0, Cargo:proptest@1.11.0, Cargo:rawpointer@0.2.1, Cargo:rayon-core@1.13.0, Cargo:rayon@1.11.0, Cargo:regex-automata@0.4.14, Cargo:regex-syntax@0.8.10, Cargo:regex@1.12.3, Cargo:robust@1.2.0, Cargo:roxmltree@0.20.0, Cargo:rustc-hash@1.1.0, Cargo:rustc_version@0.4.1, Cargo:rustix@0.38.44, Cargo:rustix@1.1.4, Cargo:rustls-native-certs@0.8.3, Cargo:rustls@0.23.46, Cargo:rusty-fork@0.3.1, Cargo:scopeguard@1.2.0, Cargo:secret-service@5.2.0, Cargo:security-framework-sys@2.17.0, Cargo:security-framework@3.7.0, Cargo:serde_with@3.21.0, Cargo:serde_with_macros@3.21.0, Cargo:servo_arc@0.4.3, Cargo:signal-hook-registry@1.4.8, Cargo:signal-hook@0.3.18, Cargo:simplecss@0.2.2, Cargo:smallvec@1.15.1, Cargo:socket2@0.6.3, Cargo:stable_deref_trait@1.2.1, Cargo:string_cache@0.9.0, Cargo:string_cache_codegen@0.6.1, Cargo:svgtypes@0.15.3, Cargo:syn@1.0.109, Cargo:system-deps@6.2.2, Cargo:tar@0.4.46, Cargo:tempfile@3.27.0, Cargo:tendril@0.5.0, Cargo:thread_local@1.1.9, Cargo:tinytemplate@1.2.1, Cargo:toml_datetime@0.6.3, Cargo:tray-icon@0.24.1, Cargo:ttf-parser@0.25.1, Cargo:tungstenite@0.28.0, Cargo:unicode-bidi-mirroring@0.4.0, Cargo:unicode-bidi@0.3.18, Cargo:unicode-ccc@0.4.0, Cargo:unicode-normalization@0.1.25, Cargo:unicode-properties@0.1.4, Cargo:unicode-segmentation@1.12.0, Cargo:unicode-vo@0.1.0, Cargo:unicode-xid@0.2.6, Cargo:url@2.5.8, Cargo:uuid@1.22.0, Cargo:version_check@0.9.5, Cargo:wait-timeout@0.2.1, Cargo:wasi@0.11.1+wasi-snapshot-preview1, Cargo:wasm-bindgen-futures@0.4.64, Cargo:wasm-bindgen-macro-support@0.2.114, Cargo:wasm-bindgen-macro@0.2.114, Cargo:wasm-bindgen-shared@0.2.114, Cargo:wasm-bindgen@0.2.114, Cargo:web-sys@0.3.91, Cargo:web_atoms@0.2.3, Cargo:weezl@0.1.12, Cargo:weezl@0.2.1, Cargo:window-vibrancy@0.6.0, Cargo:wit-bindgen-core@0.51.0, Cargo:wit-bindgen-rust-macro@0.51.0, Cargo:wit-bindgen-rust@0.51.0, Cargo:wit-bindgen@0.51.0, Cargo:wry@0.55.1, Cargo:xattr@1.6.1
+Packages: Cargo:arrayvec@0.7.6, Cargo:async-channel@2.5.0, Cargo:async-executor@1.14.0, Cargo:async-io@2.6.0, Cargo:async-lock@3.4.2, Cargo:async-process@2.5.0, Cargo:async-recursion@1.1.1, Cargo:async-signal@0.2.14, Cargo:async-task@4.7.1, Cargo:atomic-waker@1.1.2, Cargo:autocfg@1.5.0, Cargo:base64@0.21.7, Cargo:base64@0.22.1, Cargo:bitflags@1.3.2, Cargo:bitflags@2.13.1, Cargo:blocking@1.6.2, Cargo:bs58@0.5.1, Cargo:bumpalo@3.20.2, Cargo:camino@1.2.2, Cargo:cast@0.3.0, Cargo:cc@1.2.57, Cargo:cexpr@0.6.0, Cargo:cfg-if@0.1.10, Cargo:cfg-if@1.0.4, Cargo:cocoa-foundation@0.2.1, Cargo:cocoa@0.20.2, Cargo:concurrent-queue@2.5.0, Cargo:core-foundation-sys@0.7.0, Cargo:core-foundation-sys@0.8.7, Cargo:core-foundation@0.10.1, Cargo:core-foundation@0.7.0, Cargo:core-graphics-types@0.2.0, Cargo:core-graphics@0.19.2, Cargo:core-graphics@0.25.0, Cargo:criterion-plot@0.5.0, Cargo:criterion@0.5.1, Cargo:crossbeam-channel@0.5.15, Cargo:crossbeam-deque@0.8.6, Cargo:crossbeam-epoch@0.9.20, Cargo:crossbeam-utils@0.8.21, Cargo:data-url@0.3.2, Cargo:displaydoc@0.2.5, Cargo:either@1.15.0, Cargo:equivalent@1.0.2, Cargo:errno@0.3.14, Cargo:euclid@0.22.13, Cargo:event-listener-strategy@0.5.4, Cargo:event-listener@5.4.2, Cargo:fastrand@2.3.0, Cargo:filetime@0.2.29, Cargo:find-msvc-tools@0.1.9, Cargo:flate2@1.1.9, Cargo:fnv@1.0.7, Cargo:form_urlencoded@1.2.2, Cargo:futures-lite@2.6.1, Cargo:gethostname@1.1.0, Cargo:gif@0.13.3, Cargo:gif@0.14.1, Cargo:glob@0.3.3, Cargo:hash32@0.3.1, Cargo:hashbrown@0.12.3, Cargo:hashbrown@0.15.5, Cargo:hashbrown@0.17.1, Cargo:heapless@0.8.0, Cargo:heck@0.4.1, Cargo:heck@0.5.0, Cargo:hermit-abi@0.5.2, Cargo:html5ever@0.38.0, Cargo:httparse@1.10.1, Cargo:hyper-rustls@0.27.7, Cargo:id-arena@2.3.0, Cargo:idna@1.1.0, Cargo:idna_adapter@1.2.1, Cargo:indexmap@1.9.3, Cargo:indexmap@2.14.1, Cargo:itertools@0.10.5, Cargo:itertools@0.11.0, Cargo:jni@0.21.1, Cargo:jobserver@0.1.34, Cargo:js-sys@0.3.91, Cargo:keyboard-types@0.7.0, Cargo:lazy_static@1.5.0, Cargo:lazycell@1.3.0, Cargo:leb128fmt@0.1.0, Cargo:libappindicator@0.9.0, Cargo:linux-raw-sys@0.12.1, Cargo:linux-raw-sys@0.4.15, Cargo:lock_api@0.4.14, Cargo:log@0.4.29, Cargo:markup5ever@0.38.0, Cargo:matrixmultiply@0.3.10, Cargo:metal@0.18.0, Cargo:mime@0.3.17, Cargo:muda@0.19.3, Cargo:nasm-rs@0.3.2, Cargo:num-bigint@0.4.6, Cargo:num-complex@0.4.6, Cargo:num-integer@0.1.46, Cargo:num-iter@0.1.46, Cargo:num-rational@0.4.2, Cargo:num-traits@0.2.19, Cargo:num@0.4.3, Cargo:nusb@0.2.5, Cargo:once_cell@1.21.4, Cargo:openssl-probe@0.2.1, Cargo:ordered-stream@0.2.0, Cargo:parking@2.2.1, Cargo:parking_lot@0.12.5, Cargo:parking_lot_core@0.9.12, Cargo:peeking_take_while@0.1.2, Cargo:percent-encoding@2.3.2, Cargo:piper@0.2.5, Cargo:pkg-config@0.3.32, Cargo:png@0.17.16, Cargo:png@0.18.1, Cargo:polling@3.11.0, Cargo:proptest@1.11.0, Cargo:rawpointer@0.2.1, Cargo:rayon-core@1.13.0, Cargo:rayon@1.11.0, Cargo:regex-automata@0.4.14, Cargo:regex-syntax@0.8.10, Cargo:regex@1.12.3, Cargo:robust@1.2.0, Cargo:roxmltree@0.20.0, Cargo:rustc-hash@1.1.0, Cargo:rustc_version@0.4.1, Cargo:rustix@0.38.44, Cargo:rustix@1.1.4, Cargo:rustls-native-certs@0.8.3, Cargo:rustls@0.23.46, Cargo:rusty-fork@0.3.1, Cargo:scopeguard@1.2.0, Cargo:secret-service@5.2.0, Cargo:security-framework-sys@2.17.0, Cargo:security-framework@3.7.0, Cargo:serde_with@3.21.0, Cargo:serde_with_macros@3.21.0, Cargo:servo_arc@0.4.3, Cargo:signal-hook-registry@1.4.8, Cargo:signal-hook@0.3.18, Cargo:simplecss@0.2.2, Cargo:smallvec@1.15.1, Cargo:socket2@0.6.3, Cargo:stable_deref_trait@1.2.1, Cargo:string_cache@0.9.0, Cargo:string_cache_codegen@0.6.1, Cargo:svgtypes@0.15.3, Cargo:syn@1.0.109, Cargo:system-deps@6.2.2, Cargo:tar@0.4.46, Cargo:tempfile@3.27.0, Cargo:tendril@0.5.0, Cargo:thread_local@1.1.9, Cargo:tinytemplate@1.2.1, Cargo:toml_datetime@0.6.3, Cargo:tray-icon@0.24.1, Cargo:ttf-parser@0.25.1, Cargo:tungstenite@0.28.0, Cargo:unicode-bidi-mirroring@0.4.0, Cargo:unicode-bidi@0.3.18, Cargo:unicode-ccc@0.4.0, Cargo:unicode-normalization@0.1.25, Cargo:unicode-properties@0.1.4, Cargo:unicode-segmentation@1.12.0, Cargo:unicode-vo@0.1.0, Cargo:unicode-xid@0.2.6, Cargo:url@2.5.8, Cargo:uuid@1.22.0, Cargo:version_check@0.9.5, Cargo:wait-timeout@0.2.1, Cargo:wasi@0.11.1+wasi-snapshot-preview1, Cargo:wasm-bindgen-futures@0.4.64, Cargo:wasm-bindgen-macro-support@0.2.114, Cargo:wasm-bindgen-macro@0.2.114, Cargo:wasm-bindgen-shared@0.2.114, Cargo:wasm-bindgen@0.2.114, Cargo:web-sys@0.3.91, Cargo:web_atoms@0.2.3, Cargo:weezl@0.1.12, Cargo:weezl@0.2.1, Cargo:window-vibrancy@0.6.0, Cargo:wit-bindgen-core@0.51.0, Cargo:wit-bindgen-rust-macro@0.51.0, Cargo:wit-bindgen-rust@0.51.0, Cargo:wit-bindgen@0.51.0, Cargo:wry@0.55.1, Cargo:xattr@1.6.1
 
 ```text
 Apache License
@@ -25511,7 +25506,7 @@ Creator: Person: Daniel Thompson-Yvetot
 
 ### b9b039b5058c
 
-Packages: Cargo:nix@0.26.4
+Packages: Cargo:nix@0.26.4, Cargo:nix@0.31.3
 
 ```text
 The MIT License (MIT)
@@ -28523,7 +28518,7 @@ OTHER DEALINGS IN THE SOFTWARE.
 
 ### c96302294382
 
-Packages: Cargo:libc@0.2.183
+Packages: Cargo:libc@0.2.191
 
 ```text
 Copyright (c) The Rust Project Developers
