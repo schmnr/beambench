@@ -1,5 +1,30 @@
 # Dependency security
 
+## 0.2.37
+
+The project, feedback-export and xTool archive dependency is updated from ZIP
+2.4.2 to 9.1.3, above the fixed version for
+[GHSA-m665-v7pm-7grj](https://github.com/zip-rs/zip2/security/advisories/GHSA-m665-v7pm-7grj).
+Project loading explicitly validates local and central file headers before
+reading entries. Updating the dependency alone does not enable this opt-in
+validation. Imported project assets remain in memory and archive-supplied paths
+are not extracted to disk.
+
+The regression changes a local filename while leaving its central-directory
+name intact. Without the explicit validation, the project is accepted and the
+test fails. With validation, it is rejected. A fixture created by the signed
+0.2.36 CLI verifies compatibility with the previous ZIP 2 writer.
+
+The updater's optional legacy archive feature is disabled, removing its separate
+ZIP 4.6.1 dependency. The shipped update formats remain raw Windows NSIS EXE,
+Linux AppImage and macOS tar.gz. The updater's macOS tar support does not depend
+on that optional feature. Keep the existing HTTPS endpoint and signing key, and
+verify the production updater engine and final signed packages before publishing.
+
+The resolved workspace lockfile contains only ZIP 9.1.3. Check all target graphs
+when auditing this dependency; a host-only macOS tree would miss the updater's
+former Windows-only ZIP dependency.
+
 ## 0.2.35
 
 Rustls is updated from 0.23.45 to 0.23.46, resolving the four October 2026

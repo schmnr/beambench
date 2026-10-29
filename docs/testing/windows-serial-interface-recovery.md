@@ -1,7 +1,7 @@
 # Windows serial interface discovery and opening
 
 Investigated October 28, 2026 after the 0.2.36 release. This correction is
-unreleased.
+included in 0.2.37.
 
 ## Evidence and limits
 
