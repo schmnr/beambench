@@ -892,6 +892,7 @@ copyrights. Regenerate it with `node scripts/generate-license-report.mjs`.
 | npm | @humanfs/types | 0.15.0 | Apache-2.0 |
 | npm | @humanwhocodes/module-importer | 1.0.1 | Apache-2.0 |
 | npm | @humanwhocodes/retry | 0.4.3 | Apache-2.0 |
+| npm | @isaacs/nonrecursive-glob-match | 1.0.3 | BlueOak-1.0.0 |
 | npm | @jridgewell/gen-mapping | 0.3.13 | MIT |
 | npm | @jridgewell/remapping | 2.3.5 | MIT |
 | npm | @jridgewell/resolve-uri | 3.1.2 | MIT |
@@ -1109,7 +1110,7 @@ copyrights. Regenerate it with `node scripts/generate-license-report.mjs`.
 | npm | mime-db | 1.52.0 | MIT |
 | npm | mime-types | 2.1.35 | MIT |
 | npm | min-indent | 1.0.1 | MIT |
-| npm | minimatch | 10.2.5 | BlueOak-1.0.0 |
+| npm | minimatch | 11.0.1 | BlueOak-1.0.0 |
 | npm | ms | 2.1.3 | MIT |
 | npm | mz | 2.7.0 | MIT |
 | npm | nanoid | 3.3.18 | MIT |
@@ -3235,6 +3236,68 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+```
+
+### 1a9975c75cfc
+
+Packages: npm:@isaacs/nonrecursive-glob-match@1.0.3
+
+```text
+# Blue Oak Model License
+
+Version 1.0.0
+
+## Purpose
+
+This license gives everyone as much permission to work with
+this software as possible, while protecting contributors
+from liability.
+
+## Acceptance
+
+In order to receive this license, you must agree to its
+rules.  The rules of this license are both obligations
+under that agreement and conditions to your license.
+You must not do anything with this software that triggers
+a rule that you cannot or will not follow.
+
+## Copyright
+
+Each contributor licenses you to do everything with this
+software that would otherwise infringe that contributor's
+copyright in it.
+
+## Notices
+
+You must ensure that everyone who gets a copy of
+any part of this software from you, with or without
+changes, also gets the text of this license or a link to
+<https://blueoakcouncil.org/license/1.0.0>.
+
+## Excuse
+
+If anyone notifies you in writing that you have not
+complied with [Notices](#notices), you can keep your
+license by taking all practical steps to comply within 30
+days after the notice.  If you do not do so, your license
+ends immediately.
+
+## Patent
+
+Each contributor licenses you to do everything with this
+software that would otherwise infringe any patent claims
+they can license or become able to license.
+
+## Reliability
+
+No contributor can revoke this license.
+
+## No Liability
+
+***As far as the law allows, this software comes as is,
+without any warranty or condition, and no contributor
+will be liable to anyone for any damages related to this
+software or this license, under any kind of legal claim.***
 ```
 
 ### 1b0258c48739
@@ -23371,7 +23434,7 @@ SOFTWARE.
 
 ### aa4c6585f201
 
-Packages: npm:minimatch@10.2.5
+Packages: npm:minimatch@11.0.1
 
 ```text
 # Blue Oak Model License

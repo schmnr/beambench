@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+## 0.2.38
+
+- Update the lint tooling's minimatch dependency to fix a newly reported
+  pattern-processing denial of service.
+
+- Fix Linux AppImages failing to start for ordinary users because the packaged
+  launcher lacked execute permission. Audit stored permissions before signing.
+- Use native Linux camera capture instead of the WebKit camera portal. Keep
+  capture off the UI thread, with bounded reads and frame-format validation.
+- Show the selected local or remote connection destination in Device Settings.
+  Hide local connection controls in remote mode and provide an explicit switch.
+- Preserve custom tool-layer names and entry IDs when opening projects or
+  restoring recovery files.
+- Restore Material Test fill visibility and keep overscan motion separate from
+  burn geometry. Place speed labels outside the grid using resolved glyph bounds.
+  Corrected labels can shift the grid within a job centered by its full bounds;
+  sample sizes, spacing, speed and power remain unchanged.
+- Add a documentation-based Creality Falcon A1 10W USB preset with a 381 x 305 mm
+  workspace. Physical machine testing is pending.
+
 ## 0.2.37
 
 - Update ZIP dependencies and reject project archives with conflicting local

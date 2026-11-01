@@ -1,5 +1,14 @@
 # Dependency security
 
+## 0.2.38
+
+The release audit found [GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249)
+in minimatch, used by ESLint and TypeScript ESLint. An npm override selects
+patched upstream 11.0.1 for this development-only dependency. The existing
+consumers use its named API, retained by version 11; full lint and frontend
+checks verify integration. No machine controller or application runtime API
+changes. Keep full and production npm audits clear before publishing.
+
 ## 0.2.37
 
 The project, feedback-export and xTool archive dependency is updated from ZIP
