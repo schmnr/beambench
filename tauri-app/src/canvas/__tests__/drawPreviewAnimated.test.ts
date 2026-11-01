@@ -529,6 +529,8 @@ describe('interpolateRasterRuns', () => {
 
     expect((ctx as unknown as { fill: ReturnType<typeof vi.fn> }).fill).not.toHaveBeenCalled();
     expect((ctx as unknown as { stroke: ReturnType<typeof vi.fn> }).stroke).toHaveBeenCalled();
+    // Motion bounds include laser-off overscan, not an engraved cell border.
+    expect(ctx.strokeRect).not.toHaveBeenCalled();
   });
 
   it('fill-preferred raster playback uses tinted bitmap masks when preview bitmaps are available', () => {
@@ -634,6 +636,7 @@ describe('interpolateRasterRuns', () => {
 
     expect(bitmapCache.ensureTintedBurnedMask).toHaveBeenCalledWith(3, 8, 8);
     expect(tintedCtx.fillRect).toHaveBeenCalled();
+    expect(ctx.strokeRect).not.toHaveBeenCalled();
     expect(
       (ctx as unknown as { drawImage: ReturnType<typeof vi.fn> }).drawImage,
     ).toHaveBeenCalledWith(tintedMask, 0, 0, 10, 10);

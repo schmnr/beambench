@@ -2352,6 +2352,9 @@
             "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
             "advisory": "400 x 400 mm, origen delantero izquierdo, S1000. Comprueba $30 y el modo láser $32=1. El retorno al origen y el aire asistido automático están desactivados. Otro firmware y las ampliaciones requieren una configuración aparte."
           },
+          "creality_falcon_a1_10w": {
+            "description": "Ajuste USB para el hardware original basado en documentación. Comprueba el recorrido y el valor S máximo. Pruebas físicas pendientes."
+          },
           "creality_falcon2_pro_22w": {
             "description": "Ajuste USB para el hardware original basado en documentación. Comprueba el recorrido y el valor S máximo. Pruebas físicas pendientes."
           },

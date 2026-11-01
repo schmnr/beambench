@@ -42,21 +42,25 @@ export function applyRasterBitmapTransform(
   isVerticalScan: boolean,
   vp: ViewportParams,
 ): number {
-  const screenOrigin = worldToScreen(origin, vp);
+  // Cardinal runs already use world coordinates (transposed for vertical
+  // scans). Match plannerStripPointToWorld instead of applying placement twice.
+  const cardinal = isCardinalAngle(angleDeg);
+  const screenOrigin = worldToScreen(cardinal ? { x: 0, y: 0 } : origin, vp);
+  const rotation = cardinal ? 0 : angleDeg;
   const scale = pxPerMm(vp.zoom);
   ctx.translate(screenOrigin.x, screenOrigin.y);
   if (vp.yAxis === 'up') {
     ctx.scale(scale, -scale);
-    if (angleDeg !== 0) {
-      ctx.rotate((angleDeg * Math.PI) / 180);
+    if (rotation !== 0) {
+      ctx.rotate((rotation * Math.PI) / 180);
     }
   } else {
-    if (angleDeg !== 0) {
-      ctx.rotate((angleDeg * Math.PI) / 180);
+    if (rotation !== 0) {
+      ctx.rotate((rotation * Math.PI) / 180);
     }
     ctx.scale(scale, scale);
   }
-  if (isVerticalScan) {
+  if (cardinal && isVerticalScan) {
     // World mapping: worldX = localY, worldY = localX.
     ctx.transform(0, 1, 1, 0, 0, 0);
   }
@@ -123,11 +127,9 @@ export function drawRasterPreview(
 
     // --- Primary path: draw the processed preview bitmap via drawImage.
     //
-    // The bitmap lives in the planner's local run-space (pre-rotation,
-    // pre-transpose). The frontend transforms it to world space via
-    // translate(scan_origin) -> rotate(scan_angle_deg) -> scale(mm->px)
-    // -> drawImage(local_origin_mm, local_width_mm, local_height_mm).
-    // For orthogonal scans scan_angle_deg is 0 so the rotate is a no-op.
+    // The bitmap lives in the planner's run-space (pre-rotation,
+    // pre-transpose). Non-cardinal scans need their origin/rotation; cardinal scans already
+    // contain world coordinates, with a transpose for vertical scanlines.
     const bitmap = region.preview_bitmap;
     const localOrigin = region.local_origin_mm;
     const localW = region.local_width_mm ?? 0;

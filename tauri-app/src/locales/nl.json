@@ -2352,6 +2352,9 @@
             "description": "USB-voorinstelling voor GRBL 1.1 op basis van documentatie. Tests op de machine zijn nog niet uitgevoerd.",
             "advisory": "400 x 400 mm, oorsprong linksvoor, S1000. Controleer $30 en lasermodus $32=1. Homen en automatische luchtondersteuning staan uit. Andere firmware en uitbreidingen moeten apart worden ingesteld."
           },
+          "creality_falcon_a1_10w": {
+            "description": "USB-voorinstelling voor originele hardware op basis van documentatie. Controleer het bereik en de maximale S-waarde. Praktijktests zijn nog niet uitgevoerd."
+          },
           "creality_falcon2_pro_22w": {
             "description": "USB-voorinstelling voor originele hardware op basis van documentatie. Controleer het bereik en de maximale S-waarde. Praktijktests zijn nog niet uitgevoerd."
           },

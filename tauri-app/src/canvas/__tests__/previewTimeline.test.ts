@@ -92,6 +92,15 @@ describe('polylineLength', () => {
 });
 
 describe('buildTimeline', () => {
+  it('keeps transient sample burns visible when no project layers exist', () => {
+    const data = makePreviewData({
+      layers: [{ layer_id: 'synthetic-sample', vector_paths: [], raster_regions: [makeRasterPreview()] }],
+    });
+    const [segment] = buildTimeline(data, []).segments;
+    expect(segment.type).toBe('raster');
+    if (segment.type === 'raster') expect(segment.layerColor).toBe('#000000');
+  });
+
   it('returns empty timeline for empty PreviewData', () => {
     const data = makePreviewData();
     const tl = buildTimeline(data, ['#ff0000']);

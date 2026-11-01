@@ -2352,6 +2352,9 @@
             "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
             "advisory": "400 x 400 mm, izhodišče spredaj levo, S1000. Preverite $30 in laserski način $32=1. Iskanje izhodišča in samodejni vpih zraka sta izklopljena. Druga strojna programska oprema in razširitve zahtevajo ločeno nastavitev."
           },
+          "creality_falcon_a1_10w": {
+            "description": "Prednastavitev USB za izvirno strojno opremo na podlagi dokumentacije. Preverite hod in največjo vrednost S. Fizično testiranje še ni opravljeno."
+          },
           "creality_falcon2_pro_22w": {
             "description": "Prednastavitev USB za izvirno strojno opremo na podlagi dokumentacije. Preverite hod in največjo vrednost S. Fizično testiranje še ni opravljeno."
           },

@@ -2504,6 +2504,9 @@
             "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
             "advisory": "400 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup."
           },
+          "creality_falcon_a1_10w": {
+            "description": "Documentation-based USB preset for stock hardware. Check travel and S-value max. Physical testing pending."
+          },
           "creality_falcon2_pro_22w": {
             "description": "Documentation-based USB preset for stock hardware. Check travel and S-value max. Physical testing pending."
           },

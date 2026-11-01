@@ -2352,6 +2352,9 @@
             "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
             "advisory": "400 x 400 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning."
           },
+          "creality_falcon_a1_10w": {
+            "description": "USB-forudindstilling til original hardware baseret på dokumentation. Kontrollér vandring og maksimal S-værdi. Fysisk test afventer."
+          },
           "creality_falcon2_pro_22w": {
             "description": "USB-forudindstilling til original hardware baseret på dokumentation. Kontrollér vandring og maksimal S-værdi. Fysisk test afventer."
           },

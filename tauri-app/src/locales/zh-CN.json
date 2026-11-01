@@ -2352,6 +2352,9 @@
             "description": "基于文档的 GRBL 1.1 USB 预设。尚未进行实机测试。",
             "advisory": "400 x 400 mm，原点位于左前方，S1000。请核对 $30 和激光模式 $32=1。回零和自动气辅已关闭。其他固件和扩展框架需要单独设置。"
           },
+          "creality_falcon_a1_10w": {
+            "description": "基于文档的原装硬件 USB 预设。请核对行程和最大 S 值。尚未进行实机测试。"
+          },
           "creality_falcon2_pro_22w": {
             "description": "基于文档的原装硬件 USB 预设。请核对行程和最大 S 值。尚未进行实机测试。"
           },
