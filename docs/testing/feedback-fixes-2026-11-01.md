@@ -36,7 +36,20 @@ Source reports: [camera #80](https://github.com/schmnr/beambench-feedback/issues
   passed.
 - Local Rust: camera, service and desktop tests passed. The new persistence
   regression passes; existing legacy migration and camera tests pass.
-- Repository CI and final signed Linux candidate validation are pending.
+- The new audit rejects the SHA-verified published 0.2.37 package. Repairing
+  a local copy changes the stored root-owned launcher from `0750` to `0755`
+  and passes the audit. That repacked copy is unsigned and is not desktop
+  startup evidence.
+- Required repository CI is attached to [PR #123](https://github.com/schmnr/beambench/pull/123).
+- The unpublished signed Linux candidate is `v0.2.38-rc.1`, source
+  `616ab0227e28750d5fa2ea1e76f0f6d69b14443b`, built by
+  [workflow 41333780820](https://github.com/schmnr/beambench/actions/runs/41333780820).
+  Its application source matches the fix commit; only version metadata differs.
+  The `BeamBench-Linux-desktop-v0.2.38-rc.1` workflow artifact records the
+  exact signed AppImage hash and six actual-desktop startup cases. The workflow
+  requires `Frontend ready` on 22.04, 24.04 and 26.04 under both display-variable
+  scenarios before uploading the package. Its media check retains host plugin,
+  synthetic-frame, font and update-relaunch coverage.
 - Native CachyOS/KWin/Wayland, a physical camera and laser hardware are not
   available. Container display-variable checks cannot establish that coverage.
 - No release publication, stable-manifest update, reporter correspondence or
