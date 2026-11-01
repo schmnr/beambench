@@ -19,6 +19,7 @@
 | Machine state | Home/origin/jog/alarm/unlock/disconnect/reconnect | Pass | Protocol, simulated-controller and service tests on parent source. Physical machine actions Not run. |
 | Job lifecycle | Start/pause/resume/cancel/complete and blocked double-start | Pass | Parent-source automated streamer/service coverage; repeat exact source. Physical jobs Not run. |
 | Localization | Locale catalog parity, native script/layout/persistence smoke | Not run | 0.2.38 frontend tests pass; native pre-tag checks and final limits go in the verification artifact. |
+| Dependency security | Full and production npm audits | Not run | Require zero findings after the minimatch 11.0.1 tooling override. |
 | Release source | Required CI, critical source tests, clippy and formatting | Not run | All required checks on release preparation and the exact tagged main source must pass. |
 | macOS package | Universal2, signing, notarization, entitlement, Gatekeeper, app and CLI | Not run | Final signed package plus isolated startup and Intel-under-Rosetta checks. |
 | Windows package | Signed NSIS, updater signature and installed desktop startup | Not run | Valid Authenticode; both Frontend ready callbacks; native credentials and runtime isolation. MSI not requested. |

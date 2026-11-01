@@ -4,6 +4,9 @@
 
 ## 0.2.38
 
+- Update the lint tooling's minimatch dependency to fix a newly reported
+  pattern-processing denial of service.
+
 - Fix Linux AppImages failing to start for ordinary users because the packaged
   launcher lacked execute permission. Audit stored permissions before signing.
 - Use native Linux camera capture instead of the WebKit camera portal. Keep
