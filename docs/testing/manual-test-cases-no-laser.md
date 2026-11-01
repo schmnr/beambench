@@ -570,12 +570,12 @@ Shared fixtures:
 
 ### NL-043 — Cut Settings Per Operation
 - Source Ref: `FSW-014`, `FSW-016`; `LB 8.2`, `LB 21.*`
-- Feature / Function: Cut settings editor across line, fill, offset fill, image, cut, and score layers
+- Feature / Function: Layer settings for Line, Fill, Offset Fill and Image modes, plus legacy Cut/Score compatibility
 - Hardware Requirement: None
-- Prerequisites: One layer of each operation type
-- Setup / Fixture: Mixed-operation project
+- Prerequisites: Layers for the current modes; a raster image for Image mode; separate saved/imported legacy Cut and Score entries
+- Setup / Fixture: Mixed-operation project with legacy compatibility fixtures
 - Steps: Switch through layers and edit speed, power, passes, raster settings, overlap, direction, prefixes/suffixes, and operation-specific fields.
-- Expected Result: Only applicable fields appear, edits persist to the correct layer, and preview invalidates when relevant.
+- Expected Result: Only applicable fields appear, edits persist to the correct layer, and preview invalidates when relevant. Legacy Cut/Score entries display Line in the Mode control; Cut and Score are not selectable modes. Image is offered when applicable to the layer.
 - Edge / Negative Cases: Invalid/extreme inputs should clamp, reject, or normalize safely.
 - Persistence / Reopen Check: Save/reopen and confirm settings round trip.
 - Undo / Redo Expectation: Edits are undoable as layer-setting mutations.

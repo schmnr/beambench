@@ -21,6 +21,9 @@ export interface Transform2D {
 
 // --- Layer types ---
 
+// Serialized operation values, not the list of choices in the layer Mode control.
+// Current modes are Line, Fill, Offset Fill and Image when applicable. Legacy
+// Cut/Score entries use Line's settings surface; Tool marks a non-output layer.
 export type OperationType = 'image' | 'line' | 'fill' | 'offset_fill' | 'score' | 'cut' | 'tool';
 export type AlignmentType = 'left' | 'right' | 'top' | 'bottom' | 'centers_xy' | 'centers_v' | 'centers_h';
 export type DistributionDirection = 'v_spaced' | 'v_centered' | 'h_spaced' | 'h_centered';

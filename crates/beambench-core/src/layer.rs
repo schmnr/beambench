@@ -52,7 +52,9 @@ pub enum OperationType {
     #[default]
     Line,
     Fill,
+    /// Legacy serialized operation; the layer Mode control presents it as Line.
     Score,
+    /// Legacy serialized operation; the layer Mode control presents it as Line.
     Cut,
     OffsetFill,
     Tool,
