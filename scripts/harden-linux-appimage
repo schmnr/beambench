@@ -83,6 +83,18 @@ app_executable="$extracted_dir/usr/bin/beambench-tauri"
 app_binary="${app_executable}.bin"
 runtime_hook='source "$APPDIR/usr/share/beambench/linux-runtime.sh"'
 
+permissions_match() {
+  # SquashFS records root ownership. Owner-only execute bits can pass extracted
+  # smoke tests, then fail for ordinary users when the image is mounted.
+  [ -f "$extracted_dir/AppRun" ] &&
+    [ -f "$extracted_dir/AppRun.wrapped" ] &&
+    [ -z "$(find -L "$extracted_dir/AppRun" "$extracted_dir/AppRun.wrapped" \
+      "$app_executable" "$app_binary" -type f ! -perm -0555 -print -quit)" ] &&
+    [ -z "$(find "$extracted_dir" \
+      \( -type d ! -perm -0555 -o -type f ! -perm -0444 \
+      -o -type f -perm /111 ! -perm -0111 \) -print -quit)" ]
+}
+
 runtime_policy_matches() {
   [ -f "$gtk_hook" ] &&
     grep -Fxq "$runtime_hook" "$gtk_hook" &&
@@ -105,11 +117,15 @@ if [ "$mode" = "check" ]; then
     echo "AppImage is missing the current camera, display, or color-font compatibility policy." >&2
     exit 1
   fi
+  if ! permissions_match; then
+    echo "AppImage launchers and contents must be readable and executable by ordinary users." >&2
+    exit 1
+  fi
   echo "AppImage runtime library and compatibility audit passed: $appimage"
   exit 0
 fi
 
-if [ "${#incompatible_libraries[@]}" -eq 0 ] && runtime_policy_matches; then
+if [ "${#incompatible_libraries[@]}" -eq 0 ] && runtime_policy_matches && permissions_match; then
   echo "AppImage runtime libraries and compatibility policy are already current."
   exit 0
 fi
@@ -139,8 +155,19 @@ if [ ! -f "$app_binary" ]; then
 fi
 cp "$script_dir/linux-appimage-exec.sh" "$app_executable"
 chmod 755 "$app_executable"
+if [ ! -f "$extracted_dir/AppRun" ] || [ ! -f "$extracted_dir/AppRun.wrapped" ]; then
+  echo "AppImage is missing AppRun or AppRun.wrapped." >&2
+  exit 1
+fi
+chmod -R a+rX "$extracted_dir"
+chmod a+rx "$extracted_dir/AppRun" "$extracted_dir/AppRun.wrapped" \
+  "$app_executable" "$app_binary"
 if ! runtime_policy_matches; then
   echo "Failed to install the AppImage compatibility policy." >&2
+  exit 1
+fi
+if ! permissions_match; then
+  echo "Failed to normalize AppImage permissions." >&2
   exit 1
 fi
 

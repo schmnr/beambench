@@ -326,22 +326,28 @@ fn capture_native_frame(camera: &CameraDeviceInfo) -> Result<CameraFrameHandle, 
         };
         let requested =
             RequestedFormat::new::<RgbFormat>(RequestedFormatType::AbsoluteHighestResolution);
-        let mut native_camera = Camera::with_backend(info.index().clone(), requested, backend)
+        let native_camera = Camera::with_backend(info.index().clone(), requested, backend)
             .map_err(|e| {
                 format!(
                     "Failed to open native camera '{}': {e}",
                     camera.display_name
                 )
             })?;
-        native_camera.open_stream().map_err(|e| {
-            format!(
-                "Failed to start native camera '{}': {e}",
-                camera.display_name
-            )
-        })?;
-        let frame = native_camera
-            .frame()
-            .map_err(|e| format!("Failed to capture native camera frame: {e}"))?;
+        #[cfg(target_os = "linux")]
+        let frame = capture_linux_frame(native_camera)?;
+        #[cfg(not(target_os = "linux"))]
+        let frame = {
+            let mut native_camera = native_camera;
+            native_camera.open_stream().map_err(|e| {
+                format!(
+                    "Failed to start native camera '{}': {e}",
+                    camera.display_name
+                )
+            })?;
+            native_camera
+                .frame()
+                .map_err(|e| format!("Failed to capture native camera frame: {e}"))?
+        };
         let img = frame
             .decode_image::<RgbFormat>()
             .map_err(|e| format!("Failed to decode native camera frame: {e}"))?;
@@ -362,6 +368,59 @@ fn capture_native_frame(camera: &CameraDeviceInfo) -> Result<CameraFrameHandle, 
             captured_at: Utc::now().to_rfc3339(),
         })
     }
+}
+
+#[cfg(target_os = "linux")]
+fn capture_linux_frame(camera: Camera) -> Result<nokhwa::Buffer, String> {
+    use nokhwa::utils::{CameraIndex, FrameFormat};
+    use v4l::io::traits::CaptureStream;
+    use v4l::video::Capture;
+
+    let index = camera.index().clone();
+    let format = camera.camera_format();
+    // Nokhwa negotiates a decodable format. Its Linux stream has no timeout;
+    // read the configured device with a bounded V4L2 stream instead.
+    drop(camera);
+    let device = match index {
+        CameraIndex::Index(index) => v4l::Device::new(index as usize),
+        CameraIndex::String(path) => v4l::Device::with_path(path),
+    }
+    .map_err(|error| format!("Failed to open native camera: {error}"))?;
+    let fourcc = v4l::FourCC::new(match format.format() {
+        FrameFormat::MJPEG => b"MJPG",
+        FrameFormat::YUYV => b"YUYV",
+        FrameFormat::GRAY => b"GRAY",
+        FrameFormat::RAWRGB => b"RGB3",
+        FrameFormat::RAWBGR => b"BGR3",
+        FrameFormat::NV12 => b"NV12",
+    });
+    let configured = device
+        .set_format(&v4l::Format::new(format.width(), format.height(), fourcc))
+        .map_err(|error| format!("Failed to configure native camera: {error}"))?;
+    if configured.width != format.width()
+        || configured.height != format.height()
+        || configured.fourcc != fourcc
+    {
+        return Err("Native camera did not accept the selected capture format".to_string());
+    }
+    let mut stream =
+        v4l::io::mmap::Stream::with_buffers(&device, v4l::buffer::Type::VideoCapture, 4)
+            .map_err(|error| format!("Failed to start native camera: {error}"))?;
+    stream.set_timeout(std::time::Duration::from_secs(8));
+    // Let auto-exposure settle, matching the browser path's warm-up frames.
+    for _ in 0..2 {
+        stream
+            .next()
+            .map_err(|error| format!("Failed to warm up native camera: {error}"))?;
+    }
+    let (bytes, _) = stream
+        .next()
+        .map_err(|error| format!("Failed to capture native camera frame: {error}"))?;
+    Ok(nokhwa::Buffer::new(
+        format.resolution(),
+        bytes,
+        format.format(),
+    ))
 }
 
 pub fn capture_frame_for_device(camera: &CameraDeviceInfo) -> Result<CameraFrameHandle, String> {

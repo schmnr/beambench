@@ -21,6 +21,7 @@ import { cameraService } from '../services/cameraService';
 import { useNotificationStore } from './notificationStore';
 import { useMachineStore } from './machineStore';
 import { wrapBackendError } from '../i18n/errors';
+import { isLinuxPlatform } from '../utils/platform';
 
 const notifyError = (msg: string) => useNotificationStore.getState().push(wrapBackendError(msg), 'error');
 const notifySuccess = (msg: string) => useNotificationStore.getState().push(msg, 'success');
@@ -261,7 +262,9 @@ export const useCameraStore = create<CameraStoreState>((set, get) => ({
       const selectedCameraId = get().selectedCameraId;
       const devices = get().devices;
       const selectedDevice = devices.find((device) => device.camera_id === selectedCameraId);
-      if (selectedCameraId && selectedDevice?.backend_kind === 'native') {
+      // Linux already enumerates these devices through V4L2. Capture through
+      // the same backend instead of opening a second WebKit/PipeWire portal.
+      if (selectedCameraId && selectedDevice?.backend_kind === 'native' && !isLinuxPlatform()) {
         const frame = await captureBrowserCameraFrame(selectedDevice, devices, {
           onStage: (captureStage) => { if (isCurrent()) set({ captureStage }); },
         });

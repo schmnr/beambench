@@ -1149,7 +1149,10 @@ pub fn capture_camera_frame(
 ) -> ServiceResult<CameraFrameHandle> {
     let (profile, camera_id) = current_profile_and_camera_id(ctx, camera_id)?;
     let device = ensure_device(ctx, &camera_id)?;
-    let frame = camera_backend::capture_frame_for_device(&device).map_err(ServiceError::machine)?;
+    let frame = camera_backend::capture_frame_for_device(&device).map_err(|error| {
+        tracing::warn!(%error, "Camera capture failed");
+        ServiceError::machine(error)
+    })?;
     store_frame_for_profile(ctx, profile.id, frame.clone())?;
     apply_capture_overlay_defaults(ctx, &profile, &frame)?;
     ctx.emit_event(
@@ -1448,10 +1451,18 @@ pub async fn capture_camera_agent(
 ) -> ServiceResult<CameraAgentState> {
     let (profile, camera_id) = current_profile_and_camera_id(&ctx, input.camera_id.clone())?;
     let device = ensure_device(&ctx, &camera_id)?;
-    let frame = if device.backend_kind == beambench_common::CameraBackendKind::Native {
+    let frame = if device.backend_kind == beambench_common::CameraBackendKind::Native
+        && !cfg!(target_os = "linux")
+    {
         request_app_assisted_capture(ctx.clone(), camera_id.clone()).await?
     } else {
-        capture_camera_frame(&ctx, Some(camera_id.clone()))?
+        let ctx = ctx.clone();
+        let camera_id = camera_id.clone();
+        tokio::task::spawn_blocking(move || capture_camera_frame(&ctx, Some(camera_id)))
+            .await
+            .map_err(|error| {
+                ServiceError::internal(format!("Camera capture task failed: {error}"))
+            })??
     };
     let profile = active_profile(&ctx).unwrap_or(profile);
     apply_capture_overlay_defaults(&ctx, &profile, &frame)?;

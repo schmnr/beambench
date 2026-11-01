@@ -67,11 +67,16 @@ pub fn reset_camera_calibration(
 }
 
 #[tauri::command]
-pub fn capture_camera_frame(
+pub async fn capture_camera_frame(
     camera_id: Option<String>,
     svc: State<'_, Arc<ServiceContext>>,
 ) -> Result<CameraFrameHandle, String> {
-    camera::capture_camera_frame(&svc, camera_id).map_err(String::from)
+    let svc = svc.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        camera::capture_camera_frame(&svc, camera_id).map_err(String::from)
+    })
+    .await
+    .map_err(|error| format!("Camera capture task failed: {error}"))?
 }
 
 #[tauri::command]

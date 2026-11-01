@@ -4,6 +4,7 @@ import { DeviceSettingsDialog } from '../DeviceSettingsDialog';
 import { useMachineStore } from '../../../stores/machineStore';
 import { useNotificationStore } from '../../../stores/notificationStore';
 import { useAppStore } from '../../../stores/appStore';
+import { useRemoteHostStore } from '../../../stores/remoteHostStore';
 import type { MachineProfile } from '../../../types/machine';
 import { xtoolM1DefaultHost } from '../../../utils/controllerConnection';
 
@@ -68,6 +69,7 @@ function makeProfile(overrides: Partial<MachineProfile> = {}): MachineProfile {
 }
 
 beforeEach(() => {
+  useRemoteHostStore.setState({ enabled: false, busy: false });
   mockInvoke.mockReset();
   mockInvoke.mockResolvedValue(null);
   mockOpen.mockReset();
@@ -78,6 +80,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  useRemoteHostStore.setState({ enabled: false, busy: false });
   useMachineStore.setState(initialMachineState, true);
   useNotificationStore.setState(initialNotificationState, true);
   useAppStore.setState(initialAppState, true);
@@ -85,6 +88,29 @@ afterEach(() => {
 });
 
 describe('DeviceSettingsDialog', () => {
+  it('replaces local connection controls in remote mode and permits an explicit local switch', async () => {
+    useRemoteHostStore.setState({ enabled: true });
+    await act(async () => { render(<DeviceSettingsDialog onClose={vi.fn()} />); });
+    expect(screen.getByText('Use the Laser panel to control the remote host.')).toBeDefined();
+    expect(screen.queryByRole('button', { name: 'Connect' })).toBeNull();
+    expect(mockInvoke.mock.calls.some(([command]) => command === 'begin_controller_connection')).toBe(false);
+
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText('Laser connection'), { target: { value: 'local' } });
+    });
+    expect(useRemoteHostStore.getState().enabled).toBe(false);
+    expect(await screen.findByRole('button', { name: 'Connect' })).toBeDefined();
+    expect(screen.queryByText('Use the Laser panel to control the remote host.')).toBeNull();
+    expect(mockInvoke.mock.calls.some(([command]) => command === 'begin_controller_connection')).toBe(false);
+  });
+
+  it('keeps the destination fixed during a remote request', async () => {
+    useRemoteHostStore.setState({ enabled: true, busy: true });
+    await act(async () => { render(<DeviceSettingsDialog onClose={vi.fn()} />); });
+    expect((screen.getByLabelText('Laser connection') as HTMLSelectElement).disabled).toBe(true);
+    expect(screen.queryByRole('button', { name: 'Connect' })).toBeNull();
+  });
+
   it('converts max speed value and bounds on the Machine tab in inches mode', async () => {
     useMachineStore.setState({
       profiles: [makeProfile()],

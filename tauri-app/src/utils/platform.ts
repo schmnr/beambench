@@ -7,3 +7,7 @@ export function isMacPlatform(navigatorLike: Pick<Navigator, 'platform' | 'userA
 export function isNativeMenuActive(): boolean {
   return isMacPlatform();
 }
+
+export function isLinuxPlatform(navigatorLike: Pick<Navigator, 'platform' | 'userAgent'> = navigator): boolean {
+  return navigatorLike.platform.toLowerCase().includes('linux');
+}
