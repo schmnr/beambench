@@ -167,6 +167,14 @@ class AppImageRepairTests(unittest.TestCase):
             (payload / 'usr/lib/libwayland-client.so.0').write_bytes(b'incompatible fixture')
             (payload / 'usr/lib/libsystemd.so.0').write_bytes(b'incompatible systemd fixture')
             (payload / 'usr/lib/libordinary.so.1').write_bytes(b'keep this library')
+            for name, mode in [('AppRun', 0o700), ('AppRun.wrapped', 0o750)]:
+                launcher = payload / name
+                launcher.write_text('#!/bin/bash\nexit 0\n')
+                launcher.chmod(mode)
+            resource = payload / 'private/resource'
+            resource.parent.mkdir(mode=0o700)
+            resource.write_text('readable application data')
+            resource.chmod(0o600)
             binary = payload / 'usr/bin/beambench-tauri'
             binary.parent.mkdir()
             binary.write_text('#!/bin/bash\nprintf "original binary\\n"\n')
@@ -199,6 +207,29 @@ class AppImageRepairTests(unittest.TestCase):
             self.assertEqual((extracted / 'usr/lib/libordinary.so.1').read_bytes(), b'keep this library')
             self.assertEqual((extracted / 'usr/bin/beambench-tauri.bin').read_bytes(), binary.read_bytes())
             self.assertEqual((extracted / 'usr/bin/beambench-tauri').read_bytes(), (SCRIPTS / 'linux-appimage-exec.sh').read_bytes())
+            for relative in ['AppRun', 'AppRun.wrapped', 'usr/bin/beambench-tauri',
+                             'usr/bin/beambench-tauri.bin', 'private']:
+                self.assertEqual((extracted / relative).stat().st_mode & 0o555, 0o555)
+            self.assertEqual((extracted / 'private/resource').stat().st_mode & 0o777, 0o644)
+
+            # The runtime can be fully current while the root-owned launcher is
+            # inaccessible. Audit and repair must not take their early exit.
+            for mode in [0o750, 0o640]:
+                with self.subTest(launcher_mode=oct(mode)):
+                    (extracted / 'AppRun.wrapped').chmod(mode)
+                    repacked = root / f'permissions-{mode}.squashfs'
+                    subprocess.run(['mksquashfs', str(extracted), str(repacked),
+                                    '-noappend', '-all-root', '-processors', '2',
+                                    '-quiet', '-no-progress'], check=True, capture_output=True)
+                    image.write_bytes(b'fixture-runtime\n' + repacked.read_bytes())
+                    signature.write_text('signature before permission repair')
+                    rejected = subprocess.run(['bash', script, '--check', str(image)],
+                                              text=True, capture_output=True)
+                    self.assertNotEqual(rejected.returncode, 0)
+                    self.assertIn('ordinary users', rejected.stderr)
+                    subprocess.run(['bash', script, str(image)], check=True, capture_output=True)
+                    subprocess.run(['bash', script, '--check', str(image)], check=True, capture_output=True)
+                    self.assertFalse(signature.exists())
 
 
 @unittest.skipUnless(os.environ.get('BEAMBENCH_TEST_APPIMAGE'), 'No final AppImage supplied')

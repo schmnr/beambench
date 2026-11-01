@@ -46,6 +46,23 @@ That covered camera plugins and fonts, but did not prove that the actual
 frontend could start. A clean deterministic audit also checked only libraries
 already known to cause trouble. Both gaps allowed the package to pass.
 
+## 0.2.37, launcher executable only by root and its group
+
+The AppImage catalog's [test](https://github.com/AppImage/appimage.github.io/pull/11129#issuecomment-6561393055)
+rejected the published package before frontend startup. Its SHA-256 is
+`ab54b2e3c540ee5fcd079a23701f803c0d914f5d88d6bcb3ffb081ea7ad05ed6`.
+Inspection of the SquashFS metadata confirmed root-owned `AppRun.wrapped`
+with mode `0750`, while `AppRun` and the desktop executables were `0755`.
+The missing execute permission for other users explains the catalog's
+`Permission denied` error.
+
+An unprivileged extraction can give the extracting user ownership and hide
+this defect. Final-package checks must audit the stored permission bits even
+when an extracted launch reaches `Frontend ready`. Repair all directories and
+files with `a+rX`, explicitly make the complete launcher chain executable for
+everyone, and do this before signing. The audit must also reject a launcher
+with no execute bits when the rest of the runtime policy is already current.
+
 ## Required prevention and troubleshooting
 
 - Audit and repair before signing. Reject bundled `libsystemd.so*` as well as

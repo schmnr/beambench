@@ -174,6 +174,7 @@ describe('cameraStore overlay display state', () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     useCameraStore.setState(initialState, true);
     useMachineStore.setState(initialMachineState, true);
   });
@@ -311,6 +312,38 @@ describe('cameraStore overlay display state', () => {
       'image/png',
     );
     expect(useCameraStore.getState().captureStage).toBe('success');
+    expect(useCameraStore.getState().loading).toBe(false);
+  });
+
+  it('captures the selected Linux camera natively without requesting a browser portal', async () => {
+    vi.spyOn(navigator, 'platform', 'get').mockReturnValue('Linux x86_64');
+    vi.mocked(cameraService.captureFrame).mockResolvedValue(frame);
+    useCameraStore.setState({
+      selectedCameraId: 'camera-native:2',
+      devices: [{ camera_id: 'camera-native:2', display_name: 'USB Camera',
+        backend_kind: 'native', available: true, width_px: 0, height_px: 0, status_text: 'Ready' }],
+    });
+
+    await useCameraStore.getState().captureFrame();
+
+    expect(cameraService.captureFrame).toHaveBeenCalledWith('camera-native:2');
+    expect(captureBrowserCameraFrame).not.toHaveBeenCalled();
+    expect(cameraService.saveFrame).not.toHaveBeenCalled();
+    expect(useCameraStore.getState().captureStage).toBe('success');
+  });
+
+  it('preserves the last overlay and real Linux device error when native capture fails', async () => {
+    vi.spyOn(navigator, 'platform', 'get').mockReturnValue('Linux x86_64');
+    vi.mocked(cameraService.captureFrame).mockRejectedValue('Failed to open native camera: Permission denied');
+    useCameraStore.setState({ selectedCameraId: 'camera-native:2', overlayState: {
+      selected_camera_id: 'camera-native:2', frame, calibration: null, alignment: null, overlay_ready: false,
+    } });
+
+    await useCameraStore.getState().captureFrame();
+
+    expect(captureBrowserCameraFrame).not.toHaveBeenCalled();
+    expect(useCameraStore.getState().overlayState?.frame).toEqual(frame);
+    expect(useCameraStore.getState().error).toBe('Failed to open native camera: Permission denied');
     expect(useCameraStore.getState().loading).toBe(false);
   });
 

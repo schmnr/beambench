@@ -1,4 +1,6 @@
 import { HomeOnConnectSetting } from '../machine/HomeOnConnectSetting';
+import { LaserConnectionMode } from '../machine/LaserConnectionMode';
+import { useRemoteHostStore } from '../../stores/remoteHostStore';
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
@@ -268,6 +270,7 @@ export function DeviceSettingsDialog({
 }
 
 function ConnectionTab({ active }: { active: boolean }) {
+  const remoteEnabled = useRemoteHostStore((s) => s.enabled);
   const { t } = useTranslation();
   const sessionState = useMachineStore((s) => s.sessionState);
   const availablePorts = useMachineStore((s) => s.availablePorts);
@@ -523,9 +526,18 @@ function ConnectionTab({ active }: { active: boolean }) {
   if (!active) {
     return null;
   }
+  if (remoteEnabled) {
+    return (
+      <div data-testid="connection-tab" className="flex flex-col gap-3">
+        <LaserConnectionMode />
+        <DialogNotice>{t('remote_host.remote_controls')}</DialogNotice>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-3" data-testid="connection-tab">
+      <LaserConnectionMode />
       <Select
         label={t('controller_choice.transport')}
         value={transportKind}

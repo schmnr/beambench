@@ -201,14 +201,16 @@ fn migrate_tool_layers(project: &mut Project) -> Vec<String> {
         let canonical = &mut project.layers[canonical_index];
         let canonical_name = tool_color.name.replace("Tool ", "T");
         let already_canonical = duplicate_ids.is_empty()
-            && canonical.name == canonical_name
             && canonical.color_tag.0 == tool_color.hex
             && canonical.is_tool_layer
             && canonical.entries.len() == 1
             && canonical.primary_entry().operation == OperationType::Tool
             && !canonical.primary_entry().output_enabled;
         if !already_canonical {
-            canonical.name = canonical_name;
+            // Preserve user names on tool layers, including when merging siblings.
+            if !canonical.is_tool_layer || canonical.name.trim().is_empty() {
+                canonical.name = canonical_name;
+            }
             canonical.color_tag.0 = tool_color.hex.to_string();
             canonical.canonicalize_tool_layer();
             changed = true;
@@ -941,6 +943,53 @@ mod tests {
             project.find_object(image_obj_id).unwrap().layer_id,
             tool_line_id
         );
+    }
+
+    #[test]
+    fn named_tool_layers_survive_open_and_recovery_without_migration() {
+        let dir = tempdir().unwrap();
+        for color in PALETTE_COLORS.iter().filter(|color| color.is_tool_layer) {
+            let mut project = Project::new("Named Tool");
+            let mut tool = Layer::new("Reference", OperationType::Tool);
+            tool.color_tag = ColorTag(color.hex.to_string());
+            tool.canonicalize_tool_layer();
+            tool.name = "Reference".to_string();
+            tool.visible = false;
+            let tool_id = tool.id;
+            project.add_layer(tool);
+            let mut object = ProjectObject::new(
+                "Locked reference",
+                tool_id,
+                Bounds::new(Point2D::new(10.0, 20.0), Point2D::new(30.0, 40.0)),
+                ObjectData::VectorPath {
+                    path_data: "M10 20 L30 40".to_string(),
+                    closed: false,
+                    ruler_guide_axis: None,
+                },
+            );
+            object.locked = true;
+            project.add_object(object);
+            project.dirty = false;
+            let expected_layers = project.layers.clone();
+            let expected_objects = project.objects.clone();
+            let file = dir.path().join("Named Tool.lzrproj");
+            beambench_project::save_project(&project, &file).unwrap();
+            let ctx = ServiceContext::new();
+            for _ in 0..2 {
+                let opened = open_project_from_path(&ctx, &file.to_string_lossy()).unwrap();
+                assert_eq!(opened.layers, expected_layers);
+                assert_eq!(opened.objects, expected_objects);
+                assert!(!opened.dirty);
+                assert!(migrate_tool_layers(&mut opened.clone()).is_empty());
+                beambench_project::save_project(&opened, &file).unwrap();
+            }
+            let recovery = beambench_project::save_recovery(&project, dir.path()).unwrap();
+            let restored = restore_recovery_file(&ctx, &recovery.to_string_lossy()).unwrap();
+            assert_eq!(restored.layers, expected_layers);
+            assert_eq!(restored.objects, expected_objects);
+            // Recovery is intentionally unsaved, irrespective of migration.
+            assert!(restored.dirty);
+        }
     }
 
     #[test]
