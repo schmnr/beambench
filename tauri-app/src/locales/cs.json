@@ -2352,6 +2352,9 @@
             "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
             "advisory": "400 x 400 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení."
           },
+          "creality_falcon_a1_10w": {
+            "description": "Předvolba USB pro původní hardware podle dokumentace. Ověřte rozsah pohybu a maximální hodnotu S. Fyzické testování čeká na provedení."
+          },
           "creality_falcon2_pro_22w": {
             "description": "Předvolba USB pro původní hardware podle dokumentace. Ověřte rozsah pohybu a maximální hodnotu S. Fyzické testování čeká na provedení."
           },

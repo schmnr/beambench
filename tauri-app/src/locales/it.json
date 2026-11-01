@@ -2352,6 +2352,9 @@
             "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
             "advisory": "400 x 400 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata."
           },
+          "creality_falcon_a1_10w": {
+            "description": "Preimpostazione USB per hardware originale basata sulla documentazione. Verifica la corsa e il valore S massimo. Test fisici ancora da eseguire."
+          },
           "creality_falcon2_pro_22w": {
             "description": "Preimpostazione USB per hardware originale basata sulla documentazione. Verifica la corsa e il valore S massimo. Test fisici ancora da eseguire."
           },

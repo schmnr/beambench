@@ -784,7 +784,8 @@ fn make_text_label(
     h_align: TextAlignment,
     v_align: TextAlignmentV,
 ) -> ProjectObject {
-    // Rough bounds: half a line of text wide per character, plus small height.
+    // Resolve glyphs before anchoring: estimated centered bounds let right-
+    // aligned row labels intrude into the first sample column.
     let w = (content.len() as f64) * LABEL_FONT_SIZE_MM * 0.6;
     let h = LABEL_FONT_SIZE_MM;
     let (anchor_x, anchor_y) = (x, y);
@@ -827,6 +828,31 @@ fn make_text_label(
             variable_text: None,
         },
     );
+    beambench_core::vector::text_to_path::refresh_text_object_cache(&mut obj.data, &obj.bounds);
+    if let Some(glyph_bounds) =
+        beambench_core::vector::text_to_path::text_object_local_path(&obj.data)
+            .and_then(|path| path.visual_bounds())
+    {
+        let w = glyph_bounds.width();
+        let h = glyph_bounds.height();
+        let min_x = match h_align {
+            TextAlignment::Left => x,
+            TextAlignment::Center => x - w * 0.5,
+            TextAlignment::Right => x - w,
+        };
+        let min_y = match v_align {
+            TextAlignmentV::Top => y,
+            TextAlignmentV::Middle => y - h * 0.5,
+            TextAlignmentV::Bottom => y - h,
+        };
+        obj.bounds = Bounds::new(
+            Point2D::new(min_x - glyph_bounds.min.x, min_y - glyph_bounds.min.y),
+            Point2D::new(
+                min_x - glyph_bounds.min.x + w,
+                min_y - glyph_bounds.min.y + h,
+            ),
+        );
+    }
     obj.z_index = i32::MAX; // Labels sort last.
     obj
 }
@@ -1730,6 +1756,170 @@ mod tests {
 
     fn material_settings() -> MaterialTestSettings {
         MaterialTestSettings::default()
+    }
+
+    fn reported_material_settings(interval: f64, centered: bool) -> MaterialTestSettings {
+        let mut settings = material_settings();
+        settings.x_axis = MaterialTestAxis {
+            param: MaterialTestAxisParam::Power,
+            count: 3,
+            min: 10.0,
+            max: 30.0,
+        };
+        settings.y_axis = MaterialTestAxis {
+            param: MaterialTestAxisParam::Speed,
+            count: 2,
+            min: 1200.0,
+            max: 1800.0,
+        };
+        settings.cell_w_mm = 8.0;
+        settings.cell_h_mm = 8.0;
+        settings.cell_spacing_mm = 3.0;
+        settings
+            .sample_entry
+            .raster_settings
+            .as_mut()
+            .unwrap()
+            .line_interval_mm = interval;
+        settings.text_entry.speed_mm_min = 1000.0;
+        settings.text_entry.power_percent = 5.0;
+        settings.border_entry.speed_mm_min = 1000.0;
+        settings.border_entry.power_percent = 5.0;
+        settings.absolute_center_enabled = centered;
+        settings.x_center_mm = 100.0;
+        settings.y_center_mm = 100.0;
+        settings
+    }
+
+    #[test]
+    fn material_labels_keep_resolved_glyphs_outside_sample_grid() {
+        use beambench_core::vector::convert::object_to_world_vecpath;
+        let settings = reported_material_settings(1.0, false);
+        let (_, samples, labels) = generate_material_test(&settings, &make_seed());
+        let grid = union_bounds(&samples).unwrap();
+        for label in labels {
+            let ObjectData::Text { content, .. } = &label.data else {
+                panic!("text label")
+            };
+            let bounds = object_to_world_vecpath(&label)
+                .unwrap()
+                .visual_bounds()
+                .unwrap();
+            if content.starts_with('S') {
+                assert!(
+                    (grid.min.x - bounds.max.x - LABEL_GAP_MM).abs() < 1e-6,
+                    "{content}: {bounds:?}"
+                );
+                let expected_y = grid.min.y + 4.0 + if content == "S1800" { 11.0 } else { 0.0 };
+                assert!(((bounds.min.y + bounds.max.y) * 0.5 - expected_y).abs() < 1e-6);
+            } else if content.starts_with('P') {
+                assert!(
+                    (grid.min.y - bounds.max.y - LABEL_GAP_MM).abs() < 1e-6,
+                    "{content}: {bounds:?}"
+                );
+                let col = match content.as_str() {
+                    "P10" => 0.0,
+                    "P20" => 1.0,
+                    "P30" => 2.0,
+                    _ => panic!("column label"),
+                };
+                assert!(
+                    ((bounds.min.x + bounds.max.x) * 0.5 - (grid.min.x + 4.0 + col * 11.0)).abs()
+                        < 1e-6
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn reported_material_grid_preserves_burn_geometry_and_export_settings() {
+        for interval in [1.0, 0.1] {
+            for centered in [false, true] {
+                let profile = MachineProfile::default();
+                let ctx = ServiceContext::with_settings(settings_with_active_profile(profile));
+                let request =
+                    QualityTestRequest::Material(reported_material_settings(interval, centered));
+                let response = quality_test_preview(&ctx, &request).unwrap();
+                let rasters: Vec<_> = response
+                    .preview
+                    .layers
+                    .iter()
+                    .flat_map(|layer| &layer.raster_regions)
+                    .collect();
+                assert_eq!(rasters.len(), 6);
+                if centered {
+                    assert_bounds_center(response.preview.bounds, 100.0, 100.0);
+                }
+                let mut xs = Vec::new();
+                let mut ys = Vec::new();
+                for raster in &rasters {
+                    assert!((raster.local_width_mm - 8.0).abs() < 1e-6);
+                    assert!((raster.local_height_mm - 8.0).abs() < 1e-6);
+                    assert!((raster.bounds.width() - 13.0).abs() < 1e-6);
+                    assert_eq!(raster.line_count, (8.0 / interval) as usize);
+                    xs.push(raster.local_origin_mm.x);
+                    ys.push(raster.local_origin_mm.y);
+                }
+                for (mut values, expected) in [(xs, 3), (ys, 2)] {
+                    values.sort_by(f64::total_cmp);
+                    values.dedup_by(|a, b| (*a - *b).abs() < 1e-6);
+                    assert_eq!(values.len(), expected);
+                    assert!(
+                        values
+                            .windows(2)
+                            .all(|pair| (pair[1] - pair[0] - 11.0).abs() < 1e-6)
+                    );
+                }
+                let path = temp_gcode_path("bb-material-preview-grid");
+                quality_test_export_gcode(&ctx, &request, &path).unwrap();
+                let gcode = std::fs::read_to_string(&path).unwrap();
+                std::fs::remove_file(&path).unwrap();
+                let mut x = 0.0;
+                let mut y = 0.0;
+                let mut feed = 0.0;
+                let mut power = 0.0;
+                let mut burns = Vec::new();
+                for line in gcode.lines() {
+                    if line.starts_with('M') {
+                        if let Some(s) = line
+                            .split_whitespace()
+                            .find_map(|word| word.strip_prefix('S'))
+                        {
+                            power = s.parse().unwrap();
+                        }
+                    }
+                    if !(line.starts_with("G0 ") || line.starts_with("G1 ")) {
+                        continue;
+                    }
+                    let (old_x, old_y) = (x, y);
+                    for word in line.split_whitespace().skip(1) {
+                        let (axis, value) = word.split_at(1);
+                        let value: f64 = value.parse().unwrap();
+                        match axis {
+                            "X" => x = value,
+                            "Y" => y = value,
+                            "F" => feed = value,
+                            "S" => power = value,
+                            _ => {}
+                        }
+                    }
+                    if line.starts_with("G1 ") && power >= 100.0 {
+                        assert!((y - old_y).abs() < 0.001);
+                        assert!(((x - old_x).abs() - 8.0).abs() < 0.001);
+                        burns.push((feed as u32, power as u32));
+                    }
+                }
+                for feed in [1200, 1800] {
+                    for power in [100, 200, 300] {
+                        assert_eq!(
+                            burns.iter().filter(|pair| **pair == (feed, power)).count(),
+                            (8.0 / interval) as usize
+                        );
+                    }
+                }
+                assert_eq!(burns.len(), 6 * (8.0 / interval) as usize);
+            }
+        }
     }
 
     fn focus_settings() -> FocusTestSettings {

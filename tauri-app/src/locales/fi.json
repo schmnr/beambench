@@ -2352,6 +2352,9 @@
             "description": "Dokumentaatioon perustuva GRBL 1.1:n USB-esiasetus. Testaus fyysisellä koneella on tekemättä.",
             "advisory": "400 x 400 mm, origo edessä vasemmalla, S1000. Tarkista $30 ja lasertila $32=1. Kotihaku ja automaattinen ilma-avustus ovat pois käytöstä. Muu laiteohjelmisto ja laajennukset vaativat erillisen määrityksen."
           },
+          "creality_falcon_a1_10w": {
+            "description": "Dokumentaatioon perustuva USB-esiasetus alkuperäiselle laitteistolle. Tarkista liikealue ja S-arvon enimmäismäärä. Fyysinen testaus on vielä tekemättä."
+          },
           "creality_falcon2_pro_22w": {
             "description": "Dokumentaatioon perustuva USB-esiasetus alkuperäiselle laitteistolle. Tarkista liikealue ja S-arvon enimmäismäärä. Fyysinen testaus on vielä tekemättä."
           },

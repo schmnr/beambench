@@ -2352,6 +2352,9 @@
             "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
             "advisory": "400 x 400 mm, origem frontal esquerda, S1000. Verifique $30 e o modo laser $32=1. A busca de origem e a assistência de ar automática estão desativadas. Outros firmwares e extensões precisam de configuração separada."
           },
+          "creality_falcon_a1_10w": {
+            "description": "Predefinição USB para o hardware original baseada na documentação. Confira o curso e o valor S máximo. Testes físicos pendentes."
+          },
           "creality_falcon2_pro_22w": {
             "description": "Predefinição USB para o hardware original baseada na documentação. Confira o curso e o valor S máximo. Testes físicos pendentes."
           },

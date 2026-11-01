@@ -2352,6 +2352,9 @@
             "description": "Belgelere dayalı GRBL 1.1 USB ön ayarı. Fiziksel makine testleri henüz yapılmadı.",
             "advisory": "400 x 400 mm, sol ön başlangıç noktası, S1000. $30 değerini ve $32=1 lazer modunu doğrulayın. Referansa dönüş ve otomatik hava desteği kapalıdır. Diğer donanım yazılımları ve genişletmeler ayrı kurulum gerektirir."
           },
+          "creality_falcon_a1_10w": {
+            "description": "Belgeler temelinde hazırlanmış, standart donanım için USB ön ayarı. Hareket mesafesini ve en yüksek S değerini kontrol edin. Fiziksel testler henüz yapılmadı."
+          },
           "creality_falcon2_pro_22w": {
             "description": "Belgeler temelinde hazırlanmış, standart donanım için USB ön ayarı. Hareket mesafesini ve en yüksek S değerini kontrol edin. Fiziksel testler henüz yapılmadı."
           },

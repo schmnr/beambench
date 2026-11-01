@@ -743,13 +743,6 @@ function drawRasterSegment(
       }
     }
 
-    if (!isInProgress) {
-      ctx.globalAlpha = 0.5;
-      ctx.strokeStyle = burnColor;
-      ctx.lineWidth = 1;
-      ctx.strokeRect(x, y, w, h);
-    }
-
     if (headPosWorld) {
       setHead(headPosWorld);
     }
@@ -941,15 +934,6 @@ function drawRasterSegment(
         }
         ctx.drawImage(displayMask, localOrigin!.x, localOrigin!.y, localW, localH);
         ctx.restore();
-
-        // Completed regions keep a light outline; in-progress raster playback
-        // should not show a synthetic dashed border ahead of the head.
-        if (!isInProgress) {
-          ctx.globalAlpha = 0.5;
-          ctx.strokeStyle = burnColor;
-          ctx.lineWidth = 1;
-          ctx.strokeRect(x, y, w, h);
-        }
 
         if (headPosWorld) {
           setHead(headPosWorld);

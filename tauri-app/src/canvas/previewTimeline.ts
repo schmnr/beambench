@@ -178,7 +178,7 @@ export function buildTimeline(
 
   for (let li = 0; li < data.layers.length; li++) {
     const layer = data.layers[li];
-    const color = layerColors[li % layerColors.length] ?? '#ffffff';
+    const color = layerColors[li % layerColors.length] ?? '#000000';
 
     for (const vec of layer.vector_paths) {
       ordered.push({ kind: 'vector', seq: vec.sequence ?? 0, layerIndex: li, color, data: vec });

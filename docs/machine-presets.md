@@ -137,6 +137,8 @@ own specifications support an entry. Do not copy the S9 defaults across a brand.
 
 ## Evidence records
 
+- [Creality Falcon A1 10W, preset version 1](machines/creality-falcon-a1-10w.md):
+  documentation-based USB preset, X 381 x Y 305 mm, physical testing pending.
 - [ACMER USB presets, version 1](machines/acmer-usb-presets.md):
   P1 S Pro 6W/10W, P2 10W/20W/33W and S2 Pro 36W/48W.
   Documentation-based, physical testing pending.
