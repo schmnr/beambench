@@ -2927,6 +2927,96 @@ mod tests {
     }
 
     #[test]
+    fn encoded_svg_import_from_path_and_data_is_undoable() {
+        use base64::Engine;
+
+        for from_path in [true, false] {
+            let ctx = ServiceContext::new();
+            let mut before = Project::new("Encoded SVG import");
+            let layer_id = before.ensure_default_layer();
+            *ctx.project.lock().unwrap() = Some(before.clone());
+            let mut bytes = vec![0xff, 0xfe];
+            let xml = format!(
+                "<?xml version='1.0' encoding='UTF-16'?>{}",
+                std::str::from_utf8(sample_svg()).unwrap()
+            );
+            for unit in xml.encode_utf16() {
+                bytes.extend_from_slice(&unit.to_le_bytes());
+            }
+            let dir = tempdir().unwrap();
+            let imported = if from_path {
+                let path = dir.path().join("ação.svg");
+                std::fs::write(&path, &bytes).unwrap();
+                import_files_from_paths(
+                    &ctx,
+                    ImportFilesInput {
+                        file_paths: vec![path.to_string_lossy().into_owned()],
+                        layer_id,
+                        create_layer: None,
+                    },
+                )
+            } else {
+                import_files_from_data(
+                    &ctx,
+                    ImportFilesDataInput {
+                        files: vec![ImportFileData {
+                            filename: "ação.svg".into(),
+                            data_base64: base64::engine::general_purpose::STANDARD.encode(&bytes),
+                        }],
+                        layer_id,
+                        create_layer: None,
+                    },
+                )
+            }
+            .unwrap();
+            assert_eq!(imported.len(), 1);
+            assert!((imported[0].bounds.width() - 20.0 * 25.4 / 96.0).abs() < 1e-6);
+            assert!((imported[0].bounds.height() - 10.0 * 25.4 / 96.0).abs() < 1e-6);
+            let after = ctx.project.lock().unwrap().as_ref().unwrap().clone();
+            before.dirty = true;
+            assert_eq!(super::super::project::undo_project(&ctx).unwrap(), before);
+            assert!(!ctx.undo_state().unwrap().can_undo);
+            assert_eq!(super::super::project::redo_project(&ctx).unwrap(), after);
+        }
+    }
+
+    #[test]
+    fn invalid_svg_encoding_rolls_back_the_import_batch() {
+        use base64::Engine;
+
+        let ctx = ServiceContext::new();
+        let mut before = Project::new("Invalid SVG encoding");
+        let layer_id = before.ensure_default_layer();
+        *ctx.project.lock().unwrap() = Some(before.clone());
+        let plan = sample_plan(&before);
+        *ctx.plan_cache.lock().unwrap() = Some(plan.into());
+        let error = import_files_from_data(
+            &ctx,
+            ImportFilesDataInput {
+                files: vec![
+                    ImportFileData {
+                        filename: "valid.svg".into(),
+                        data_base64: base64::engine::general_purpose::STANDARD.encode(sample_svg()),
+                    },
+                    ImportFileData {
+                        filename: "damaged.svg".into(),
+                        data_base64: base64::engine::general_purpose::STANDARD
+                            .encode(b"<?xml version='1.0' encoding='UTF-8'?><svg>\xff</svg>"),
+                    },
+                ],
+                layer_id,
+                create_layer: Some(new_import_layer(OperationType::Line)),
+            },
+        )
+        .unwrap_err();
+        assert_eq!(error.code, crate::error::ServiceErrorCode::InvalidInput);
+        assert!(error.message.contains("Invalid UTF-8 SVG text"));
+        assert_eq!(ctx.project.lock().unwrap().as_ref().unwrap(), &before);
+        assert!(!ctx.undo_state().unwrap().can_undo);
+        assert!(ctx.plan_cache.lock().unwrap().is_some());
+    }
+
+    #[test]
     fn mixed_svg_routes_embedded_raster_to_image_layer() {
         let ctx = ServiceContext::new();
         let mut project = beambench_core::Project::new("Mixed SVG Import");
