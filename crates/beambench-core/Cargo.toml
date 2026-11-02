@@ -31,6 +31,8 @@ clipper2 = { workspace = true }
 roxmltree = { workspace = true }
 svgtypes = { workspace = true }
 flate2 = { workspace = true }
+encoding_rs = "0.8"
+quick-xml = "0.41"
 
 lopdf = { version = "0.44", default-features = false }
 

@@ -1,3 +1,6 @@
+use std::borrow::Cow;
+
+use encoding_rs::{Encoding, UTF_8, UTF_16BE, UTF_16LE};
 use thiserror::Error;
 use usvg::tiny_skia_path::PathSegment;
 
@@ -405,6 +408,50 @@ fn ensure_svg_fallback_fonts(db: &mut fontdb::Database) {
     }
 }
 
+/// usvg only accepts UTF-8. Decode XML before both editable text extraction
+/// and geometry parsing, without guessing an undeclared legacy encoding or
+/// replacing invalid characters in artwork.
+fn decode_svg_xml(bytes: &[u8]) -> Result<Cow<'_, str>, ImportError> {
+    let (encoding, bom_len) = if let Some(detected) = Encoding::for_bom(bytes) {
+        detected
+    } else if bytes.starts_with(b"<\0?\0") {
+        (UTF_16LE, 0)
+    } else if bytes.starts_with(b"\0<\0?") {
+        (UTF_16BE, 0)
+    } else {
+        let mut encoding = UTF_8;
+        // Only inspect the XML declaration, never a comment, stylesheet PI
+        // or an attribute in the artwork itself.
+        if bytes.starts_with(b"<?xml") {
+            let mut reader = quick_xml::Reader::from_reader(bytes);
+            if let quick_xml::events::Event::Decl(declaration) = reader
+                .read_event()
+                .map_err(|e| ImportError::ParseError(e.to_string()))?
+                && let Some(label) = declaration.encoding()
+            {
+                let label = label.map_err(|e| ImportError::ParseError(e.to_string()))?;
+                encoding = Encoding::for_label_no_replacement(&label)
+                    .filter(|encoding| encoding.is_ascii_compatible())
+                    .ok_or_else(|| {
+                        ImportError::ParseError(format!(
+                            "Unsupported SVG text encoding '{}'. Save the SVG as UTF-8 and try again.",
+                            String::from_utf8_lossy(&label)
+                        ))
+                    })?;
+            }
+        }
+        (encoding, 0)
+    };
+    encoding
+        .decode_without_bom_handling_and_without_replacement(&bytes[bom_len..])
+        .ok_or_else(|| {
+            ImportError::ParseError(format!(
+                "Invalid {} SVG text. Save the SVG as UTF-8 and try again.",
+                encoding.name()
+            ))
+        })
+}
+
 /// Import an SVG file into the project.
 ///
 /// First pre-parses XML to extract `<text>` elements. If a text element's font
@@ -420,8 +467,17 @@ pub fn import_svg(
 ) -> Result<Vec<ObjectId>, ImportError> {
     let mut created_ids = Vec::new();
 
+    let svg_bytes = if svg_bytes.starts_with(&[0x1f, 0x8b]) {
+        Cow::Owned(
+            usvg::decompress_svgz(svg_bytes).map_err(|e| ImportError::ParseError(e.to_string()))?,
+        )
+    } else {
+        Cow::Borrowed(svg_bytes)
+    };
+    let svg_text = decode_svg_xml(&svg_bytes)?;
+
     // Phase 1: Extract editable text elements
-    let (text_elements, remaining_svg) = extract_svg_text_elements(svg_bytes);
+    let (text_elements, remaining_svg) = extract_svg_text_elements(svg_text.as_bytes());
 
     // Phase 2: Parse remaining SVG with usvg for path extraction
     let mut options = usvg::Options {
@@ -1864,6 +1920,142 @@ mod tests {
 
         let result = import_svg(bad, &mut project, layer_id);
         assert!(result.is_err());
+    }
+
+    const ENCODED_SVG_BODY: &str = r##"<svg xmlns="http://www.w3.org/2000/svg" width="40mm" height="20mm" viewBox="0 0 40 20">
+        <rect x="2" y="3" width="10" height="5" fill="#ff0000"/>
+        <rect x="20" y="3" width="5" height="5" fill="#00ff00"/>
+        <text x="2" y="15" font-family="sans-serif" font-size="4">Ação · Avó</text>
+    </svg>"##;
+
+    fn assert_encoded_svg_matches_utf8(bytes: &[u8]) {
+        let mut expected = test_project();
+        let layer_id = first_layer_id(&mut expected);
+        let expected_ids =
+            import_svg(ENCODED_SVG_BODY.as_bytes(), &mut expected, layer_id).unwrap();
+        assert_eq!(expected_ids.len(), 3);
+        assert!(expected_ids.iter().any(|id| matches!(
+            &expected.find_object(*id).unwrap().data,
+            ObjectData::Text { content, .. } if content == "Ação · Avó"
+        )));
+
+        let mut actual = test_project();
+        let layer_id = first_layer_id(&mut actual);
+        let actual_ids = import_svg(bytes, &mut actual, layer_id).unwrap();
+        assert_eq!(actual_ids.len(), expected_ids.len());
+        for (actual_id, expected_id) in actual_ids.iter().zip(&expected_ids) {
+            let actual = actual.find_object(*actual_id).unwrap();
+            let expected = expected.find_object(*expected_id).unwrap();
+            assert_eq!(actual.data, expected.data);
+            assert_eq!(actual.bounds, expected.bounds);
+            assert_eq!(actual.transform, expected.transform);
+            assert_eq!(actual.name, expected.name);
+        }
+    }
+
+    #[test]
+    fn import_svg_utf16_preserves_text_geometry_and_colors() {
+        for little_endian in [true, false] {
+            for with_bom in [true, false] {
+                let xml = format!("<?xml version=\"1.0\" encoding=\"UTF-16\"?>{ENCODED_SVG_BODY}");
+                let mut bytes = Vec::new();
+                if with_bom {
+                    bytes.extend(if little_endian {
+                        [0xff, 0xfe]
+                    } else {
+                        [0xfe, 0xff]
+                    });
+                }
+                for unit in xml.encode_utf16() {
+                    bytes.extend(if little_endian {
+                        unit.to_le_bytes()
+                    } else {
+                        unit.to_be_bytes()
+                    });
+                }
+                assert_encoded_svg_matches_utf8(&bytes);
+            }
+        }
+    }
+
+    #[test]
+    fn import_svg_declared_legacy_encodings_preserve_accented_text() {
+        for declaration in [
+            "<?xml version='1.0' encoding='ISO-8859-1'?>",
+            "<?xml version=\"1.0\" encoding = \"windows-1252\" standalone='yes'?>",
+        ] {
+            let xml = format!("{declaration}{ENCODED_SVG_BODY}");
+            let bytes: Vec<u8> = xml
+                .chars()
+                .map(|ch| u8::try_from(ch as u32).unwrap())
+                .collect();
+            assert_encoded_svg_matches_utf8(&bytes);
+        }
+    }
+
+    #[test]
+    fn import_svg_honors_windows1252_even_when_bytes_are_valid_utf8() {
+        let prefix = b"<?xml version='1.0' encoding='windows-1252'?><svg xmlns='http://www.w3.org/2000/svg' width='100' height='100'><text x='0' y='50' font-family='sans-serif'>";
+        for (bytes, expected) in [(b"\xc3\xa9".as_slice(), "Ã©"), (b"\x80".as_slice(), "€")] {
+            let mut xml = prefix.to_vec();
+            xml.extend_from_slice(bytes);
+            xml.extend_from_slice(b"</text></svg>");
+            let mut project = test_project();
+            let layer_id = first_layer_id(&mut project);
+            let ids = import_svg(&xml, &mut project, layer_id).unwrap();
+            assert_eq!(ids.len(), 1);
+            assert!(matches!(
+                &project.find_object(ids[0]).unwrap().data,
+                ObjectData::Text { content, .. } if content == expected
+            ));
+        }
+    }
+
+    #[test]
+    fn import_svg_utf8_bom_preserves_editable_text() {
+        let mut bytes = vec![0xef, 0xbb, 0xbf];
+        bytes.extend_from_slice(ENCODED_SVG_BODY.as_bytes());
+        assert_encoded_svg_matches_utf8(&bytes);
+    }
+
+    #[test]
+    fn import_svg_encoded_svgz_preserves_editable_text() {
+        use std::io::Write;
+        for xml in [
+            ENCODED_SVG_BODY.to_string(),
+            format!("<?xml version='1.0' encoding='windows-1252'?>{ENCODED_SVG_BODY}"),
+        ] {
+            let bytes = if xml.starts_with("<?xml") {
+                xml.chars()
+                    .map(|ch| u8::try_from(ch as u32).unwrap())
+                    .collect()
+            } else {
+                xml.into_bytes()
+            };
+            let mut encoder =
+                flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+            encoder.write_all(&bytes).unwrap();
+            assert_encoded_svg_matches_utf8(&encoder.finish().unwrap());
+        }
+    }
+
+    #[test]
+    fn import_svg_invalid_encoding_does_not_change_project() {
+        for bytes in [
+            b"<?xml version='1.0' encoding='UTF-8'?><svg>\xff</svg>".as_slice(),
+            b"<?xml version='1.0' encoding='made-up'?><svg/>".as_slice(),
+            b"<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10'><title>Caf\xe9</title><rect width='5' height='5'/></svg>".as_slice(),
+            b"<?xml version='1.0' encoding='Shift_JIS'?><svg>\x82</svg>".as_slice(),
+            b"\xff\xfe<\0s\0v\0g\0>\0\x00\xd8".as_slice(),
+            b"\xff\xfe<\0s\0v\0g\0>".as_slice(),
+            b"\xfe\xff\0<\0s\0v\0g\0>\xd8\x00".as_slice(),
+        ] {
+            let mut project = test_project();
+            let layer_id = first_layer_id(&mut project);
+            let before = project.clone();
+            assert!(matches!(import_svg(bytes, &mut project, layer_id), Err(ImportError::ParseError(_))));
+            assert_eq!(project, before);
+        }
     }
 
     #[test]
