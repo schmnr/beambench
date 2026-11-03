@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Reject manual GRBL homing when the controller reports `$22=0`, matching the
+  existing automatic-homing guard. Keep Current Position framing available on
+  machines without homing switches.
+
 ## 0.2.38
 
 - Update the lint tooling's minimatch dependency to fix a newly reported
