@@ -3981,6 +3981,11 @@ pub fn home(ctx: &ServiceContext) -> ServiceResult<()> {
         // deciding whether a new homing cycle can start.
         grbl.poll()
             .map_err(|e| ServiceError::machine(e.to_string()))?;
+        if grbl.settings().get(22) == Some(0.0) {
+            return Err(ServiceError::invalid_state(
+                "Cannot home because controller homing is disabled ($22=0). Machines without homing switches can use Current Position or User Origin.",
+            ));
+        }
     }
     // GRBL deliberately starts in Alarm when homing is required. `$H` is
     // allowed there without `$X`; ordinary motion still requires Ready/Idle.
@@ -7768,6 +7773,30 @@ mod tests {
         );
         let status_queries = transport.lock().unwrap().bytes.len() - bytes_before;
         assert_eq!(status_queries, 4, "one routine query plus three rechecks");
+    }
+
+    #[test]
+    fn manual_home_refuses_controller_disabled_homing_without_sending_motion() {
+        for profile_homing in [false, true] {
+            let (ctx, transport) = ready_grbl_context(MachineProfile {
+                homing_enabled: profile_homing,
+                ..MachineProfile::default()
+            });
+            transport.lock().unwrap().rx.push_back("$22=0".into());
+            ctx.machine_coordinates_valid.store(true, Ordering::Release);
+
+            let error = home(&ctx).unwrap_err();
+
+            assert_eq!(error.code, crate::error::ServiceErrorCode::InvalidState);
+            assert!(error.message.contains("$22=0"));
+            assert!(sent_lines(&transport).is_empty());
+            assert!(ctx.machine_coordinates_valid.load(Ordering::Acquire));
+            let session = ctx.session.lock().unwrap();
+            assert_eq!(
+                session.as_ref().unwrap().machine_status().run_state,
+                MachineRunState::Idle
+            );
+        }
     }
 
     #[test]
@@ -11959,6 +11988,118 @@ mod tests {
                             "angle={angle}, {origin:?}, {start_from:?}: frame {frame:?}, burn {burn:?}"
                         );
                     }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn unhomed_current_position_frame_preserves_all_nine_job_origins() {
+        use beambench_common::AnchorPoint;
+
+        let origins = [
+            (AnchorPoint::TopLeft, 0.0, 1.0),
+            (AnchorPoint::TopCenter, 0.5, 1.0),
+            (AnchorPoint::TopRight, 1.0, 1.0),
+            (AnchorPoint::CenterLeft, 0.0, 0.5),
+            (AnchorPoint::Center, 0.5, 0.5),
+            (AnchorPoint::CenterRight, 1.0, 0.5),
+            (AnchorPoint::BottomLeft, 0.0, 0.0),
+            (AnchorPoint::BottomCenter, 0.5, 0.0),
+            (AnchorPoint::BottomRight, 1.0, 0.0),
+        ];
+        for target in [(0.0, 0.0), (80.0, 60.0), (-20.0, -30.0)] {
+            for (origin, fx, fy) in origins {
+                for mode in ["rectangular", "rubber_band"] {
+                    let profile = MachineProfile {
+                        bed_width_mm: 400.0,
+                        bed_height_mm: 400.0,
+                        homing_enabled: false,
+                        home_on_connect: false,
+                        ..MachineProfile::default()
+                    };
+                    let status = format!(
+                        "<Idle|MPos:{:.3},{:.3},0|WCO:70,60,0|FS:0,0>",
+                        target.0 + 70.0,
+                        target.1 + 60.0,
+                    );
+                    let (ctx, transport) = ready_grbl_context_with_status(profile, &status);
+                    transport
+                        .lock()
+                        .unwrap()
+                        .rx
+                        .extend(["$21=0".into(), "$22=0".into()]);
+                    transport.lock().unwrap().status_on_query.push_back(status);
+                    let mut project = frame_project();
+                    project.workspace = Workspace {
+                        bed_width_mm: 400.0,
+                        bed_height_mm: 400.0,
+                        origin: beambench_core::WorkspaceOrigin::BottomLeft,
+                    };
+                    project.start_from = StartFromMode::CurrentPosition;
+                    project.job_origin = origin;
+                    project.objects[0].bounds =
+                        Bounds::new(Point2D::new(80.0, 90.0), Point2D::new(100.0, 100.0));
+                    project.objects[0].data = ObjectData::Shape {
+                        kind: ShapeKind::Rectangle,
+                        width: 20.0,
+                        height: 10.0,
+                        corner_radius: 0.0,
+                    };
+                    *ctx.project.lock().unwrap() = Some(project);
+
+                    frame_job(&ctx, mode, &[], false, Some(1000.0)).unwrap();
+                    finish_recorded_job(&ctx, &transport);
+                    let lines = sent_lines(&transport);
+                    let min_x = target.0 - fx * 20.0;
+                    let min_y = target.1 - fy * 10.0;
+                    for (x, y) in [
+                        (min_x, min_y),
+                        (min_x + 20.0, min_y),
+                        (min_x + 20.0, min_y + 10.0),
+                        (min_x, min_y + 10.0),
+                    ] {
+                        assert!(
+                            contains_xy(&lines, x, y),
+                            "{mode}/{origin:?}/{target:?}: {lines:?}"
+                        );
+                    }
+                    for line in lines
+                        .iter()
+                        .filter(|line| line.contains(" X") && line.contains(" Y"))
+                    {
+                        assert!(
+                            [
+                                (min_x, min_y),
+                                (min_x + 20.0, min_y),
+                                (min_x + 20.0, min_y + 10.0),
+                                (min_x, min_y + 10.0),
+                                target,
+                            ]
+                            .iter()
+                            .any(|(x, y)| contains_xy(
+                                std::slice::from_ref(line),
+                                *x,
+                                *y
+                            )),
+                            "unexpected frame move for {mode}/{origin:?}/{target:?}: {line}"
+                        );
+                    }
+                    assert!(lines.iter().all(|line| !line.contains("$H")
+                        && !line.contains("G53")
+                        && !line.starts_with("M3")
+                        && !line.starts_with("M4")));
+                    let final_move = lines
+                        .iter()
+                        .rev()
+                        .find(|line| line.contains(" X") && line.contains(" Y"))
+                        .unwrap();
+                    assert!(contains_xy(
+                        std::slice::from_ref(final_move),
+                        target.0,
+                        target.1
+                    ));
+                    assert!(!ctx.machine_coordinates_valid.load(Ordering::Acquire));
                 }
             }
         }
