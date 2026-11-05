@@ -92,6 +92,9 @@ pub fn build_bundle(
         .map(|settings| settings.display_language.clone());
 
     let mut recent_logs = active_error_entries(ctx);
+    if let Ok(entries) = ctx.frame_diagnostics.lock() {
+        recent_logs.extend(entries.iter().cloned());
+    }
     if cfg!(target_os = "linux")
         && let Some(dir) = persist::data_dir()
     {
@@ -2390,6 +2393,49 @@ mod tests {
     }
 
     #[test]
+    fn help_menu_reports_and_saved_zip_include_scrubbed_frame_diagnostics() {
+        let ctx = ServiceContext::new();
+        ctx.record_frame_diagnostic(
+            "rejected",
+            json!({
+                "error": "Example rejection at /Users/example/private/design.svg",
+                "frame_mode": "rectangular", "job_console": ["G90", "M5"],
+            }),
+        );
+        *ctx.project.lock().unwrap() = Some(Project::new("Frame diagnostics"));
+        let mut input = bug_input();
+        input.include_project_file = true;
+        let bundle = preview_feedback_report(&ctx, input.clone()).unwrap();
+        let log = bundle
+            .recent_logs
+            .iter()
+            .find(|log| log.target == "beambench::frame")
+            .unwrap();
+        assert!(log.message.contains("rejected"));
+        assert!(log.message.contains("G90"));
+        assert!(!log.message.contains("/Users/example"));
+
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("frame-report.zip");
+        save_feedback_report(&ctx, input, &path).unwrap();
+        let mut archive = zip::ZipArchive::new(std::fs::File::open(path).unwrap()).unwrap();
+        let mut report = String::new();
+        archive
+            .by_name("report.json")
+            .unwrap()
+            .read_to_string(&mut report)
+            .unwrap();
+        let report: serde_json::Value = serde_json::from_str(&report).unwrap();
+        assert!(
+            report["bundle"]["recent_logs"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|log| log["target"] == "beambench::frame")
+        );
+    }
+
+    #[test]
     fn preview_includes_retained_terminal_job_diagnostic() {
         let ctx = ServiceContext::new();
         let mut progress = JobProgress::default();
@@ -2468,6 +2514,7 @@ mod tests {
     #[test]
     fn compatibility_and_catalog_previews_exclude_design_and_trace_data() {
         let ctx = grbl_diagnostic_context();
+        ctx.record_frame_diagnostic("started", json!({"job_console": ["G1 X10 Y20"]}));
         ctx.machine_coordinates_valid
             .store(true, std::sync::atomic::Ordering::Release);
         ctx.settings.lock().unwrap().display_language = "fr".to_owned();

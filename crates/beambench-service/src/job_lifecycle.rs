@@ -7,6 +7,7 @@ use crate::power::SleepGuard;
 pub(crate) struct JobResources {
     pub(crate) _sleep: Option<SleepGuard>,
     pub(crate) repeat: Option<PreparedFrame>,
+    pub(crate) is_frame: bool,
     /// Emergency-stop generation when the job started. A repeated frame never
     /// restarts after a later emergency stop.
     pub(crate) estop_generation: u64,

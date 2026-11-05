@@ -936,6 +936,20 @@ fn retain_terminal_job_diagnostic(
             .unwrap_or_default(),
     };
 
+    if ctx
+        .job_resources
+        .try_lock()
+        .is_ok_and(|resources| resources.is_frame)
+    {
+        ctx.record_frame_diagnostic(
+            "terminal",
+            json!({
+                "session_epoch": ctx.session_epoch.load(Ordering::Acquire),
+                "diagnostic": diagnostic,
+            }),
+        );
+    }
+
     if let Ok(mut guard) = ctx.last_terminal_job.lock() {
         *guard = Some(diagnostic);
     }
@@ -963,6 +977,30 @@ fn emit_job_progress_if_changed(ctx: &ServiceContext, progress: &JobProgress) ->
     }
 
     Ok(())
+}
+
+// Call after delivering Stop, with job/session guards already acquired by the caller.
+fn retain_frame_stop_diagnostic(
+    ctx: &ServiceContext,
+    reason: &str,
+    job: Option<&ActiveJobHandle>,
+    session: Option<&MachineSessionHandle>,
+    error: Option<String>,
+) {
+    if ctx
+        .job_resources
+        .try_lock()
+        .is_ok_and(|resources| resources.is_frame)
+    {
+        retain_terminal_job_diagnostic(
+            ctx,
+            reason,
+            job.map(ActiveJobHandle::progress),
+            error,
+            job,
+            session,
+        );
+    }
 }
 
 /// Open the port at one baud rate and wait for the GRBL banner: DTR reset
@@ -3873,6 +3911,13 @@ pub fn disconnect_machine(ctx: &ServiceContext) -> ServiceResult<()> {
         if let Ok(mut fire) = ctx.active_laser_fire.lock() {
             fire.take();
         }
+        retain_frame_stop_diagnostic(
+            ctx,
+            "frame_disconnected",
+            job_lock.as_ref(),
+            session_lock.as_ref(),
+            disconnect_warning.clone(),
+        );
         if let Some(ref mut session) = *session_lock {
             // Disconnect must always release the session: the phases where the
             // controller refuses a software stop (recovery, unowned activity,
@@ -5027,7 +5072,7 @@ pub fn start_job_at_generation(
     // Everything that can fail happens before the first byte is sent, so a
     // started job is always tracked.
     clear_retained_terminal_job(ctx)?;
-    install_job_resources(ctx, sleep, None, estop_generation)?;
+    install_job_resources(ctx, sleep, None, estop_generation, false)?;
     let session = match session_lock.as_mut() {
         Some(session) => session,
         None => {
@@ -5661,6 +5706,7 @@ fn install_job_resources(
     sleep: Result<crate::power::SleepGuard, String>,
     repeat: Option<PreparedFrame>,
     estop_generation: u64,
+    is_frame: bool,
 ) -> ServiceResult<()> {
     let sleep = match sleep {
         Ok(guard) => Some(guard),
@@ -5679,6 +5725,7 @@ fn install_job_resources(
         _sleep: sleep,
         repeat,
         estop_generation,
+        is_frame,
     };
     Ok(())
 }
@@ -5823,6 +5870,108 @@ pub fn frame_job_laser_off_once(
 }
 
 fn frame_job_with_policy(
+    ctx: &ServiceContext,
+    frame_mode: &str,
+    selected_object_ids: &[String],
+    laser_on_override: bool,
+    feed_rate: Option<f64>,
+    laser_off_once: bool,
+    expected_generation: Option<u64>,
+) -> ServiceResult<JobProgress> {
+    let requested_at = chrono::Utc::now();
+    let mut context = json!({
+        "requested_at": requested_at.to_rfc3339(),
+        "frame_mode": frame_mode.chars().take(64).collect::<String>(),
+        "selected_object_count": selected_object_ids.len(),
+        "laser_on_override": laser_on_override,
+        "laser_off_once": laser_off_once,
+        "feed_rate": feed_rate.unwrap_or(DEFAULT_MOVE_FEED_RATE_MM_MIN),
+        "session_epoch": ctx.session_epoch.load(Ordering::Acquire),
+        "document_epoch": ctx.document_epoch.load(Ordering::Acquire),
+        "machine_coordinates_valid": ctx.machine_coordinates_valid.load(Ordering::Acquire),
+    });
+    // Observation must never wait for document/session locks or gate motion.
+    if let Ok(project) = ctx.project.try_lock()
+        && let Some(project) = project.as_ref()
+    {
+        context["start_from"] = json!(project.start_from);
+        context["job_origin"] = json!(project.job_origin);
+        context["workspace_origin"] = json!(project.workspace.origin);
+    }
+    if let Ok(settings) = ctx.settings.try_lock()
+        && let Some(profile) = settings
+            .machine_profiles
+            .iter()
+            .find(|profile| Some(profile.id) == settings.active_profile_id)
+    {
+        context["profile_homing_enabled"] = json!(profile.homing_enabled);
+        context["profile_rotary_enabled"] = json!(profile.rotary_enabled);
+        context["profile_laser_on_when_framing"] = json!(profile.laser_on_when_framing);
+        context["profile_frame_continuously"] = json!(profile.frame_continuously);
+    }
+    if let Ok(session) = ctx.session.try_lock()
+        && let Some(session) = session.as_ref()
+    {
+        context["session_state"] = json!(session.session_state());
+        context["machine_status"] = json!(session.machine_status());
+        if let MachineSessionHandle::Grbl(grbl) = session {
+            context["controller_homing_enabled"] = json!(grbl.settings().get(22));
+        }
+    }
+    ctx.record_frame_diagnostic("requested", context.clone());
+    let result = start_frame_with_policy(
+        ctx,
+        frame_mode,
+        selected_object_ids,
+        laser_on_override,
+        feed_rate,
+        laser_off_once,
+        expected_generation,
+    );
+    match &result {
+        Ok(progress) => {
+            context["progress"] = json!(progress);
+            if let Ok(job) = ctx.job.try_lock()
+                && let Some(job) = job.as_ref()
+            {
+                context["job_console"] = json!(job.console_entries(TERMINAL_JOB_CONSOLE_LIMIT));
+            }
+        }
+        Err(error) => {
+            context["error"] = json!(error);
+            // A partial initial write can already have disconnected the session.
+            // Preserve the richer evidence captured before that teardown.
+            if let Ok(terminal) = ctx.last_terminal_job.try_lock()
+                && let Some(terminal) = terminal.as_ref()
+                && terminal.reason == "initial_send_failed"
+                && terminal.error.as_deref() == Some(error.message.as_str())
+                && chrono::DateTime::parse_from_rfc3339(&terminal.captured_at)
+                    .is_ok_and(|time| time >= requested_at)
+            {
+                context["terminal_job"] = json!(terminal);
+            }
+        }
+    }
+    let result_epoch = ctx.session_epoch.load(Ordering::Acquire);
+    context["result_session_epoch"] = json!(result_epoch);
+    if context["session_epoch"] == json!(result_epoch)
+        && let Ok(session) = ctx.session.try_lock()
+        && let Some(session) = session.as_ref()
+    {
+        context["session_console"] = json!(session.console_entries(TERMINAL_JOB_CONSOLE_LIMIT));
+    }
+    ctx.record_frame_diagnostic(
+        if result.is_ok() {
+            "started"
+        } else {
+            "rejected"
+        },
+        context,
+    );
+    result
+}
+
+fn start_frame_with_policy(
     ctx: &ServiceContext,
     frame_mode: &str,
     selected_object_ids: &[String],
@@ -6159,6 +6308,7 @@ fn frame_job_with_policy(
         sleep,
         (profile.frame_continuously && !laser_off_once).then_some(prepared),
         estop_generation,
+        true,
     )?;
     *job_lock = Some(job);
     drop(session_lock);
@@ -7067,6 +7217,14 @@ pub fn emergency_stop(ctx: &ServiceContext) -> ServiceResult<()> {
     drop(session_lock);
     {
         let mut job_lock = ctx.job.lock().map_err(|e| lock_err("job", e))?;
+        let session = ctx.session.try_lock().ok();
+        retain_frame_stop_diagnostic(
+            ctx,
+            "frame_emergency_stop",
+            job_lock.as_ref(),
+            session.as_deref().and_then(Option::as_ref),
+            stop_result.as_ref().err().cloned(),
+        );
         *job_lock = None;
         clear_job_resources(ctx);
     }
@@ -10997,6 +11155,208 @@ mod tests {
             project.user_origin = Some((80.0, 80.0));
         }
         project
+    }
+
+    fn frame_diagnostic_events(ctx: &ServiceContext) -> Vec<serde_json::Value> {
+        ctx.frame_diagnostics
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|entry| serde_json::from_str(&entry.message).unwrap())
+            .collect()
+    }
+
+    #[test]
+    fn frame_diagnostics_preserve_predispatch_rejection_without_sending_motion() {
+        let (ctx, transport) = ready_grbl_context(MachineProfile::default());
+        let mut project = frame_project();
+        project.start_from = StartFromMode::UserOrigin;
+        project.user_origin = None;
+        *ctx.project.lock().unwrap() = Some(project);
+
+        let error = frame_job(&ctx, "rectangular", &[], false, Some(1200.0)).unwrap_err();
+
+        assert!(sent_lines(&transport).is_empty());
+        let events = frame_diagnostic_events(&ctx);
+        assert_eq!(events.len(), 2);
+        assert_eq!(events[0]["stage"], "requested");
+        assert_eq!(events[1]["stage"], "rejected");
+        let context = &events[1]["context"];
+        assert_eq!(context["error"]["message"], error.message);
+        assert_eq!(context["error"]["code"], "invalid_state");
+        assert_eq!(context["start_from"], "user_origin");
+        assert_eq!(context["frame_mode"], "rectangular");
+        assert_eq!(context["feed_rate"], 1200.0);
+        assert_eq!(context["machine_coordinates_valid"], false);
+        assert_eq!(context["session_state"], "ready");
+        assert!(context["job_console"].is_null());
+    }
+
+    #[test]
+    fn frame_diagnostics_keep_completed_unhomed_trace_after_polling_and_disconnect() {
+        let status = "<Idle|MPos:100,100,0|WCO:0,0,0|FS:0,0>";
+        let (ctx, transport) = ready_grbl_context_with_status(
+            MachineProfile {
+                homing_enabled: true,
+                ..MachineProfile::default()
+            },
+            status,
+        );
+        transport.lock().unwrap().rx.push_back("$22=0".into());
+        machine_status(&ctx).unwrap();
+        transport
+            .lock()
+            .unwrap()
+            .status_on_query
+            .push_back(status.into());
+        let mut project = frame_project();
+        project.start_from = StartFromMode::CurrentPosition;
+        *ctx.project.lock().unwrap() = Some(project);
+
+        frame_job(&ctx, "rubber_band", &[], false, Some(1500.0)).unwrap();
+        for _ in 0..20 {
+            let Some(progress) = ctx.job.lock().unwrap().as_ref().map(|job| job.progress()) else {
+                break;
+            };
+            let mut wire = transport.lock().unwrap();
+            wire.rx
+                .extend((progress.acknowledged_lines..progress.sent_lines).map(|_| "ok".into()));
+            wire.rx.push_back(status.into());
+            drop(wire);
+            tick_job(&ctx).unwrap();
+        }
+        assert!(ctx.job.lock().unwrap().is_none());
+        let events = frame_diagnostic_events(&ctx);
+        assert_eq!(
+            events
+                .iter()
+                .map(|event| event["stage"].as_str().unwrap())
+                .collect::<Vec<_>>(),
+            ["requested", "started", "terminal"]
+        );
+        assert_eq!(events[0]["context"]["profile_homing_enabled"], true);
+        assert_eq!(events[0]["context"]["controller_homing_enabled"], 0.0);
+        assert_eq!(
+            events[2]["context"]["diagnostic"]["progress"]["state"],
+            "completed"
+        );
+        assert!(
+            events[2]["context"]["diagnostic"]["job_console"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|entry| entry["content"].as_str().unwrap().starts_with("G1 X"))
+        );
+
+        // Idle polling must not evict the frozen frame trace.
+        transport
+            .lock()
+            .unwrap()
+            .rx
+            .extend((0..1100).map(|_| status.to_owned()));
+        machine_status(&ctx).unwrap();
+        disconnect_machine(&ctx).unwrap();
+        assert_eq!(frame_diagnostic_events(&ctx), events);
+        assert!(ctx.session.lock().unwrap().is_none());
+        assert!(
+            sent_lines(&transport)
+                .iter()
+                .all(|line| !line.contains("$H") && !line.contains("G53"))
+        );
+    }
+
+    #[test]
+    fn frame_diagnostics_preserve_partial_initial_send_before_teardown() {
+        let (ctx, transport) = ready_grbl_context(MachineProfile {
+            bed_width_mm: 400.0,
+            bed_height_mm: 400.0,
+            ..MachineProfile::default()
+        });
+        ctx.machine_coordinates_valid.store(true, Ordering::Release);
+        *ctx.project.lock().unwrap() = Some(frame_project());
+        transport.lock().unwrap().fail_line_after = Some(2);
+
+        let error = frame_job(&ctx, "rectangular", &[], false, None).unwrap_err();
+        assert!(error.message.contains("injected"), "{error}");
+
+        assert!(ctx.session.lock().unwrap().is_none());
+        let events = frame_diagnostic_events(&ctx);
+        let rejected = &events.last().unwrap();
+        assert_eq!(rejected["stage"], "rejected");
+        assert_eq!(
+            rejected["context"]["terminal_job"]["reason"],
+            "initial_send_failed"
+        );
+        assert!(
+            !rejected["context"]["terminal_job"]["job_console"]
+                .as_array()
+                .unwrap()
+                .is_empty()
+        );
+        assert!(
+            !rejected["context"]["terminal_job"]["session_console"]
+                .as_array()
+                .unwrap()
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn frame_diagnostics_log_invalid_feed_without_changing_the_rejection() {
+        let (ctx, transport) = ready_grbl_context(MachineProfile::default());
+        let error = frame_job(&ctx, "rectangular", &[], false, Some(f64::NAN)).unwrap_err();
+        assert_eq!(error.code, crate::ServiceErrorCode::InvalidInput);
+        assert!(sent_lines(&transport).is_empty());
+        assert_eq!(
+            frame_diagnostic_events(&ctx)[1]["context"]["error"]["message"],
+            error.message
+        );
+    }
+
+    #[test]
+    fn frame_diagnostics_keep_commands_when_operator_stops_or_disconnects() {
+        for stop in [true, false] {
+            let (ctx, transport) = ready_grbl_context(MachineProfile {
+                bed_width_mm: 400.0,
+                bed_height_mm: 400.0,
+                ..MachineProfile::default()
+            });
+            *ctx.project.lock().unwrap() = Some(frame_project());
+            frame_job(&ctx, "rectangular", &[], false, None).unwrap();
+            transport
+                .lock()
+                .unwrap()
+                .status_on_query
+                .push_back("<Idle|MPos:10,20,0|FS:0,0>".into());
+            if stop {
+                emergency_stop(&ctx).unwrap();
+            } else {
+                disconnect_machine(&ctx).unwrap();
+            }
+            assert!(ctx.job.lock().unwrap().is_none());
+            let events = frame_diagnostic_events(&ctx);
+            let terminal = &events.last().unwrap()["context"]["diagnostic"];
+            assert_eq!(
+                terminal["reason"],
+                if stop {
+                    "frame_emergency_stop"
+                } else {
+                    "frame_disconnected"
+                }
+            );
+            assert!(
+                terminal["job_console"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|line| line["content"].as_str().unwrap().starts_with("G0 X"))
+            );
+            assert!(
+                sent_bytes(&transport)
+                    .iter()
+                    .any(|bytes| bytes == grbl_commands::soft_reset())
+            );
+        }
     }
 
     #[test]
