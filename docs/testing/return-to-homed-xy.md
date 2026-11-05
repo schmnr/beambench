@@ -33,7 +33,8 @@ after acknowledgement or an observed Home state. A work-position report
 also needs its current work-coordinate offset in that report. Missing,
 malformed or nonfinite coordinates leave the return unavailable. A later
 position report cannot substitute for the missed homing endpoint. Inch
-reports are converted to millimeters using `$13`.
+reports are converted to millimeters using `$13`. If those report units are
+unknown, the return remains unavailable.
 
 The service rejects returns during a job, test fire, rotary mode or a busy
 machine. It consumes pending controller responses before dispatch and checks

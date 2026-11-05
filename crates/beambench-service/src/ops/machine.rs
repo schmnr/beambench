@@ -11372,6 +11372,7 @@ mod tests {
         ctx: &ServiceContext,
         transport: &Arc<Mutex<RecordingTransportState>>,
     ) {
+        transport.lock().unwrap().rx.push_back("$13=0".into());
         home(ctx).unwrap();
         transport.lock().unwrap().rx.extend([
             "ok".into(),

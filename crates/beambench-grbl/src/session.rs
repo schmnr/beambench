@@ -326,14 +326,18 @@ impl GrblSession {
                                     .zip(positions.work_coordinate_offset)
                                     .map(|(work, offset)| parser::add_position(work, offset))
                             });
+                            let report_scale = match self.settings.get(13) {
+                                Some(0.0) => Some(1.0),
+                                Some(1.0) => Some(25.4),
+                                // Never guess whether the measured values are inches or mm.
+                                _ => None,
+                            };
                             self.homed_position = position
-                                .filter(|position| position.x.is_finite() && position.y.is_finite())
-                                .map(|mut position| {
-                                    if self.settings.get(13) == Some(1.0) {
-                                        position.x *= 25.4;
-                                        position.y *= 25.4;
-                                        position.z *= 25.4;
-                                    }
+                                .zip(report_scale)
+                                .map(|(mut position, scale)| {
+                                    position.x *= scale;
+                                    position.y *= scale;
+                                    position.z *= scale;
                                     position
                                 })
                                 .filter(|position| {
@@ -870,6 +874,7 @@ mod tests {
             let handle = transport.handle();
             let mut session = GrblSession::new(Box::new(transport));
             session.connect().unwrap();
+            session.settings.set(13, 0.0);
             session.home().unwrap();
             handle.enqueue_response("ok");
             handle.enqueue_response(&format!("<Idle|MPos:{position}|FS:0,0>"));
@@ -902,6 +907,7 @@ mod tests {
             let handle = transport.handle();
             let mut session = GrblSession::new(Box::new(transport));
             session.connect().unwrap();
+            session.settings.set(13, 0.0);
             handle.enqueue_response("<Idle|MPos:10,20,0|WCO:0,0,0>");
             session.poll().unwrap();
             session.home().unwrap();
@@ -938,6 +944,25 @@ mod tests {
     }
 
     #[test]
+    fn homed_xy_requires_known_report_units_at_capture() {
+        for units in [None, Some(2.0), Some(f64::NAN)] {
+            let transport = MockSerialTransport::new("unknown-home-units");
+            let handle = transport.handle();
+            let mut session = GrblSession::new(Box::new(transport));
+            session.connect().unwrap();
+            if let Some(units) = units {
+                session.settings.set(13, units);
+            }
+            session.home().unwrap();
+            handle.enqueue_response("ok");
+            handle.enqueue_response("<Idle|MPos:-299,-179,-1>");
+            session.poll().unwrap();
+            assert!(session.return_to_homed_xy(1500.0).is_err());
+            assert_eq!(handle.sent_lines(), vec!["$H"]);
+        }
+    }
+
+    #[test]
     fn homed_xy_is_invalidated_when_the_physical_reference_may_be_lost() {
         for invalidation in [
             "reset",
@@ -957,6 +982,7 @@ mod tests {
             let handle = transport.handle();
             let mut session = GrblSession::new(Box::new(transport));
             session.connect().unwrap();
+            session.settings.set(13, 0.0);
             session.home().unwrap();
             handle.enqueue_response("ok");
             handle.enqueue_response("<Idle|MPos:-299,-179,-1>");
