@@ -1894,7 +1894,7 @@
         "moving_laser_to_selection": "Moviendo el láser a la selección",
         "moving_to_coordinates": "Moviendo a ({x}, {y}) {unit}",
         "moving_to_position": "Moviendo a {name}",
-        "moving_to_machine_zero": "Moving to machine zero",
+        "moving_to_machine_zero": "Volviendo al origen XY de referencia",
         "moving_to_user_origin": "Moving to user origin",
         "finish_position_set": "Finish position set"
       },
@@ -1908,7 +1908,7 @@
       "feed_rate": "Move Feed Rate",
       "feed_mm_min": "Feed",
       "axis_z": "Z",
-      "go_machine_zero": "Go Machine Zero",
+      "go_machine_zero": "Volver al origen XY de referencia",
       "use_current": "Use Current",
       "jog": "Jog",
       "current_position": "Current: {position}",
@@ -1930,7 +1930,8 @@
       "preview_connected_help": "Development preview only. Controls are shown without a machine.",
       "saved_positions_more": "+{count} more",
       "stop_jog": "Detener desplazamiento",
-      "position_not_homed": "Posición sin referenciar. Tras encender, 0,0 puede ser la posición inicial. Use Buscar origen en máquinas con finales de carrera."
+      "position_not_homed": "Posición sin referenciar. Tras encender, 0,0 puede ser la posición inicial. Use Buscar origen en máquinas con finales de carrera.",
+      "return_homed_xy_help": "Devuelve X/Y a la posición indicada tras el ciclo de referencia. Z no cambia."
     },
     "machine": {
       "status": {
@@ -2897,7 +2898,7 @@
     "project_invalid_value_object": "«{name}» tiene un tamaño o una posición no válidos, así que el proyecto no se ha guardado. Deshaz el último cambio que le hiciste o elimínalo, y vuelve a guardar.",
     "operation_failed_with_detail": "La operación falló: {detail}",
     "raster_plan_too_complex": "Esta imagen crea demasiados movimientos de trama individuales con su tamaño y DPI actuales. Reduce el DPI o el tamaño físico, o elige un modo de imagen menos fragmentado, y vuelve a generar la vista previa.",
-    "machine_zero_requires_home": "Home the machine first to use machine zero.",
+    "machine_zero_requires_home": "Realiza primero el ciclo de referencia para volver al origen XY.",
     "serial_port_unavailable": "Could not open {port}. Another application may be using this port, or the controller may have been disconnected. Close other laser or serial software, reconnect the controller, and try again.",
     "lihuiyu_incompatible_windows_driver": "This Lihuiyu controller is using an incompatible Windows USB driver. Beam Bench requires WinUSB for device 1a86:5512. Change the driver, reconnect the controller, then refresh the USB list. Changing the driver may prevent vendor software from using the controller until its original driver is restored.",
     "ruida_unknown_variant": "Beam Bench found a Ruida controller it does not yet recognize. No file or motion command was sent. Submit a bug report and include the controller model and firmware shown on its panel.",

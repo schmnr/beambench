@@ -1894,7 +1894,7 @@
         "moving_laser_to_selection": "Déplacement du laser vers la sélection",
         "moving_to_coordinates": "Déplacement vers ({x}, {y}) {unit}",
         "moving_to_position": "Déplacement vers {name}",
-        "moving_to_machine_zero": "Déplacement vers le zéro machine",
+        "moving_to_machine_zero": "Retour à la position XY de référence",
         "moving_to_user_origin": "Déplacement vers l’origine utilisateur",
         "finish_position_set": "Position finale définie"
       },
@@ -1908,7 +1908,7 @@
       "feed_rate": "Vitesse de déplacement",
       "feed_mm_min": "Avance",
       "axis_z": "Z",
-      "go_machine_zero": "Aller au zéro machine",
+      "go_machine_zero": "Retour à la position XY de référence",
       "use_current": "Utiliser la position actuelle",
       "jog": "Déplacement manuel",
       "current_position": "Position actuelle : {position}",
@@ -1930,7 +1930,8 @@
       "preview_connected_help": "Aperçu de développement uniquement. Les commandes sont affichées sans machine.",
       "saved_positions_more": "+{count} autres",
       "stop_jog": "Arrêter le déplacement",
-      "position_not_homed": "Position non référencée. Après la mise sous tension, 0,0 peut être la position de démarrage. Utilisez Référencement si la machine possède des fins de course."
+      "position_not_homed": "Position non référencée. Après la mise sous tension, 0,0 peut être la position de démarrage. Utilisez Référencement si la machine possède des fins de course.",
+      "return_homed_xy_help": "Ramène X/Y à la position signalée après la prise d’origine. Z reste inchangé."
     },
     "machine": {
       "status": {
@@ -2901,7 +2902,7 @@
     "dxf_no_usable_geometry_with_entities": "Le fichier DXF ne contient aucune géométrie vectorielle 2D exploitable. Entités non prises en charge ou incorrectes : {entities}.",
     "operation_failed_with_detail": "Échec de l’opération : {detail}",
     "raster_plan_too_complex": "Cette image crée trop de mouvements raster individuels avec sa taille et son DPI actuels. Réduisez le DPI ou la taille physique, ou choisissez un mode d’image moins fragmenté, puis générez à nouveau l’aperçu.",
-    "machine_zero_requires_home": "Home the machine first to use machine zero.",
+    "machine_zero_requires_home": "Effectuez d’abord la prise d’origine pour revenir à la position XY de référence.",
     "serial_port_unavailable": "Impossible d’ouvrir {port}. Une autre application utilise peut-être ce port, ou le contrôleur a été déconnecté. Fermez les autres logiciels laser ou série, reconnectez le contrôleur, puis réessayez.",
     "lihuiyu_incompatible_windows_driver": "Ce contrôleur Lihuiyu utilise un pilote USB Windows incompatible. Beam Bench nécessite WinUSB pour l’appareil 1a86:5512. Changez le pilote, reconnectez le contrôleur, puis actualisez la liste USB. Le changement de pilote peut empêcher le logiciel du fabricant d’utiliser le contrôleur jusqu’à la restauration du pilote d’origine.",
     "ruida_unknown_variant": "Beam Bench a détecté un contrôleur Ruida qu’il ne reconnaît pas encore. Aucun fichier ni aucune commande de mouvement n’a été envoyé. Envoyez un rapport d’erreur en indiquant le modèle du contrôleur et la version du micrologiciel affichée sur son écran.",

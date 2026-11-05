@@ -682,6 +682,7 @@ fn main() {
             commands::machine::move_laser_to,
             commands::machine::move_laser_to_project_point,
             commands::machine::move_laser_to_machine,
+            commands::machine::return_to_homed_xy,
             commands::machine::laser_fire_start,
             commands::machine::laser_fire_keepalive,
             commands::machine::laser_fire_stop,

@@ -79,7 +79,10 @@ export function wrapBackendError(detail: string): string {
       useProjectStore.getState().project?.start_from ?? 'absolute_coords',
     );
   }
-  if (normalized === MACHINE_ZERO_REQUIRES_HOME) {
+  if (
+    normalized === MACHINE_ZERO_REQUIRES_HOME ||
+    normalized === 'Home the machine again to establish a verified return position'
+  ) {
     return i18n.t('errors.machine_zero_requires_home');
   }
   const unavailablePort = normalized.match(SERIAL_PORT_UNAVAILABLE);

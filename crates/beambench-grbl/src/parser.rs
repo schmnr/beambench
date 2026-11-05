@@ -154,14 +154,23 @@ pub fn parse_status_position_fields(report: &str) -> StatusPositionFields {
     let mut fields = StatusPositionFields::default();
     for part in report.split('|').skip(1) {
         if let Some(rest) = part.strip_prefix("MPos:") {
-            fields.machine_position = Some(parse_position(rest));
+            fields.machine_position = parse_reported_position(rest);
         } else if let Some(rest) = part.strip_prefix("WPos:") {
-            fields.work_position = Some(parse_position(rest));
+            fields.work_position = parse_reported_position(rest);
         } else if let Some(rest) = part.strip_prefix("WCO:") {
-            fields.work_coordinate_offset = Some(parse_position(rest));
+            fields.work_coordinate_offset = parse_reported_position(rest);
         }
     }
     fields
+}
+
+// Position presence must not turn a malformed or incomplete report into zero.
+fn parse_reported_position(s: &str) -> Option<MachinePosition> {
+    let mut coords = s.split(',');
+    let x = coords.next()?.parse::<f64>().ok()?;
+    let y = coords.next()?.parse::<f64>().ok()?;
+    let z = coords.next().unwrap_or("0").parse::<f64>().ok()?;
+    (x.is_finite() && y.is_finite() && z.is_finite()).then_some(MachinePosition { x, y, z })
 }
 
 pub(crate) fn add_position(a: MachinePosition, b: MachinePosition) -> MachinePosition {
@@ -200,15 +209,6 @@ pub fn parse_run_state(s: &str) -> MachineRunState {
             MachineRunState::Alarm
         }
         _ => MachineRunState::Unknown,
-    }
-}
-
-fn parse_position(s: &str) -> MachinePosition {
-    let coords: Vec<f64> = s.split(',').filter_map(|v| v.parse().ok()).collect();
-    MachinePosition {
-        x: coords.first().copied().unwrap_or(0.0),
-        y: coords.get(1).copied().unwrap_or(0.0),
-        z: coords.get(2).copied().unwrap_or(0.0),
     }
 }
 

@@ -2046,7 +2046,7 @@
         "moving_laser_to_selection": "Moving laser to selection",
         "moving_to_coordinates": "Moving to ({x}, {y}) {unit}",
         "moving_to_position": "Moving to {name}",
-        "moving_to_machine_zero": "Moving to machine zero",
+        "moving_to_machine_zero": "Returning to homed XY",
         "moving_to_user_origin": "Moving to user origin",
         "finish_position_set": "Finish position set"
       },
@@ -2060,7 +2060,7 @@
       "feed_rate": "Move Feed Rate",
       "feed_mm_min": "Feed",
       "axis_z": "Z",
-      "go_machine_zero": "Go Machine Zero",
+      "go_machine_zero": "Return to Homed XY",
       "use_current": "Use Current",
       "jog": "Jog",
       "current_position": "Current: {position}",
@@ -2082,7 +2082,8 @@
       "preview_connected_help": "Development preview only. Controls are shown without a machine.",
       "saved_positions_more": "+{count} more",
       "stop_jog": "Stop Jog",
-      "position_not_homed": "Position not homed. After power-on, 0,0 may be the startup position. Use Home for machines with endstops."
+      "position_not_homed": "Position not homed. After power-on, 0,0 may be the startup position. Use Home for machines with endstops.",
+      "return_homed_xy_help": "Returns X/Y to the position reported after homing. Leaves Z unchanged."
     },
     "machine": {
       "status": {
@@ -2901,7 +2902,7 @@
     "dxf_no_usable_geometry_with_entities": "The DXF file contains no usable 2D vector geometry. Unsupported or malformed entities: {entities}.",
     "operation_failed_with_detail": "Operation failed: {detail}",
     "raster_plan_too_complex": "This image creates too many individual raster moves at its current size and DPI. Reduce the DPI or physical size, or choose a less fragmented image mode, then generate the preview again.",
-    "machine_zero_requires_home": "Home the machine first to use machine zero.",
+    "machine_zero_requires_home": "Home the machine first to return to homed XY.",
     "serial_port_unavailable": "Could not open {port}. Another application may be using this port, or the controller may have been disconnected. Close other laser or serial software, reconnect the controller, and try again.",
     "lihuiyu_incompatible_windows_driver": "This Lihuiyu controller is using an incompatible Windows USB driver. Beam Bench requires WinUSB for device 1a86:5512. Change the driver, reconnect the controller, then refresh the USB list. Changing the driver may prevent vendor software from using the controller until its original driver is restored.",
     "ruida_unknown_variant": "Beam Bench found a Ruida controller it does not yet recognize. No file or motion command was sent. Submit a bug report and include the controller model and firmware shown on its panel.",

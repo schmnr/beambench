@@ -1894,7 +1894,7 @@
         "moving_laser_to_selection": "Laser siirtyy valintaan",
         "moving_to_coordinates": "Siirrytään kohtaan ({x}, {y}) {unit}",
         "moving_to_position": "Siirrytään kohteeseen {name}",
-        "moving_to_machine_zero": "Moving to machine zero",
+        "moving_to_machine_zero": "Palataan XY-kotiasemaan",
         "moving_to_user_origin": "Moving to user origin",
         "finish_position_set": "Finish position set"
       },
@@ -1908,7 +1908,7 @@
       "feed_rate": "Move Feed Rate",
       "feed_mm_min": "Feed",
       "axis_z": "Z",
-      "go_machine_zero": "Go Machine Zero",
+      "go_machine_zero": "Palaa XY-kotiasemaan",
       "use_current": "Use Current",
       "jog": "Jog",
       "current_position": "Current: {position}",
@@ -1930,7 +1930,8 @@
       "preview_connected_help": "Development preview only. Controls are shown without a machine.",
       "saved_positions_more": "+{count} more",
       "stop_jog": "Pysäytä siirto",
-      "position_not_homed": "Sijaintia ei ole kotihakettu. Käynnistyksen jälkeen 0,0 voi olla alkusijainti. Tee kotihaku koneille, joissa on rajakytkimet."
+      "position_not_homed": "Sijaintia ei ole kotihakettu. Käynnistyksen jälkeen 0,0 voi olla alkusijainti. Tee kotihaku koneille, joissa on rajakytkimet.",
+      "return_homed_xy_help": "Palauttaa X/Y-akselit kotiajon jälkeen ilmoitettuun sijaintiin. Z ei muutu."
     },
     "machine": {
       "status": {
@@ -2897,7 +2898,7 @@
     "project_invalid_value_object": "Kohteen ”{name}” koko tai sijainti on virheellinen, joten projektia ei tallennettu. Kumoa siihen tehty viimeisin muutos tai poista se ja tallenna uudelleen.",
     "operation_failed_with_detail": "Toiminto epäonnistui: {detail}",
     "raster_plan_too_complex": "Tämä kuva luo nykyisellä koolla ja DPI-arvolla liian monta yksittäistä rasteriliikettä. Pienennä DPI-arvoa tai fyysistä kokoa tai valitse vähemmän pirstoutunut kuvatila ja luo esikatselu uudelleen.",
-    "machine_zero_requires_home": "Home the machine first to use machine zero.",
+    "machine_zero_requires_home": "Suorita ensin kotiajo, jotta voit palata XY-kotiasemaan.",
     "serial_port_unavailable": "Could not open {port}. Another application may be using this port, or the controller may have been disconnected. Close other laser or serial software, reconnect the controller, and try again.",
     "lihuiyu_incompatible_windows_driver": "This Lihuiyu controller is using an incompatible Windows USB driver. Beam Bench requires WinUSB for device 1a86:5512. Change the driver, reconnect the controller, then refresh the USB list. Changing the driver may prevent vendor software from using the controller until its original driver is restored.",
     "ruida_unknown_variant": "Beam Bench found a Ruida controller it does not yet recognize. No file or motion command was sent. Submit a bug report and include the controller model and firmware shown on its panel.",

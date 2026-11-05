@@ -1894,7 +1894,7 @@
         "moving_laser_to_selection": "Lézer mozgatása a kijelöléshez",
         "moving_to_coordinates": "Mozgatás ide: ({x}, {y}) {unit}",
         "moving_to_position": "Mozgatás ide: {name}",
-        "moving_to_machine_zero": "Moving to machine zero",
+        "moving_to_machine_zero": "Visszatérés az XY referenciapontra",
         "moving_to_user_origin": "Moving to user origin",
         "finish_position_set": "Finish position set"
       },
@@ -1908,7 +1908,7 @@
       "feed_rate": "Move Feed Rate",
       "feed_mm_min": "Feed",
       "axis_z": "Z",
-      "go_machine_zero": "Go Machine Zero",
+      "go_machine_zero": "Vissza az XY referenciapontra",
       "use_current": "Use Current",
       "jog": "Jog",
       "current_position": "Current: {position}",
@@ -1930,7 +1930,8 @@
       "preview_connected_help": "Development preview only. Controls are shown without a machine.",
       "saved_positions_more": "+{count} more",
       "stop_jog": "Mozgatás leállítása",
-      "position_not_homed": "A pozíció nincs referenciázva. Bekapcsolás után a 0,0 a kezdőpozíció lehet. Végálláskapcsolós gépen végezzen alaphelyzet-keresést."
+      "position_not_homed": "A pozíció nincs referenciázva. Bekapcsolás után a 0,0 a kezdőpozíció lehet. Végálláskapcsolós gépen végezzen alaphelyzet-keresést.",
+      "return_homed_xy_help": "Az X/Y tengelyeket a referenciázás után jelentett helyzetbe viszi. Z nem változik."
     },
     "machine": {
       "status": {
@@ -2897,7 +2898,7 @@
     "project_invalid_value_object": "A(z) „{name}” mérete vagy pozíciója érvénytelen, ezért a projekt nem lett mentve. Vonja vissza a legutóbbi módosítását, vagy törölje, majd mentsen újra.",
     "operation_failed_with_detail": "A művelet sikertelen: {detail}",
     "raster_plan_too_complex": "Ez a kép a jelenlegi méret és DPI mellett túl sok különálló rasztermozgást hoz létre. Csökkentse a DPI-t vagy a fizikai méretet, vagy válasszon kevésbé töredezett képmódot, majd készítse el újra az előnézetet.",
-    "machine_zero_requires_home": "Home the machine first to use machine zero.",
+    "machine_zero_requires_home": "Először végezzen referenciázást az XY referenciapontra való visszatéréshez.",
     "serial_port_unavailable": "Could not open {port}. Another application may be using this port, or the controller may have been disconnected. Close other laser or serial software, reconnect the controller, and try again.",
     "lihuiyu_incompatible_windows_driver": "This Lihuiyu controller is using an incompatible Windows USB driver. Beam Bench requires WinUSB for device 1a86:5512. Change the driver, reconnect the controller, then refresh the USB list. Changing the driver may prevent vendor software from using the controller until its original driver is restored.",
     "ruida_unknown_variant": "Beam Bench found a Ruida controller it does not yet recognize. No file or motion command was sent. Submit a bug report and include the controller model and firmware shown on its panel.",

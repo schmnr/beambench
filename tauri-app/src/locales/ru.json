@@ -1894,7 +1894,7 @@
         "moving_laser_to_selection": "Лазер перемещается к выделению",
         "moving_to_coordinates": "Перемещение к ({x}, {y}) {unit}",
         "moving_to_position": "Перемещение к {name}",
-        "moving_to_machine_zero": "Moving to machine zero",
+        "moving_to_machine_zero": "Возврат к позиции базирования XY",
         "moving_to_user_origin": "Moving to user origin",
         "finish_position_set": "Finish position set"
       },
@@ -1908,7 +1908,7 @@
       "feed_rate": "Move Feed Rate",
       "feed_mm_min": "Feed",
       "axis_z": "Z",
-      "go_machine_zero": "Go Machine Zero",
+      "go_machine_zero": "Вернуться к позиции базирования XY",
       "use_current": "Use Current",
       "jog": "Jog",
       "current_position": "Current: {position}",
@@ -1930,7 +1930,8 @@
       "preview_connected_help": "Development preview only. Controls are shown without a machine.",
       "saved_positions_more": "+{count} more",
       "stop_jog": "Остановить перемещение",
-      "position_not_homed": "Положение не привязано к нулю. После включения 0,0 может быть начальной позицией. На станках с концевиками выполните поиск нуля."
+      "position_not_homed": "Положение не привязано к нулю. После включения 0,0 может быть начальной позицией. На станках с концевиками выполните поиск нуля.",
+      "return_homed_xy_help": "Возвращает X/Y в позицию, полученную после базирования. Z не меняется."
     },
     "machine": {
       "status": {
@@ -2897,7 +2898,7 @@
     "project_invalid_value_object": "У «{name}» недопустимый размер или положение, поэтому проект не сохранён. Отмените последнее изменение этого объекта или удалите его и сохраните снова.",
     "operation_failed_with_detail": "Не удалось выполнить операцию: {detail}",
     "raster_plan_too_complex": "При текущем размере и DPI это изображение создаёт слишком много отдельных растровых перемещений. Уменьшите DPI или физический размер либо выберите менее фрагментированный режим изображения, затем создайте предпросмотр снова.",
-    "machine_zero_requires_home": "Home the machine first to use machine zero.",
+    "machine_zero_requires_home": "Сначала выполните базирование для возврата к позиции базирования XY.",
     "serial_port_unavailable": "Could not open {port}. Another application may be using this port, or the controller may have been disconnected. Close other laser or serial software, reconnect the controller, and try again.",
     "lihuiyu_incompatible_windows_driver": "This Lihuiyu controller is using an incompatible Windows USB driver. Beam Bench requires WinUSB for device 1a86:5512. Change the driver, reconnect the controller, then refresh the USB list. Changing the driver may prevent vendor software from using the controller until its original driver is restored.",
     "ruida_unknown_variant": "Beam Bench found a Ruida controller it does not yet recognize. No file or motion command was sent. Submit a bug report and include the controller model and firmware shown on its panel.",

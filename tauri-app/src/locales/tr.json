@@ -1894,7 +1894,7 @@
         "moving_laser_to_selection": "Lazer seçime taşınıyor",
         "moving_to_coordinates": "({x}, {y}) konumuna taşınıyor {unit}",
         "moving_to_position": "{name} konumuna taşınıyor",
-        "moving_to_machine_zero": "Moving to machine zero",
+        "moving_to_machine_zero": "Referans XY konumuna dönülüyor",
         "moving_to_user_origin": "Moving to user origin",
         "finish_position_set": "Finish position set"
       },
@@ -1908,7 +1908,7 @@
       "feed_rate": "Move Feed Rate",
       "feed_mm_min": "Feed",
       "axis_z": "Z",
-      "go_machine_zero": "Go Machine Zero",
+      "go_machine_zero": "Referans XY konumuna dön",
       "use_current": "Use Current",
       "jog": "Jog",
       "current_position": "Current: {position}",
@@ -1930,7 +1930,8 @@
       "preview_connected_help": "Development preview only. Controls are shown without a machine.",
       "saved_positions_more": "+{count} more",
       "stop_jog": "Joglamayı durdur",
-      "position_not_homed": "Konum referanslanmadı. Açılıştan sonra 0,0 başlangıç konumu olabilir. Sınır anahtarı olan makinelerde referanslama yapın."
+      "position_not_homed": "Konum referanslanmadı. Açılıştan sonra 0,0 başlangıç konumu olabilir. Sınır anahtarı olan makinelerde referanslama yapın.",
+      "return_homed_xy_help": "X/Y eksenlerini referanslama sonrasında bildirilen konuma döndürür. Z değişmez."
     },
     "machine": {
       "status": {
@@ -2897,7 +2898,7 @@
     "project_invalid_value_object": "\"{name}\" geçersiz bir boyuta veya konuma sahip olduğu için proje kaydedilmedi. Ona yapılan son değişikliği geri alın veya silin, ardından yeniden kaydedin.",
     "operation_failed_with_detail": "İşlem başarısız: {detail}",
     "raster_plan_too_complex": "Bu görüntü mevcut boyut ve DPI ile çok fazla ayrı raster hareketi oluşturuyor. DPI değerini veya fiziksel boyutu azaltın ya da daha az parçalı bir görüntü modu seçin ve ardından önizlemeyi yeniden oluşturun.",
-    "machine_zero_requires_home": "Home the machine first to use machine zero.",
+    "machine_zero_requires_home": "Referans XY konumuna dönmek için önce referanslama yapın.",
     "serial_port_unavailable": "Could not open {port}. Another application may be using this port, or the controller may have been disconnected. Close other laser or serial software, reconnect the controller, and try again.",
     "lihuiyu_incompatible_windows_driver": "This Lihuiyu controller is using an incompatible Windows USB driver. Beam Bench requires WinUSB for device 1a86:5512. Change the driver, reconnect the controller, then refresh the USB list. Changing the driver may prevent vendor software from using the controller until its original driver is restored.",
     "ruida_unknown_variant": "Beam Bench found a Ruida controller it does not yet recognize. No file or motion command was sent. Submit a bug report and include the controller model and firmware shown on its panel.",

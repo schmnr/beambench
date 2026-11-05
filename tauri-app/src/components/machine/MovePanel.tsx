@@ -483,7 +483,7 @@ export function MovePanel(): React.ReactElement {
       return;
     }
     try {
-      await machineService.moveLaserToMachine(0, 0, moveFeedRate, supportsZ ? 0 : null);
+      await machineService.returnToHomedXY(moveFeedRate);
       await refreshStatus();
       useNotificationStore
         .getState()
@@ -815,6 +815,7 @@ export function MovePanel(): React.ReactElement {
             disabled={!machineZeroReady}
             onClick={() => void handleGoMachineZero()}
             data-testid="goto-machine-zero-button"
+            title={t('panels.move.return_homed_xy_help')}
           >
             <MapPin size={14} />
             {t('panels.move.go_machine_zero')}

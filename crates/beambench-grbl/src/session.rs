@@ -42,6 +42,7 @@ pub struct GrblSession {
     homing_acknowledged: bool,
     homing_state_observed: bool,
     homing_completed: bool,
+    homed_position: Option<MachinePosition>,
 }
 
 impl GrblSession {
@@ -66,6 +67,7 @@ impl GrblSession {
             homing_acknowledged: false,
             homing_state_observed: false,
             homing_completed: false,
+            homed_position: None,
         }
     }
 
@@ -94,6 +96,12 @@ impl GrblSession {
 
     pub fn machine_position_valid(&self) -> bool {
         self.machine_position_valid
+    }
+
+    /// Machine-space endpoint measured when this connection last completed homing.
+    /// This is deliberately not inferred from zero, travel settings or direction bits.
+    pub fn homed_position(&self) -> Option<MachinePosition> {
+        self.homed_position
     }
 
     pub fn is_homing(&self) -> bool {
@@ -184,6 +192,7 @@ impl GrblSession {
         self.homing_acknowledged = false;
         self.homing_state_observed = false;
         self.homing_completed = false;
+        self.homed_position = None;
 
         if let Err(e) = self.transport.open() {
             self.state_machine.force(SessionState::Error);
@@ -227,6 +236,9 @@ impl GrblSession {
 
         match response {
             GrblResponse::Banner(_) => {
+                // A controller restart loses the physical machine reference.
+                self.clear_pending_homing();
+                self.last_work_coordinate_offset = None;
                 if let GrblResponse::Banner(banner) = response {
                     self.controller_info
                         .insert("Banner".to_string(), banner.clone());
@@ -305,6 +317,28 @@ impl GrblSession {
                         {
                             self.homing_started_at = None;
                             self.homing_completed = true;
+                            // Do not save a carried-forward position from before `$H`.
+                            // WPos needs a WCO from this same report: homing can
+                            // change the offset when firmware forces its origin.
+                            let position = positions.machine_position.or_else(|| {
+                                positions
+                                    .work_position
+                                    .zip(positions.work_coordinate_offset)
+                                    .map(|(work, offset)| parser::add_position(work, offset))
+                            });
+                            self.homed_position = position
+                                .filter(|position| position.x.is_finite() && position.y.is_finite())
+                                .map(|mut position| {
+                                    if self.settings.get(13) == Some(1.0) {
+                                        position.x *= 25.4;
+                                        position.y *= 25.4;
+                                        position.z *= 25.4;
+                                    }
+                                    position
+                                })
+                                .filter(|position| {
+                                    position.x.is_finite() && position.y.is_finite()
+                                });
                         }
                         // A pre-homing status query may reply after `$H` was
                         // sent. Keep motion blocked until homing is confirmed.
@@ -314,6 +348,7 @@ impl GrblSession {
                     }
                 }
                 if merged.run_state == MachineRunState::Alarm {
+                    self.clear_pending_homing();
                     self.state_machine.force(SessionState::Alarm);
                 } else if self.state_machine.state() == SessionState::Alarm
                     && merged.run_state == MachineRunState::Idle
@@ -323,6 +358,11 @@ impl GrblSession {
                 self.last_status = merged;
             }
             GrblResponse::Setting(num, val) => {
+                if matches!(*num, 13 | 22..=27 | 100..=102 | 130..=132)
+                    && self.settings.get(*num) != Some(*val)
+                {
+                    self.clear_pending_homing();
+                }
                 self.settings.set(*num, *val);
             }
             GrblResponse::Message(message) => {
@@ -365,6 +405,7 @@ impl GrblSession {
         self.homing_acknowledged = false;
         self.homing_state_observed = false;
         self.homing_completed = false;
+        self.homed_position = None;
     }
 
     fn log_console_entry(&mut self, direction: ConsoleDirection, content: &str) {
@@ -429,6 +470,17 @@ impl GrblSession {
 
     /// Send a G-code command line.
     pub fn send_command(&mut self, command: &str) -> Result<(), GrblError> {
+        let trimmed = command.trim();
+        if trimmed.starts_with("$H")
+            || trimmed.starts_with("$RST")
+            || trimmed == "$SLP"
+            || trimmed
+                .strip_prefix('$')
+                .and_then(|s| s.split_once('='))
+                .is_some_and(|(key, _)| key.parse::<u16>().is_ok())
+        {
+            self.clear_pending_homing();
+        }
         if !self.transport.is_open() {
             return Err(GrblError::NotConnected);
         }
@@ -439,6 +491,9 @@ impl GrblSession {
 
     /// Send a real-time command (single byte, no newline).
     pub fn send_realtime(&mut self, bytes: &[u8]) -> Result<(), GrblError> {
+        if bytes.contains(&0x18) {
+            self.clear_pending_homing();
+        }
         if !self.transport.is_open() {
             return Err(GrblError::NotConnected);
         }
@@ -461,6 +516,7 @@ impl GrblSession {
 
     /// Home all axes ($H).
     pub fn home(&mut self) -> Result<(), GrblError> {
+        self.clear_pending_homing();
         self.send_command(&commands::home())?;
         self.unanswered_status_since = None;
         self.homing_started_at = Some(Instant::now());
@@ -469,6 +525,26 @@ impl GrblSession {
         self.homing_completed = false;
         self.last_status.run_state = MachineRunState::Home;
         Ok(())
+    }
+
+    /// Return only X/Y to the measured homing endpoint, with the laser off.
+    pub fn return_to_homed_xy(&mut self, feed: f64) -> Result<MachinePosition, GrblError> {
+        let target = self.homed_position.ok_or_else(|| {
+            GrblError::GcodeError(
+                "Home the machine again to establish a verified return position".into(),
+            )
+        })?;
+        if !feed.is_finite() || feed < 1.0 {
+            return Err(GrblError::GcodeError(
+                "Return feed must be at least 1 mm/min".into(),
+            ));
+        }
+        self.send_command(&format!(
+            "G90 G21 G94 G53 G1 X{:.3} Y{:.3} F{feed:.0} M5",
+            target.x, target.y,
+        ))?;
+        self.last_status.run_state = MachineRunState::Run;
+        Ok(target)
     }
 
     /// Jog to a relative position.
@@ -780,6 +856,139 @@ mod tests {
         assert!(!session.is_homing());
         assert!(session.take_homing_completed());
         assert!(!session.take_homing_completed());
+    }
+
+    #[test]
+    fn homed_xy_uses_measured_endpoint_and_survives_jogs_and_work_offsets() {
+        for (position, expected) in [
+            ("-299,-179,-1", "X-299.000 Y-179.000"),
+            ("-1,-1,-1", "X-1.000 Y-1.000"),
+            ("1,1,0", "X1.000 Y1.000"),
+            ("0,0,0", "X0.000 Y0.000"),
+        ] {
+            let transport = MockSerialTransport::new("return-home");
+            let handle = transport.handle();
+            let mut session = GrblSession::new(Box::new(transport));
+            session.connect().unwrap();
+            session.home().unwrap();
+            handle.enqueue_response("ok");
+            handle.enqueue_response(&format!("<Idle|MPos:{position}|FS:0,0>"));
+            session.poll().unwrap();
+            session.jog(10.0, 20.0, Some(-3.0), 1000.0).unwrap();
+            session.set_origin().unwrap();
+            handle.enqueue_response("<Idle|MPos:-150,-80,-4|WCO:-150,-80,-4|FS:0,0>");
+            session.poll().unwrap();
+            session.return_to_homed_xy(1500.0).unwrap();
+            assert_eq!(
+                handle.sent_lines().last().unwrap(),
+                &format!("G90 G21 G94 G53 G1 {expected} F1500 M5")
+            );
+            assert_eq!(session.last_status().run_state, MachineRunState::Run);
+        }
+    }
+
+    #[test]
+    fn homed_xy_never_captures_missing_stale_or_malformed_coordinates() {
+        for report in [
+            "<Idle|FS:0,0>",
+            "<Idle|WCO:0,0,0|FS:0,0>",
+            "<Idle|WPos:10,20,0|FS:0,0>",
+            "<Idle|MPos:bad,-179,-1|FS:0,0>",
+            "<Idle|MPos:-299|FS:0,0>",
+            "<Idle|MPos:NaN,-179,-1|FS:0,0>",
+            "<Idle|MPos:-299,inf,-1|FS:0,0>",
+        ] {
+            let transport = MockSerialTransport::new("invalid-home-position");
+            let handle = transport.handle();
+            let mut session = GrblSession::new(Box::new(transport));
+            session.connect().unwrap();
+            handle.enqueue_response("<Idle|MPos:10,20,0|WCO:0,0,0>");
+            session.poll().unwrap();
+            session.home().unwrap();
+            handle.enqueue_response("ok");
+            handle.enqueue_response(report);
+            session.poll().unwrap();
+            assert!(session.take_homing_completed(), "{report}");
+            assert!(session.homed_position().is_none(), "{report}");
+            // A later report could be after a jog; it cannot repair this capture.
+            handle.enqueue_response("<Idle|MPos:-50,-50,0>");
+            session.poll().unwrap();
+            assert!(session.return_to_homed_xy(1500.0).is_err(), "{report}");
+            assert_eq!(handle.sent_lines(), vec!["$H"]);
+        }
+    }
+
+    #[test]
+    fn homed_xy_converts_inch_reports_and_fresh_work_offsets() {
+        let transport = MockSerialTransport::new("inch-home-position");
+        let handle = transport.handle();
+        let mut session = GrblSession::new(Box::new(transport));
+        session.connect().unwrap();
+        handle.enqueue_response("$13=1");
+        session.poll().unwrap();
+        session.home().unwrap();
+        handle.enqueue_response("ok");
+        handle.enqueue_response("<Idle|WPos:-10,-5,0|WCO:-1,-2,0>");
+        session.poll().unwrap();
+        session.return_to_homed_xy(1000.0).unwrap();
+        assert_eq!(
+            handle.sent_lines().last().unwrap(),
+            "G90 G21 G94 G53 G1 X-279.400 Y-177.800 F1000 M5"
+        );
+    }
+
+    #[test]
+    fn homed_xy_is_invalidated_when_the_physical_reference_may_be_lost() {
+        for invalidation in [
+            "reset",
+            "disconnect",
+            "home",
+            "raw_home",
+            "setting",
+            "restore",
+            "sleep",
+            "ALARM:2",
+            "ALARM: Hard limit",
+            "<Alarm|MPos:-299,-179,-1>",
+            "Grbl 1.1h ['$' for help]",
+            "$23=3",
+        ] {
+            let transport = MockSerialTransport::new("invalidate-home-position");
+            let handle = transport.handle();
+            let mut session = GrblSession::new(Box::new(transport));
+            session.connect().unwrap();
+            session.home().unwrap();
+            handle.enqueue_response("ok");
+            handle.enqueue_response("<Idle|MPos:-299,-179,-1>");
+            session.poll().unwrap();
+            assert!(session.homed_position().is_some());
+            match invalidation {
+                "reset" => session.send_realtime(&[0x18]).unwrap(),
+                "disconnect" => {
+                    session.disconnect().unwrap();
+                    session.connect().unwrap();
+                }
+                "home" => {
+                    session.home().unwrap();
+                    handle.enqueue_response("error:5");
+                    session.poll().unwrap();
+                }
+                "raw_home" => session.send_command("$H").unwrap(),
+                "setting" => session.send_setting(130, 300.0).unwrap(),
+                "restore" => session.send_command("$RST=*").unwrap(),
+                "sleep" => session.send_command("$SLP").unwrap(),
+                response => {
+                    handle.enqueue_response(response);
+                    session.poll().unwrap();
+                }
+            }
+            session.unlock().unwrap();
+            assert!(session.homed_position().is_none(), "{invalidation}");
+            assert!(
+                session.return_to_homed_xy(1500.0).is_err(),
+                "{invalidation}"
+            );
+        }
     }
 
     struct ScriptedIdentityTransport {
