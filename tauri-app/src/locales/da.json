@@ -1894,7 +1894,7 @@
         "moving_laser_to_selection": "Flytter laser til markering",
         "moving_to_coordinates": "Flytter til ({x}, {y}) {unit}",
         "moving_to_position": "Flytter til {name}",
-        "moving_to_machine_zero": "Moving to machine zero",
+        "moving_to_machine_zero": "Vender tilbage til XY-referenceposition",
         "moving_to_user_origin": "Moving to user origin",
         "finish_position_set": "Finish position set"
       },
@@ -1908,7 +1908,7 @@
       "feed_rate": "Move Feed Rate",
       "feed_mm_min": "Feed",
       "axis_z": "Z",
-      "go_machine_zero": "Go Machine Zero",
+      "go_machine_zero": "Tilbage til XY-referenceposition",
       "use_current": "Use Current",
       "jog": "Jog",
       "current_position": "Current: {position}",
@@ -1930,7 +1930,8 @@
       "preview_connected_help": "Development preview only. Controls are shown without a machine.",
       "saved_positions_more": "+{count} more",
       "stop_jog": "Stop jog",
-      "position_not_homed": "Positionen er ikke refereret. Efter opstart kan 0,0 være startpositionen. Brug referencekørsel på maskiner med endestop."
+      "position_not_homed": "Positionen er ikke refereret. Efter opstart kan 0,0 være startpositionen. Brug referencekørsel på maskiner med endestop.",
+      "return_homed_xy_help": "Returnerer X/Y til positionen rapporteret efter homing. Z forbliver uændret."
     },
     "machine": {
       "status": {
@@ -2897,7 +2898,7 @@
     "project_invalid_value_object": "\"{name}\" har en ugyldig størrelse eller position, så projektet blev ikke gemt. Fortryd den seneste ændring af det, eller slet det, og gem igen.",
     "operation_failed_with_detail": "Handlingen mislykkedes: {detail}",
     "raster_plan_too_complex": "Dette billede skaber for mange individuelle rasterbevægelser med den aktuelle størrelse og DPI. Reducer DPI eller den fysiske størrelse, eller vælg en mindre fragmenteret billedtilstand, og generer derefter forhåndsvisningen igen.",
-    "machine_zero_requires_home": "Home the machine first to use machine zero.",
+    "machine_zero_requires_home": "Udfør først homing for at vende tilbage til XY-referencepositionen.",
     "serial_port_unavailable": "Could not open {port}. Another application may be using this port, or the controller may have been disconnected. Close other laser or serial software, reconnect the controller, and try again.",
     "lihuiyu_incompatible_windows_driver": "This Lihuiyu controller is using an incompatible Windows USB driver. Beam Bench requires WinUSB for device 1a86:5512. Change the driver, reconnect the controller, then refresh the USB list. Changing the driver may prevent vendor software from using the controller until its original driver is restored.",
     "ruida_unknown_variant": "Beam Bench found a Ruida controller it does not yet recognize. No file or motion command was sent. Submit a bug report and include the controller model and firmware shown on its panel.",

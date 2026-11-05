@@ -1894,7 +1894,7 @@
         "moving_laser_to_selection": "Movendo laser para a seleção",
         "moving_to_coordinates": "Movendo para ({x}, {y}) {unit}",
         "moving_to_position": "Movendo para {name}",
-        "moving_to_machine_zero": "Moving to machine zero",
+        "moving_to_machine_zero": "Voltando à posição XY de referência",
         "moving_to_user_origin": "Moving to user origin",
         "finish_position_set": "Finish position set"
       },
@@ -1908,7 +1908,7 @@
       "feed_rate": "Move Feed Rate",
       "feed_mm_min": "Feed",
       "axis_z": "Z",
-      "go_machine_zero": "Go Machine Zero",
+      "go_machine_zero": "Voltar à posição XY de referência",
       "use_current": "Use Current",
       "jog": "Jog",
       "current_position": "Current: {position}",
@@ -1930,7 +1930,8 @@
       "preview_connected_help": "Development preview only. Controls are shown without a machine.",
       "saved_positions_more": "+{count} more",
       "stop_jog": "Parar deslocamento",
-      "position_not_homed": "Posição não referenciada. Ao ligar, 0,0 pode ser a posição inicial. Referencie máquinas com fins de curso."
+      "position_not_homed": "Posição não referenciada. Ao ligar, 0,0 pode ser a posição inicial. Referencie máquinas com fins de curso.",
+      "return_homed_xy_help": "Retorna X/Y à posição informada após o homing. Z permanece inalterado."
     },
     "machine": {
       "status": {
@@ -2897,7 +2898,7 @@
     "project_invalid_value_object": "\"{name}\" tem tamanho ou posição inválidos, por isso o projeto não foi salvo. Desfaça a última alteração nele ou exclua-o e salve novamente.",
     "operation_failed_with_detail": "Falha na operação: {detail}",
     "raster_plan_too_complex": "Esta imagem cria movimentos raster individuais demais com o tamanho e o DPI atuais. Reduza o DPI ou o tamanho físico, ou escolha um modo de imagem menos fragmentado, e gere a visualização novamente.",
-    "machine_zero_requires_home": "Home the machine first to use machine zero.",
+    "machine_zero_requires_home": "Execute primeiro o homing para voltar à posição XY de referência.",
     "serial_port_unavailable": "Não foi possível abrir {port}. Outro aplicativo pode estar usando essa porta, ou o controlador pode ter sido desconectado. Feche outros programas de controle de laser ou de comunicação serial, reconecte o controlador e tente novamente.",
     "lihuiyu_incompatible_windows_driver": "This Lihuiyu controller is using an incompatible Windows USB driver. Beam Bench requires WinUSB for device 1a86:5512. Change the driver, reconnect the controller, then refresh the USB list. Changing the driver may prevent vendor software from using the controller until its original driver is restored.",
     "ruida_unknown_variant": "Beam Bench found a Ruida controller it does not yet recognize. No file or motion command was sent. Submit a bug report and include the controller model and firmware shown on its panel.",

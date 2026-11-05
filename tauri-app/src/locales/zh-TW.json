@@ -1894,7 +1894,7 @@
         "moving_laser_to_selection": "正在將雷射移動到選取",
         "moving_to_coordinates": "正在移動到 ({x}, {y}) {unit}",
         "moving_to_position": "正在移動到 {name}",
-        "moving_to_machine_zero": "Moving to machine zero",
+        "moving_to_machine_zero": "正在返回歸零後的XY位置",
         "moving_to_user_origin": "Moving to user origin",
         "finish_position_set": "Finish position set"
       },
@@ -1908,7 +1908,7 @@
       "feed_rate": "Move Feed Rate",
       "feed_mm_min": "Feed",
       "axis_z": "Z",
-      "go_machine_zero": "Go Machine Zero",
+      "go_machine_zero": "返回歸零後的XY位置",
       "use_current": "Use Current",
       "jog": "Jog",
       "current_position": "Current: {position}",
@@ -1930,7 +1930,8 @@
       "preview_connected_help": "Development preview only. Controls are shown without a machine.",
       "saved_positions_more": "+{count} more",
       "stop_jog": "停止點動",
-      "position_not_homed": "位置尚未回原點。開機後，0,0 可能是啟動位置。配有限位開關的機器請執行回原點。"
+      "position_not_homed": "位置尚未回原點。開機後，0,0 可能是啟動位置。配有限位開關的機器請執行回原點。",
+      "return_homed_xy_help": "將X/Y返回到歸零後回報的位置。Z保持不變。"
     },
     "machine": {
       "status": {
@@ -2897,7 +2898,7 @@
     "project_invalid_value_object": "「{name}」的大小或位置無效，因此專案未儲存。請復原對它的最後一次變更或將其刪除，然後重新儲存。",
     "operation_failed_with_detail": "操作失敗：{detail}",
     "raster_plan_too_complex": "此影像在目前尺寸和 DPI 下會產生過多的獨立點陣移動。請降低 DPI 或實體尺寸，或選擇碎片較少的影像模式，然後重新產生預覽。",
-    "machine_zero_requires_home": "Home the machine first to use machine zero.",
+    "machine_zero_requires_home": "請先執行歸零，再返回歸零後的XY位置。",
     "serial_port_unavailable": "Could not open {port}. Another application may be using this port, or the controller may have been disconnected. Close other laser or serial software, reconnect the controller, and try again.",
     "lihuiyu_incompatible_windows_driver": "This Lihuiyu controller is using an incompatible Windows USB driver. Beam Bench requires WinUSB for device 1a86:5512. Change the driver, reconnect the controller, then refresh the USB list. Changing the driver may prevent vendor software from using the controller until its original driver is restored.",
     "ruida_unknown_variant": "Beam Bench found a Ruida controller it does not yet recognize. No file or motion command was sent. Submit a bug report and include the controller model and firmware shown on its panel.",

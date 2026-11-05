@@ -38,6 +38,7 @@ vi.mock('../../../services/machineService', () => ({
     moveLaserTo: vi.fn().mockResolvedValue(undefined),
     moveLaserToProjectPoint: vi.fn().mockResolvedValue(undefined),
     moveLaserToMachine: vi.fn().mockResolvedValue(undefined),
+    returnToHomedXY: vi.fn().mockResolvedValue(undefined),
     jog: vi.fn().mockResolvedValue(undefined),
     jogCancel: vi.fn().mockResolvedValue(undefined),
     setWorkOrigin: vi.fn().mockResolvedValue([10, 20]),
@@ -234,7 +235,7 @@ describe('MovePanel', () => {
     },
   );
 
-  it('requires current-session homing before moving to machine zero', async () => {
+  it('requires current-session homing before returning to homed XY', async () => {
     connectMachine();
 
     render(<MovePanel />);
@@ -242,24 +243,56 @@ describe('MovePanel', () => {
     await waitFor(() => {
       expect(machineService.getSavedPositions).toHaveBeenCalled();
     });
-    expect(screen.getByText('Home the machine first to use machine zero.')).toBeDefined();
+    expect(screen.getByText('Home the machine first to return to homed XY.')).toBeDefined();
     expect((screen.getByTestId('goto-machine-zero-button') as HTMLButtonElement).disabled).toBe(
       true,
     );
     expect(machineService.moveLaserToMachine).not.toHaveBeenCalled();
+    expect(machineService.returnToHomedXY).not.toHaveBeenCalled();
   });
 
-  it('moves to machine zero after current-session homing is valid', async () => {
+  it('returns to the backend homing endpoint without supplying zero or Z coordinates', async () => {
     connectMachine();
-    useMachineStore.setState({ machineCoordinatesValid: true });
+    useMachineStore.setState({
+      machineCoordinatesValid: true,
+      machineStatus: makeMachineStatus({ machine_position: { x: -150, y: -80, z: -5 } }),
+      profiles: [makeMachineProfile({ supports_z_moves: true })],
+    });
     useUiStore.setState({ moveWindowJogFeedRateMmMin: 1500 });
 
     render(<MovePanel />);
     fireEvent.click(screen.getByTestId('goto-machine-zero-button'));
 
     await waitFor(() => {
-      expect(machineService.moveLaserToMachine).toHaveBeenCalledWith(0, 0, 1500, null);
+      expect(machineService.returnToHomedXY).toHaveBeenCalledWith(1500);
     });
+    expect(machineService.moveLaserToMachine).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Return to Homed XY' }).title).toBe(
+      'Returns X/Y to the position reported after homing. Leaves Z unchanged.',
+    );
+  });
+
+  it('shows a rejected return without a moving notification', async () => {
+    connectMachine();
+    useMachineStore.setState({ machineCoordinatesValid: true });
+    vi.mocked(machineService.returnToHomedXY).mockRejectedValueOnce('Home the machine again');
+    render(<MovePanel />);
+    fireEvent.click(screen.getByTestId('goto-machine-zero-button'));
+    await waitFor(() =>
+      expect(useNotificationStore.getState().notifications).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            message: 'Operation failed: Home the machine again',
+            type: 'error',
+          }),
+        ]),
+      ),
+    );
+    expect(
+      useNotificationStore
+        .getState()
+        .notifications.some((n) => n.message === 'Returning to homed XY'),
+    ).toBe(false);
   });
 
   it('unlocks from the machine-positioning header when alarm locked', async () => {

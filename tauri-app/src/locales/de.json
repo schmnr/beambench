@@ -1894,7 +1894,7 @@
         "moving_laser_to_selection": "Laser bewegt sich zur Auswahl",
         "moving_to_coordinates": "Fahre zu ({x}, {y}) {unit}",
         "moving_to_position": "Fahre zu {name}",
-        "moving_to_machine_zero": "Moving to machine zero",
+        "moving_to_machine_zero": "Rückkehr zur XY-Referenzposition",
         "moving_to_user_origin": "Moving to user origin",
         "finish_position_set": "Finish position set"
       },
@@ -1908,7 +1908,7 @@
       "feed_rate": "Move Feed Rate",
       "feed_mm_min": "Feed",
       "axis_z": "Z",
-      "go_machine_zero": "Go Machine Zero",
+      "go_machine_zero": "Zurück zur XY-Referenzposition",
       "use_current": "Use Current",
       "jog": "Jog",
       "current_position": "Current: {position}",
@@ -1930,7 +1930,8 @@
       "preview_connected_help": "Development preview only. Controls are shown without a machine.",
       "saved_positions_more": "+{count} more",
       "stop_jog": "Jog stoppen",
-      "position_not_homed": "Position nicht referenziert. Nach dem Einschalten kann 0,0 die Startposition sein. Führen Sie bei Maschinen mit Endschaltern eine Referenzfahrt aus."
+      "position_not_homed": "Position nicht referenziert. Nach dem Einschalten kann 0,0 die Startposition sein. Führen Sie bei Maschinen mit Endschaltern eine Referenzfahrt aus.",
+      "return_homed_xy_help": "Fährt X/Y zur nach der Referenzfahrt gemeldeten Position zurück. Z bleibt unverändert."
     },
     "machine": {
       "status": {
@@ -2897,7 +2898,7 @@
     "project_invalid_value_object": "„{name}“ hat eine ungültige Größe oder Position, daher wurde das Projekt nicht gespeichert. Machen Sie die letzte Änderung daran rückgängig oder löschen Sie es, und speichern Sie erneut.",
     "operation_failed_with_detail": "Vorgang fehlgeschlagen: {detail}",
     "raster_plan_too_complex": "Dieses Bild erzeugt bei der aktuellen Größe und DPI zu viele einzelne Rasterbewegungen. Verringern Sie die DPI oder die physische Größe oder wählen Sie einen weniger fragmentierten Bildmodus und erstellen Sie die Vorschau erneut.",
-    "machine_zero_requires_home": "Home the machine first to use machine zero.",
+    "machine_zero_requires_home": "Führen Sie zuerst eine Referenzfahrt aus, um zur XY-Referenzposition zurückzukehren.",
     "serial_port_unavailable": "Could not open {port}. Another application may be using this port, or the controller may have been disconnected. Close other laser or serial software, reconnect the controller, and try again.",
     "lihuiyu_incompatible_windows_driver": "This Lihuiyu controller is using an incompatible Windows USB driver. Beam Bench requires WinUSB for device 1a86:5512. Change the driver, reconnect the controller, then refresh the USB list. Changing the driver may prevent vendor software from using the controller until its original driver is restored.",
     "ruida_unknown_variant": "Beam Bench found a Ruida controller it does not yet recognize. No file or motion command was sent. Submit a bug report and include the controller model and firmware shown on its panel.",

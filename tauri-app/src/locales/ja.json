@@ -1894,7 +1894,7 @@
         "moving_laser_to_selection": "レーザーを選択へ移動中",
         "moving_to_coordinates": "({x}, {y}) へ移動中 {unit}",
         "moving_to_position": "{name} へ移動中",
-        "moving_to_machine_zero": "Moving to machine zero",
+        "moving_to_machine_zero": "原点復帰後のXY位置に移動中",
         "moving_to_user_origin": "Moving to user origin",
         "finish_position_set": "Finish position set"
       },
@@ -1908,7 +1908,7 @@
       "feed_rate": "Move Feed Rate",
       "feed_mm_min": "Feed",
       "axis_z": "Z",
-      "go_machine_zero": "Go Machine Zero",
+      "go_machine_zero": "原点復帰後のXY位置に戻る",
       "use_current": "Use Current",
       "jog": "Jog",
       "current_position": "Current: {position}",
@@ -1930,7 +1930,8 @@
       "preview_connected_help": "Development preview only. Controls are shown without a machine.",
       "saved_positions_more": "+{count} more",
       "stop_jog": "ジョグ停止",
-      "position_not_homed": "原点復帰していません。電源投入後の0,0は起動時の位置の場合があります。リミットスイッチのある機械では原点復帰を実行してください。"
+      "position_not_homed": "原点復帰していません。電源投入後の0,0は起動時の位置の場合があります。リミットスイッチのある機械では原点復帰を実行してください。",
+      "return_homed_xy_help": "原点復帰後に報告された位置へX/Yを戻します。Zは変更しません。"
     },
     "machine": {
       "status": {
@@ -2897,7 +2898,7 @@
     "project_invalid_value_object": "「{name}」のサイズまたは位置が無効なため、プロジェクトを保存しませんでした。このオブジェクトへの最後の変更を元に戻すか削除してから、もう一度保存してください。",
     "operation_failed_with_detail": "操作に失敗しました: {detail}",
     "raster_plan_too_complex": "この画像は、現在のサイズと DPI では個別のラスター移動が多すぎます。DPI または物理サイズを下げるか、断片化の少ない画像モードを選択してから、プレビューを再生成してください。",
-    "machine_zero_requires_home": "Home the machine first to use machine zero.",
+    "machine_zero_requires_home": "XY位置に戻るには、先に原点復帰を実行してください。",
     "serial_port_unavailable": "Could not open {port}. Another application may be using this port, or the controller may have been disconnected. Close other laser or serial software, reconnect the controller, and try again.",
     "lihuiyu_incompatible_windows_driver": "This Lihuiyu controller is using an incompatible Windows USB driver. Beam Bench requires WinUSB for device 1a86:5512. Change the driver, reconnect the controller, then refresh the USB list. Changing the driver may prevent vendor software from using the controller until its original driver is restored.",
     "ruida_unknown_variant": "Beam Bench found a Ruida controller it does not yet recognize. No file or motion command was sent. Submit a bug report and include the controller model and firmware shown on its panel.",

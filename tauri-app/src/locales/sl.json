@@ -1894,7 +1894,7 @@
         "moving_laser_to_selection": "Laser se premika na izbor",
         "moving_to_coordinates": "Premik na ({x}, {y}) {unit}",
         "moving_to_position": "Premik na {name}",
-        "moving_to_machine_zero": "Moving to machine zero",
+        "moving_to_machine_zero": "Vračanje na referenčni položaj XY",
         "moving_to_user_origin": "Moving to user origin",
         "finish_position_set": "Finish position set"
       },
@@ -1908,7 +1908,7 @@
       "feed_rate": "Move Feed Rate",
       "feed_mm_min": "Feed",
       "axis_z": "Z",
-      "go_machine_zero": "Go Machine Zero",
+      "go_machine_zero": "Nazaj na referenčni položaj XY",
       "use_current": "Use Current",
       "jog": "Jog",
       "current_position": "Current: {position}",
@@ -1930,7 +1930,8 @@
       "preview_connected_help": "Development preview only. Controls are shown without a machine.",
       "saved_positions_more": "+{count} more",
       "stop_jog": "Ustavi premik",
-      "position_not_homed": "Položaj ni referenciran. Po vklopu je lahko 0,0 začetni položaj. Pri strojih s končnimi stikali izvedite referenciranje."
+      "position_not_homed": "Položaj ni referenciran. Po vklopu je lahko 0,0 začetni položaj. Pri strojih s končnimi stikali izvedite referenciranje.",
+      "return_homed_xy_help": "Vrne X/Y na položaj, sporočen po referenciranju. Z ostane nespremenjen."
     },
     "machine": {
       "status": {
@@ -2897,7 +2898,7 @@
     "project_invalid_value_object": "»{name}« ima neveljavno velikost ali položaj, zato projekt ni bil shranjen. Razveljavite zadnjo spremembo tega predmeta ali ga izbrišite in znova shranite.",
     "operation_failed_with_detail": "Operacija ni uspela: {detail}",
     "raster_plan_too_complex": "Ta slika pri trenutni velikosti in ločljivosti DPI ustvari preveč posameznih rastrskih premikov. Zmanjšajte DPI ali fizično velikost oziroma izberite manj razdrobljen slikovni način, nato znova ustvarite predogled.",
-    "machine_zero_requires_home": "Home the machine first to use machine zero.",
+    "machine_zero_requires_home": "Najprej izvedite referenciranje za vrnitev na referenčni položaj XY.",
     "serial_port_unavailable": "Could not open {port}. Another application may be using this port, or the controller may have been disconnected. Close other laser or serial software, reconnect the controller, and try again.",
     "lihuiyu_incompatible_windows_driver": "This Lihuiyu controller is using an incompatible Windows USB driver. Beam Bench requires WinUSB for device 1a86:5512. Change the driver, reconnect the controller, then refresh the USB list. Changing the driver may prevent vendor software from using the controller until its original driver is restored.",
     "ruida_unknown_variant": "Beam Bench found a Ruida controller it does not yet recognize. No file or motion command was sent. Submit a bug report and include the controller model and firmware shown on its panel.",

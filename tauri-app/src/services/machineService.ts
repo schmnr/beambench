@@ -341,6 +341,10 @@ export const machineService = {
     return invoke<void>('move_laser_to_machine', { x, y, z, feedRate });
   },
 
+  async returnToHomedXY(feedRate: number): Promise<void> {
+    return invoke<void>('return_to_homed_xy', { feedRate });
+  },
+
   async laserFireStart(powerPercent?: number): Promise<LaserFireStartResult> {
     return invoke<LaserFireStartResult>('laser_fire_start', { powerPercent });
   },

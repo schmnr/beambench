@@ -917,6 +917,14 @@ pub fn move_laser_to_project_point(
 }
 
 #[tauri::command]
+pub fn return_to_homed_xy(
+    svc: State<'_, Arc<ServiceContext>>,
+    feed_rate: Option<f64>,
+) -> Result<(), String> {
+    machine::return_to_homed_xy(&svc, feed_rate.unwrap_or(3000.0)).map_err(Into::into)
+}
+
+#[tauri::command]
 pub fn move_laser_to_machine(
     svc: State<'_, Arc<ServiceContext>>,
     x: f64,

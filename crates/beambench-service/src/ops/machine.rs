@@ -6318,6 +6318,65 @@ pub fn move_laser_to(ctx: &ServiceContext, input: MoveLaserInput) -> ServiceResu
     Ok(())
 }
 
+/// Return to the measured post-homing endpoint without moving Z or using work offsets.
+pub fn return_to_homed_xy(ctx: &ServiceContext, feed_rate: f64) -> ServiceResult<()> {
+    let generation = ctx.emergency_stop_generation.load(Ordering::Acquire);
+    let job_lock = ctx.job.lock().map_err(|e| lock_err("job", e))?;
+    if job_lock.is_some() {
+        return Err(ServiceError::invalid_state(
+            "Cannot return to homed XY while a job is active",
+        ));
+    }
+    let _fire_guard = refuse_motion_during_test_fire(ctx)?;
+    require_positive_finite(feed_rate, "feed_rate")?;
+    let profile = active_profile(ctx)?;
+    if profile.rotary_enabled {
+        return Err(ServiceError::invalid_state(
+            "Return to homed XY is disabled while rotary mode is active",
+        ));
+    }
+    require_positive_finite(profile.max_speed_mm_min, "machine maximum speed")?;
+    let feed_rate = feed_rate.min(profile.max_speed_mm_min);
+    if feed_rate < 1.0 {
+        return Err(ServiceError::invalid_input(
+            "Return feed must be at least 1 mm/min",
+        ));
+    }
+    let mut session_lock = ctx.session.lock().map_err(|e| lock_err("session", e))?;
+    let session = session_lock
+        .as_mut()
+        .ok_or_else(|| ServiceError::invalid_state("Not connected"))?;
+    if let MachineSessionHandle::Grbl(grbl) = session {
+        // Apply pending alarms/restarts before trusting the saved reference.
+        grbl.poll()
+            .map_err(|e| ServiceError::machine(e.to_string()))?;
+    }
+    finalize_completed_grbl_homing(ctx, session);
+    require_idle_ready_for_motion(session, "Return to homed XY")?;
+    let MachineSessionHandle::Grbl(grbl) = session else {
+        return Err(ServiceError::invalid_state(
+            "Return to homed XY is only supported on GCode/GRBL controllers",
+        ));
+    };
+    if !ctx.machine_coordinates_valid.load(Ordering::Acquire) || grbl.homed_position().is_none() {
+        return Err(ServiceError::invalid_state(
+            "Home the machine again to establish a verified return position",
+        ));
+    }
+    ensure_no_emergency_stop_since(ctx, generation)?;
+    let target = grbl
+        .return_to_homed_xy(feed_rate)
+        .map_err(|e| ServiceError::machine(e.to_string()))?;
+    ctx.emit_event(
+        "machine.move.started",
+        json!({
+            "x": target.x, "y": target.y, "z": null, "feed_rate": feed_rate,
+            "coordinate_system": "machine",
+        }),
+    );
+    Ok(())
+}
+
 pub fn move_laser_to_machine(ctx: &ServiceContext, input: MoveLaserInput) -> ServiceResult<()> {
     let _fire_guard = refuse_motion_during_test_fire(ctx)?;
     require_finite(input.x, "x")?;
@@ -11307,6 +11366,116 @@ mod tests {
 
         assert_eq!(err.code, crate::error::ServiceErrorCode::InvalidState);
         assert!(sent_lines(&transport).is_empty());
+    }
+
+    fn complete_recorded_homing(
+        ctx: &ServiceContext,
+        transport: &Arc<Mutex<RecordingTransportState>>,
+    ) {
+        transport.lock().unwrap().rx.push_back("$13=0".into());
+        home(ctx).unwrap();
+        transport.lock().unwrap().rx.extend([
+            "ok".into(),
+            "<Idle|MPos:-299,-179,-1|WCO:0,0,0|FS:0,0>".into(),
+        ]);
+        machine_status(ctx).unwrap();
+    }
+
+    #[test]
+    fn return_to_homed_xy_uses_3018_endpoint_without_z_or_work_offsets() {
+        let profile = MachineProfile {
+            supports_z_moves: true,
+            max_speed_mm_min: 2000.0,
+            ..MachineProfile::default()
+        };
+        let (ctx, transport) = ready_grbl_context(profile);
+        transport.lock().unwrap().rx.extend(
+            [
+                "$13=0", "$20=1", "$21=1", "$22=1", "$23=3", "$27=1", "$130=300", "$131=180",
+                "$132=42",
+            ]
+            .map(String::from),
+        );
+        complete_recorded_homing(&ctx, &transport);
+        transport
+            .lock()
+            .unwrap()
+            .rx
+            .push_back("<Idle|MPos:-150,-80,-5|WCO:-140,-60,-5|FS:0,0>".into());
+        return_to_homed_xy(&ctx, 3000.0).unwrap();
+        assert_eq!(
+            sent_lines(&transport),
+            vec!["$H", "G90 G21 G94 G53 G1 X-299.000 Y-179.000 F2000 M5"]
+        );
+        // The move becomes busy immediately; no second click queues stale motion.
+        assert!(return_to_homed_xy(&ctx, 1500.0).is_err());
+        assert_eq!(sent_lines(&transport).len(), 2);
+    }
+
+    #[test]
+    fn return_to_homed_xy_requires_a_verified_capture_even_if_ui_validity_is_true() {
+        let (ctx, transport) = ready_grbl_context(MachineProfile::default());
+        ctx.machine_coordinates_valid.store(true, Ordering::Release);
+        assert!(return_to_homed_xy(&ctx, 1500.0).is_err());
+        assert!(sent_lines(&transport).is_empty());
+    }
+
+    #[test]
+    fn return_to_homed_xy_applies_pending_alarm_or_reset_before_dispatch() {
+        for response in [
+            "ALARM:2",
+            "<Alarm|MPos:-299,-179,-1>",
+            "Grbl 1.1f",
+            "<Run|MPos:-150,-80,-5>",
+        ] {
+            let (ctx, transport) = ready_grbl_context(MachineProfile::default());
+            complete_recorded_homing(&ctx, &transport);
+            transport.lock().unwrap().rx.push_back(response.into());
+            assert!(return_to_homed_xy(&ctx, 1500.0).is_err(), "{response}");
+            assert_eq!(sent_lines(&transport), vec!["$H"]);
+        }
+    }
+
+    #[test]
+    fn return_to_homed_xy_rejects_unsafe_dispatch_states_and_invalid_feed() {
+        for reason in [
+            "job", "fire", "rotary", "unhomed", "zero", "negative", "nan", "infinite", "tiny",
+        ] {
+            let (ctx, transport) = ready_grbl_context(MachineProfile::default());
+            complete_recorded_homing(&ctx, &transport);
+            let mut feed = 1500.0;
+            match reason {
+                "job" => {
+                    *ctx.job.lock().unwrap() = Some(ActiveJobHandle::Grbl(
+                        beambench_streamer::JobController::prepare(
+                            &dummy_plan(),
+                            &beambench_grbl::GcodeConfig::default(),
+                        )
+                        .unwrap(),
+                    ))
+                }
+                "fire" => {
+                    *ctx.active_laser_fire.lock().unwrap() = Some(LaserFireState {
+                        token: "test".into(),
+                        expires_at: Instant::now(),
+                        max_expires_at: Instant::now(),
+                        stop_requested: false,
+                    })
+                }
+                "rotary" => ctx.settings.lock().unwrap().machine_profiles[0].rotary_enabled = true,
+                "unhomed" => ctx
+                    .machine_coordinates_valid
+                    .store(false, Ordering::Release),
+                "zero" => feed = 0.0,
+                "negative" => feed = -1.0,
+                "nan" => feed = f64::NAN,
+                "infinite" => feed = f64::INFINITY,
+                "tiny" => feed = 0.1,
+                _ => unreachable!(),
+            }
+            assert!(return_to_homed_xy(&ctx, feed).is_err(), "{reason}");
+            assert_eq!(sent_lines(&transport), vec!["$H"]);
+        }
     }
 
     #[test]
