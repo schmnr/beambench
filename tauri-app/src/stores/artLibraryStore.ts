@@ -99,10 +99,10 @@ async function refreshLibraries(set: ArtLibrarySet, get: () => ArtLibraryState):
   for (const warning of state.warnings) {
     notify(warning, 'warning');
   }
-  void repairMissingThumbnails(get);
+  void repairMissingThumbnails(set, get);
 }
 
-async function repairMissingThumbnails(get: () => ArtLibraryState): Promise<void> {
+async function repairMissingThumbnails(set: ArtLibrarySet, get: () => ArtLibraryState): Promise<void> {
   const libraries = get().libraries;
   for (const library of libraries) {
     for (const item of library.items) {
@@ -113,6 +113,11 @@ async function repairMissingThumbnails(get: () => ArtLibraryState): Promise<void
           const thumbnail = await generateArtLibraryThumbnail(item);
           if (thumbnail) {
             await artLibraryService.commitArtLibraryThumbnail(library.library_id, item.id, thumbnail);
+            set((current) => ({
+              libraries: current.libraries.map((loaded) => loaded.library_id === library.library_id
+                ? { ...loaded, items: loaded.items.map((entry) => entry.id === item.id ? { ...entry, thumbnail } : entry) }
+                : loaded),
+            }));
           }
         } catch {
           // Leave placeholder rendering in place if repair fails.
@@ -125,9 +130,14 @@ async function repairMissingThumbnails(get: () => ArtLibraryState): Promise<void
 }
 
 async function persistThumbnail(libraryId: string, item: ArtLibraryItem): Promise<void> {
-  const thumbnail = await generateArtLibraryThumbnail(item);
-  if (!thumbnail) return;
-  await artLibraryService.commitArtLibraryThumbnail(libraryId, item.id, thumbnail);
+  try {
+    const thumbnail = await generateArtLibraryThumbnail(item);
+    if (!thumbnail) return;
+    await artLibraryService.commitArtLibraryThumbnail(libraryId, item.id, thumbnail);
+  } catch (error) {
+    // The artwork is already saved. A missing preview must not report a failed import.
+    console.warn('[Art Library] Failed to save thumbnail:', error);
+  }
 }
 
 function formatErrorMessage(error: unknown): string {

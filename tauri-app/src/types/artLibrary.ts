@@ -42,8 +42,8 @@ export interface ArtLibrarySelectionSnapshot {
   format_version: string;
   objects: ProjectObject[];
   layer_templates: Layer[];
-  assets: ArtLibrarySnapshotAsset[];
-  source_text_metadata: ArtLibraryTextSourceMetadata[];
+  assets?: ArtLibrarySnapshotAsset[];
+  source_text_metadata?: ArtLibraryTextSourceMetadata[];
 }
 
 export interface LoadedArtLibrary {
