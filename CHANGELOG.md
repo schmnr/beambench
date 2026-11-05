@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+## 0.2.39
+
+- Retain confirmed framing requests, rejection reasons and command history in
+  diagnostic reports, including after Stop, Disconnect or routine status polling.
+  Keep the existing framing controls and confirmation behavior. These diagnostics
+  help investigate framing failures; the reported RAY5 unexpected movement is
+  not yet explained.
+- Replace Go Machine Zero with Return to Homed XY. Return X/Y to the position
+  measured after successful homing, with the laser off and the selected feed,
+  and leave Z unchanged. Refuse the return when its homing reference is lost or
+  position-report units are unknown.
+- Read UTF-16 SVG files and SVGs with declared legacy encodings. Preserve the
+  same decoding when importing compressed SVGZ files and editable text.
 - Reject manual GRBL homing when the controller reports `$22=0`, matching the
   existing automatic-homing guard. Keep Current Position framing available on
   machines without homing switches.
