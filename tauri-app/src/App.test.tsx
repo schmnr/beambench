@@ -26,7 +26,7 @@ import type { AppSettings } from './types/commands';
 import type { AppEvent } from './types/events';
 import type { JobProgress, MachineProfile } from './types/machine';
 import type { DiagnosticBundleV1, DiagnosticPanic } from './types/feedback';
-import { makeProject, makeProjectObject, makeTransformLocks } from './test-utils/projectFixtures';
+import { makeLayer, makeStarObjectData, makeProject, makeProjectObject, makeTransformLocks } from './test-utils/projectFixtures';
 
 const mockListen = vi.fn();
 
@@ -957,6 +957,62 @@ describe('App bootstrap', () => {
       expect(loadProfiles).toHaveBeenCalledTimes(2);
       expect(invalidate).toHaveBeenCalledTimes(0);
     });
+  });
+
+  it.each([true, false])('opens and applies Copy Along Path from the native menu with Tool guide=%s', async (toolGuide) => {
+    const originalPlatform = navigator.platform;
+    Object.defineProperty(navigator, 'platform', { configurable: true, value: 'MacIntel' });
+    let nativeMenuHandler:
+      | ((event: { payload: { commandId: string } }) => void | Promise<void>)
+      | undefined;
+    mockListen.mockImplementation((eventName: string, handler: typeof nativeMenuHandler) => {
+      if (eventName === 'native-menu-command') nativeMenuHandler = handler;
+      return Promise.resolve(() => {});
+    });
+    const source = makeProjectObject({ id: 'source', data: makeStarObjectData() });
+    const guide = makeProjectObject({
+      id: 'guide',
+      layer_id: 'guide-layer',
+      data: { type: 'vector_path', path_data: 'M0 20 C20 0 40 40 60 20', closed: false },
+    });
+    const copyAlongPath = vi.fn().mockResolvedValue(true);
+    const openModifierProperties = vi.fn();
+    useUiStore.setState({ openModifierProperties });
+    useProjectStore.setState({
+      project: makeProject({
+        objects: [source, guide],
+        layers: [makeLayer(), makeLayer({ id: 'guide-layer', is_tool_layer: toolGuide })],
+      }),
+      selectedObjectIds: [source.id, guide.id],
+      selectedLayerId: source.layer_id,
+      loadProject: vi.fn().mockResolvedValue(undefined),
+      copyAlongPath,
+    });
+
+    try {
+      await renderApp();
+      await waitFor(() => expect(nativeMenuHandler).toBeDefined());
+      await act(async () => {
+        await nativeMenuHandler?.({ payload: { commandId: APP_COMMANDS.ARRANGE_COPY_ALONG_PATH } });
+      });
+      expect(screen.getByText('Number of Copies')).toBeDefined();
+      expect(screen.getByText('Rotate Copies')).toBeDefined();
+      await act(async () => {
+        fireEvent.change(screen.getByDisplayValue('6'), { target: { value: '4' } });
+        fireEvent.click(screen.getByTestId('copy-along-path-submit'));
+      });
+      expect(copyAlongPath).toHaveBeenCalledExactlyOnceWith([source.id], guide.id, {
+        count: 4, rotateCopies: true, scaleCopies: false, finalScalePercent: 100,
+      });
+      expect(screen.queryByTestId('copy-along-path-dialog')).toBeNull();
+
+      await act(async () => {
+        await nativeMenuHandler?.({ payload: { commandId: APP_COMMANDS.ARRANGE_GRID_ARRAY } });
+      });
+      expect(openModifierProperties).toHaveBeenCalledWith('grid_array', [source.id, guide.id]);
+    } finally {
+      Object.defineProperty(navigator, 'platform', { configurable: true, value: originalPlatform });
+    }
   });
 
   it('routes native File Import events through the project import handler', async () => {

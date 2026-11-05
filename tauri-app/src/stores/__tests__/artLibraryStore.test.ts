@@ -1,9 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { waitFor } from '@testing-library/react';
 
 import { useArtLibraryStore } from '../artLibraryStore';
 import { useProjectStore } from '../projectStore';
 import { usePreviewStore } from '../previewStore';
 import { useUndoStore } from '../undoStore';
+import { useNotificationStore } from '../notificationStore';
+import { generateArtLibraryThumbnail } from '../../components/panels/artLibraryThumbnails';
 import { makeLayer, makeProject, makeProjectObject } from '../../test-utils/projectFixtures';
 import type { LoadedArtLibrary, ArtLibraryItem } from '../../types/artLibrary';
 
@@ -86,8 +89,12 @@ beforeEach(() => {
   useProjectStore.setState(initialProjectState, true);
   usePreviewStore.setState(initialPreviewState, true);
   useUndoStore.setState(initialUndoState, true);
+  useNotificationStore.setState({ notifications: [] });
   vi.clearAllMocks();
+  vi.mocked(generateArtLibraryThumbnail).mockReset().mockResolvedValue(null);
 });
+
+afterEach(() => vi.restoreAllMocks());
 
 describe('artLibraryStore', () => {
   it('initial state is empty', () => {
@@ -228,6 +235,76 @@ describe('artLibraryStore', () => {
       '/tmp/alpha.svg',
     );
     expect(mockedService.getArtLibraries).not.toHaveBeenCalled();
+  });
+
+  it('captures selected artwork once, persists its thumbnail, and refreshes the library', async () => {
+    const item = makeItem({ kind: 'selection_snapshot', thumbnail: undefined });
+    useProjectStore.setState({ selectedObjectIds: ['obj-1'] });
+    mockedService.addSelectionToArtLibrary.mockResolvedValue(item);
+    vi.mocked(generateArtLibraryThumbnail).mockResolvedValue('new-thumbnail');
+    mockedService.commitArtLibraryThumbnail.mockResolvedValue(undefined);
+    mockedService.getArtLibraries.mockResolvedValue({
+      libraries: [makeLibrary({ items: [{ ...item, thumbnail: 'new-thumbnail' }] })], warnings: [],
+    });
+
+    await useArtLibraryStore.getState().addSelectionItem('library-1', 'Star', 'General', []);
+
+    expect(mockedService.addSelectionToArtLibrary).toHaveBeenCalledExactlyOnceWith(
+      'library-1', ['obj-1'], 'Star', 'General', [],
+    );
+    expect(mockedService.commitArtLibraryThumbnail).toHaveBeenCalledWith('library-1', item.id, 'new-thumbnail');
+    expect(useArtLibraryStore.getState().libraries[0]?.items[0]?.thumbnail).toBe('new-thumbnail');
+    expect(useNotificationStore.getState().notifications).toEqual([
+      expect.objectContaining({ message: 'Captured "Star"', type: 'success' }),
+    ]);
+  });
+
+  it.each(['render', 'persist'])('still shows a saved selection when thumbnail %s fails', async (failure) => {
+    const item = makeItem({ kind: 'selection_snapshot', thumbnail: undefined });
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    useProjectStore.setState({ selectedObjectIds: ['obj-1'] });
+    mockedService.addSelectionToArtLibrary.mockResolvedValue(item);
+    if (failure === 'render') {
+      vi.mocked(generateArtLibraryThumbnail).mockRejectedValueOnce(new Error('Thumbnail failed'));
+    } else {
+      vi.mocked(generateArtLibraryThumbnail).mockResolvedValueOnce('new-thumbnail');
+      mockedService.commitArtLibraryThumbnail.mockRejectedValueOnce(new Error('Thumbnail failed'));
+    }
+    mockedService.getArtLibraries.mockResolvedValue({ libraries: [makeLibrary({ items: [item] })], warnings: [] });
+
+    await useArtLibraryStore.getState().addSelectionItem('library-1', 'Star', 'General', []);
+
+    expect(mockedService.addSelectionToArtLibrary).toHaveBeenCalledOnce();
+    expect(useArtLibraryStore.getState().libraries[0]?.items).toEqual([item]);
+    expect(useNotificationStore.getState().notifications).toEqual([
+      expect.objectContaining({ message: 'Captured "Star"', type: 'success' }),
+    ]);
+  });
+
+  it('still reports a failed artwork save', async () => {
+    useProjectStore.setState({ selectedObjectIds: ['obj-1'] });
+    mockedService.addSelectionToArtLibrary.mockRejectedValueOnce(new Error('Save failed'));
+
+    await useArtLibraryStore.getState().addSelectionItem('library-1', 'Star', 'General', []);
+
+    expect(mockedService.getArtLibraries).not.toHaveBeenCalled();
+    expect(useNotificationStore.getState().notifications).toEqual([
+      expect.objectContaining({ message: expect.stringContaining('Save failed'), type: 'error' }),
+    ]);
+  });
+
+  it('shows a repaired thumbnail for an existing saved item immediately after loading', async () => {
+    const item = makeItem({ kind: 'selection_snapshot', thumbnail: undefined });
+    mockedService.getArtLibraries.mockResolvedValue({ libraries: [makeLibrary({ items: [item] })], warnings: [] });
+    vi.mocked(generateArtLibraryThumbnail).mockResolvedValueOnce('repaired-thumbnail');
+    mockedService.commitArtLibraryThumbnail.mockResolvedValue(undefined);
+
+    await useArtLibraryStore.getState().loadLibraries();
+
+    await waitFor(() => {
+      expect(useArtLibraryStore.getState().libraries[0]?.items[0]?.thumbnail).toBe('repaired-thumbnail');
+    });
+    expect(mockedService.commitArtLibraryThumbnail).toHaveBeenCalledWith('library-1', item.id, 'repaired-thumbnail');
   });
 
   it('insertToProject imports the item, refreshes project state, and selects the inserted object', async () => {

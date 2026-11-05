@@ -94,7 +94,7 @@ async function buildSnapshotImageCache(
   snapshot: ArtLibrarySelectionSnapshot,
 ): Promise<Map<string, HTMLImageElement | HTMLCanvasElement>> {
   const cache = new Map<string, HTMLImageElement | HTMLCanvasElement>();
-  for (const asset of snapshot.assets) {
+  for (const asset of snapshot.assets ?? []) {
     if (!asset.media_type.startsWith('image/')) continue;
     const img = await loadImageFromBlob(new Blob([bytesToBlobPart(base64ToBytes(asset.data))], { type: asset.media_type }));
     if (img) {

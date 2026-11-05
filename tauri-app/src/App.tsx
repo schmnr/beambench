@@ -15,6 +15,7 @@ import { HotkeyEditorDialog } from './components/settings/HotkeyEditorDialog';
 import { TraceImageDialog } from './components/dialogs/TraceImageDialog';
 import { AdjustImageDialog } from './components/dialogs/AdjustImageDialog';
 import { BooleanAssistantDialog } from './components/dialogs/BooleanAssistantDialog';
+import { CopyAlongPathDialog } from './components/dialogs/CopyAlongPathDialog';
 import { BarcodeDialog } from './components/dialogs/BarcodeDialog';
 import { CloseSelectedPathsWithToleranceDialog } from './components/dialogs/CloseSelectedPathsWithToleranceDialog';
 import { DeleteDuplicatesDialog } from './components/dialogs/DeleteDuplicatesDialog';
@@ -534,6 +535,10 @@ function App() {
   const [traceDialogObjectId, setTraceDialogObjectId] = useState<string | null>(null);
   const [adjustDialogObjectId, setAdjustDialogObjectId] = useState<string | null>(null);
   const [booleanAssistantObjectIds, setBooleanAssistantObjectIds] = useState<string[] | null>(null);
+  const [copyAlongPathDialogState, setCopyAlongPathDialogState] = useState<{
+    objectIds: string[];
+    pathObjectId: string;
+  } | null>(null);
   const [barcodeDialogLayerId, setBarcodeDialogLayerId] = useState<string | null>(null);
   const [nestDialogObjectIds, setNestDialogObjectIds] = useState<string[] | null>(null);
   const [closeToleranceObjectIds, setCloseToleranceObjectIds] = useState<string[] | null>(null);
@@ -592,6 +597,7 @@ function App() {
     openOffset: (objectIds: string[]) => useUiStore.getState().openModifierProperties('offset', objectIds),
     openGridArray: (objectIds: string[]) => useUiStore.getState().openModifierProperties('grid_array', objectIds),
     openCircularArray: (objectIds: string[]) => useUiStore.getState().openModifierProperties('circular_array', objectIds),
+    openCopyAlongPath: (objectIds, pathObjectId) => setCopyAlongPathDialogState({ objectIds: [...objectIds], pathObjectId }),
     openBooleanAssistant: (objectIds: string[]) => setBooleanAssistantObjectIds([...objectIds]),
     openBarcode: (layerId: string) => setBarcodeDialogLayerId(layerId),
     openNest: (objectIds: string[]) => setNestDialogObjectIds([...objectIds]),
@@ -1824,6 +1830,13 @@ function App() {
       )}
       {barcodeDialogLayerId && (
         <BarcodeDialog layerId={barcodeDialogLayerId} onClose={() => setBarcodeDialogLayerId(null)} />
+      )}
+      {copyAlongPathDialogState && (
+        <CopyAlongPathDialog
+          objectIds={copyAlongPathDialogState.objectIds}
+          pathObjectId={copyAlongPathDialogState.pathObjectId}
+          onClose={() => setCopyAlongPathDialogState(null)}
+        />
       )}
       {nestDialogObjectIds && (
         <NestDialog objectIds={nestDialogObjectIds} onClose={() => setNestDialogObjectIds(null)} />
