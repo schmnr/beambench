@@ -26,7 +26,9 @@ Existing framing eligibility, errors, placement and streaming are preserved.
 
 The history lives in memory for the current app process and survives connection
 changes, clearing the live job, and routine status polling. It retains at most
-24 entries with a 32 KiB maximum per message. Oversized messages explicitly say
+24 entries and 256 KiB of message content, with a 32 KiB maximum per message.
+The combined limit leaves room for project attachments within the existing
+submission cap. Oversized messages explicitly say
 `truncated` and contain an excerpt. Job/session console snapshots retain the
 existing limit of 120 entries per console. A new app process starts empty.
 

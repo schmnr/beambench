@@ -42,6 +42,7 @@ const ACTIVE_ERRORS_CAP: usize = 100;
 /// Maximum number of connection lifecycle events retained for diagnostics.
 const CONNECTION_EVENTS_CAP: usize = 128;
 const FRAME_DIAGNOSTICS_CAP: usize = 24;
+const FRAME_DIAGNOSTICS_BYTES_CAP: usize = 256 * 1024;
 /// Maximum number of entries in the console log.
 const CONSOLE_LOG_CAP: usize = 2000;
 /// Maximum number of decoded grayscale trace-preview sources to retain.
@@ -431,7 +432,13 @@ impl ServiceContext {
                 target: "beambench::frame".into(),
                 message,
             });
-            while entries.len() > FRAME_DIAGNOSTICS_CAP {
+            while entries.len() > FRAME_DIAGNOSTICS_CAP
+                || entries
+                    .iter()
+                    .map(|entry| entry.message.len())
+                    .sum::<usize>()
+                    > FRAME_DIAGNOSTICS_BYTES_CAP
+            {
                 entries.pop_front();
             }
         }
@@ -1687,6 +1694,22 @@ mod tests {
             serde_json::from_str::<serde_json::Value>(last).unwrap()["truncated"],
             true
         );
+        drop(entries);
+        for _ in 0..30 {
+            ctx.record_frame_diagnostic(
+                "terminal",
+                serde_json::json!({"trace": "x".repeat(30_000)}),
+            );
+        }
+        let entries = ctx.frame_diagnostics.lock().unwrap();
+        assert!(
+            entries
+                .iter()
+                .map(|entry| entry.message.len())
+                .sum::<usize>()
+                <= FRAME_DIAGNOSTICS_BYTES_CAP
+        );
+        assert!(entries.len() < FRAME_DIAGNOSTICS_CAP);
     }
 
     #[test]
