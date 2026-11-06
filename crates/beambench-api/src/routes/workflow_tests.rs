@@ -333,6 +333,31 @@ async fn variable_text_csv_preview_batch_and_undo_preserve_the_source() {
     )
     .await;
     assert_eq!(batch["copies"].as_array().unwrap().len(), 3);
+    assert_eq!(batch["copies"][0]["data"]["content"], "SN-001");
+    assert_eq!(batch["copies"][1]["data"]["content"], "SN-002");
+    assert_eq!(batch["copies"][2]["data"]["content"], "SN-003");
+    assert!(batch["copies"][1]["data"]["variable_text"].is_null());
+    // The real native project format retains the source settings and freezes generated values.
+    let snapshot = ctx.project.lock().unwrap().as_ref().unwrap().clone();
+    let bytes = beambench_project::save_project_to_bytes(&snapshot).unwrap();
+    let reopened = beambench_project::persistence::load_project_from_bytes(&bytes).unwrap();
+    assert_eq!(reopened.objects.len(), snapshot.objects.len());
+    for object in reopened
+        .objects
+        .iter()
+        .filter(|object| object.id.to_string() != id)
+    {
+        if let ObjectData::Text {
+            content,
+            variable_text,
+            ..
+        } = &object.data
+        {
+            assert!(content.starts_with("SN-00"));
+            assert!(variable_text.is_none());
+        }
+    }
+
     native(&ctx, "project", "undo_project", json!({})).await;
     assert_eq!(
         ctx.project.lock().unwrap().as_ref().unwrap().objects,
@@ -344,6 +369,84 @@ async fn variable_text_csv_preview_batch_and_undo_preserve_the_source() {
     let csv = native(&ctx, "variable_text", "load_csv_file", json!({"path":path})).await;
     assert_eq!(csv["headers"], json!(["name", "code"]));
     assert_eq!(csv["rows"][0], json!(["Smith, Jo", "A1"]));
+    let mut config =
+        beambench_service::ops::workflows::schema()["examples"]["variable_text_config"].clone();
+    config["mode"] = "merge_csv".into();
+    config["template"] = "{CSV:name} / {CSV:code}".into();
+    config["source"]["csvData"] = json!([["name", "code"], ["Smith, Jo", "A1"], ["Pat", "A2"]]);
+    config["source"]["current"] = 0.into();
+    config["source"]["start"] = 0.into();
+    config["source"]["end"] = 1.into();
+    config["source"]["totalCopies"] = 2.into();
+    let preview = native(
+        &ctx,
+        "variable_text",
+        "generate_batch_preview",
+        json!({"object_id":id,"config":config}),
+    )
+    .await;
+    assert_eq!(preview, json!(["Smith, Jo / A1", "Pat / A2"]));
+    let batch = native(
+        &ctx,
+        "variable_text",
+        "generate_variable_text_batch",
+        json!({"object_id":id,"config":config,"offset_step":40,"offset_step_y":0}),
+    )
+    .await;
+    assert_eq!(batch["copies"][0]["data"]["content"], preview[0]);
+    assert_eq!(batch["copies"][1]["data"]["content"], preview[1]);
+    let saved =
+        beambench_project::save_project_to_bytes(ctx.project.lock().unwrap().as_ref().unwrap())
+            .unwrap();
+    let reopened = beambench_project::persistence::load_project_from_bytes(&saved).unwrap();
+    let original = reopened
+        .objects
+        .iter()
+        .find(|object| object.id.to_string() == id)
+        .unwrap();
+    if let ObjectData::Text {
+        variable_text: Some(config),
+        ..
+    } = &original.data
+    {
+        assert_eq!(config.source.csv_data[1], vec!["Smith, Jo", "A1"]);
+        assert_eq!(config.template, "{CSV:name} / {CSV:code}");
+    } else {
+        panic!("source configuration did not persist");
+    }
+
+    assert_eq!(
+        batch["copies"][1]["bounds"]["min"]["y"],
+        snapshot
+            .objects
+            .iter()
+            .find(|object| object.id.to_string() == id)
+            .unwrap()
+            .bounds
+            .min
+            .y
+    );
+    native(&ctx, "project", "undo_project", json!({})).await;
+    assert_eq!(
+        ctx.project.lock().unwrap().as_ref().unwrap().objects.len(),
+        2
+    );
+    // Invalid requests must not leave copies or an undo entry behind.
+    config["source"]["totalCopies"] = 1001.into();
+    let before = ctx.project.lock().unwrap().as_ref().unwrap().objects.len();
+    let (status, _) = call(&ctx, "POST", "/api/v1/workflows/variable_text", json!({"command":"generate_variable_text_batch","object_id":id,"config":config,"offset_step":5})).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(
+        ctx.project.lock().unwrap().as_ref().unwrap().objects.len(),
+        before
+    );
+    config["source"]["totalCopies"] = 2.into();
+    let (status, _) = call(&ctx, "POST", "/api/v1/workflows/variable_text", json!({"command":"generate_variable_text_batch","object_id":id,"config":config,"offset_step":1e308})).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(
+        ctx.project.lock().unwrap().as_ref().unwrap().objects.len(),
+        before
+    );
 }
 
 #[tokio::test]

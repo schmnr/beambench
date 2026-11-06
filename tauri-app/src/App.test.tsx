@@ -1,3 +1,4 @@
+import { variableTextService } from './services/variableTextService';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { StrictMode } from 'react';
 import { render, screen, cleanup, waitFor, act } from '@testing-library/react';
@@ -26,7 +27,7 @@ import type { AppSettings } from './types/commands';
 import type { AppEvent } from './types/events';
 import type { JobProgress, MachineProfile } from './types/machine';
 import type { DiagnosticBundleV1, DiagnosticPanic } from './types/feedback';
-import { makeLayer, makeStarObjectData, makeProject, makeProjectObject, makeTransformLocks } from './test-utils/projectFixtures';
+import { makeLayer, makeTextObjectData, makeStarObjectData, makeProject, makeProjectObject, makeTransformLocks } from './test-utils/projectFixtures';
 
 const mockListen = vi.fn();
 
@@ -1010,6 +1011,28 @@ describe('App bootstrap', () => {
         await nativeMenuHandler?.({ payload: { commandId: APP_COMMANDS.ARRANGE_GRID_ARRAY } });
       });
       expect(openModifierProperties).toHaveBeenCalledWith('grid_array', [source.id, guide.id]);
+    } finally {
+      Object.defineProperty(navigator, 'platform', { configurable: true, value: originalPlatform });
+    }
+  });
+
+  it('opens text personalization through the native menu bridge', async () => {
+    const originalPlatform = navigator.platform;
+    Object.defineProperty(navigator, 'platform', { configurable: true, value: 'MacIntel' });
+    let handler: ((event: { payload: { commandId: string } }) => void | Promise<void>) | undefined;
+    mockListen.mockImplementation((name: string, callback: typeof handler) => {
+      if (name === 'native-menu-command') handler = callback;
+      return Promise.resolve(() => {});
+    });
+    const object = makeProjectObject({ data: makeTextObjectData({ content: 'Part' }) });
+    useProjectStore.setState({ project: makeProject({ objects: [object] }), selectedObjectIds: [object.id], loadProject: vi.fn().mockResolvedValue(undefined) });
+    vi.spyOn(variableTextService, 'generateBatchPreview').mockResolvedValue(['Part-1']);
+    try {
+      await renderApp();
+      await waitFor(() => expect(handler).toBeDefined());
+      await act(async () => { await handler?.({ payload: { commandId: APP_COMMANDS.TOOLS_PERSONALIZE_TEXT } }); });
+      expect(screen.getByTestId('text-personalization-dialog')).toBeDefined();
+      await screen.findByText('Part-1');
     } finally {
       Object.defineProperty(navigator, 'platform', { configurable: true, value: originalPlatform });
     }

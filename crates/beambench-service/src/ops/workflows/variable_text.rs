@@ -29,11 +29,47 @@ pub fn load_csv_file(path: String) -> Result<CsvData, String> {
         return Err("CSV file is empty".to_string());
     }
     let headers = rows[0].clone();
+    if headers.iter().any(|header| header.trim().is_empty())
+        || headers
+            .iter()
+            .collect::<std::collections::HashSet<_>>()
+            .len()
+            != headers.len()
+    {
+        return Err("CSV headers must be nonempty and unique".to_string());
+    }
+    if rows.len() < 2 {
+        return Err("CSV must contain at least one data row".to_string());
+    }
     let data_rows = rows[1..].to_vec();
     Ok(CsvData {
         headers,
         rows: data_rows,
     })
+}
+
+fn validate_config(config: &VariableTextConfig) -> Result<(), String> {
+    if !(1..=1000).contains(&config.source.total_copies) {
+        return Err("Choose between 1 and 1000 copies".into());
+    }
+    if [
+        config.source.current,
+        config.source.start,
+        config.source.end,
+        config.source.advance_by,
+        config.offset.unwrap_or(0),
+    ]
+    .iter()
+    .any(|value| value.unsigned_abs() > 1_000_000_000)
+    {
+        return Err("Sequence values must be between -1000000000 and 1000000000".into());
+    }
+    if matches!(config.mode, Some(variable_text::VariableTextMode::MergeCsv))
+        && config.source.csv_data.len() < 2
+    {
+        return Err("Load a CSV with data rows first".into());
+    }
+    Ok(())
 }
 
 /// Resolve a text template for a specific row.
@@ -45,6 +81,7 @@ pub fn resolve_variable_text(
     config: VariableTextConfig,
     row: usize,
 ) -> Result<String, String> {
+    validate_config(&config)?;
     let oid = parse_id(&object_id)?;
     let project_guard = svc.project.lock().map_err(|e| e.to_string())?;
     let project = project_guard
@@ -66,6 +103,7 @@ pub fn generate_batch_preview(
     object_id: String,
     config: VariableTextConfig,
 ) -> Result<Vec<String>, String> {
+    validate_config(&config)?;
     let oid = parse_id(&object_id)?;
     let project_guard = svc.project.lock().map_err(|e| e.to_string())?;
     let project = project_guard
@@ -74,18 +112,16 @@ pub fn generate_batch_preview(
     let object = project
         .find_object(oid)
         .ok_or_else(|| "Object not found".to_string())?;
-    let count = (config.source.total_copies as usize).max(1);
+    let count = config.source.total_copies as usize;
     let base_current = config.source.current;
     let mut results = Vec::with_capacity(count);
+    let mut iter_config = config.clone();
     for i in 0..count {
-        let mut iter_source = config.source.clone();
-        iter_source.current = beambench_core::wrap_sequence_value(
+        iter_config.source.current = beambench_core::wrap_sequence_value(
             base_current + i as i64 * config.source.advance_by,
-            iter_source.start,
-            iter_source.end,
+            config.source.start,
+            config.source.end,
         );
-        let mut iter_config = config.clone();
-        iter_config.source = iter_source;
         results.push(variable_text::resolve_text_in_project(
             project,
             object,
@@ -97,14 +133,16 @@ pub fn generate_batch_preview(
 }
 
 /// Atomic batch generation: resolve text, create offset duplicates — all
-/// in a single undo step. Each copy gets its own `variable_text` config with
-/// the correct serial/row state. The original's source state is advanced.
+/// in a single undo step. Copies retain fixed editable text. The original's
+/// source configuration is retained and its sequence advanced.
 pub fn generate_variable_text_batch(
     svc: &Arc<ServiceContext>,
     config: VariableTextConfig,
     object_id: String,
     offset_step: f64,
+    offset_step_y: Option<f64>,
 ) -> Result<BatchResult, String> {
+    validate_config(&config)?;
     let oid = parse_id(&object_id)?;
     let project_guard = svc.project.lock().map_err(|e| e.to_string())?;
     let project = project_guard
@@ -119,35 +157,47 @@ pub fn generate_variable_text_batch(
     }
     drop(project_guard);
 
-    let count = (config.source.total_copies as usize).max(1);
+    let count = config.source.total_copies as usize;
     let base_current = config.source.current;
     let mut copies = Vec::with_capacity(count);
+    let mut copy_config = config.clone();
+    // Only the first copy's settings are used to update the reusable source.
+    // Generated copies are frozen, so do not retain N copies of a large CSV.
+    let mut frozen_config = config.clone();
+    frozen_config.source.csv_data.clear();
+    let project_guard = svc.project.lock().map_err(|e| e.to_string())?;
+    let project = project_guard
+        .as_ref()
+        .ok_or_else(|| "No project open".to_string())?;
+    let object = project
+        .find_object(oid)
+        .ok_or_else(|| "Object not found".to_string())?;
     for i in 0..count {
-        let mut copy_source = config.source.clone();
-        copy_source.current = beambench_core::wrap_sequence_value(
+        copy_config.source.current = beambench_core::wrap_sequence_value(
             base_current + i as i64 * config.source.advance_by,
-            copy_source.start,
-            copy_source.end,
+            config.source.start,
+            config.source.end,
         );
-        let mut copy_config = config.clone();
-        copy_config.source = copy_source;
-        let project_guard = svc.project.lock().map_err(|e| e.to_string())?;
-        let project = project_guard
-            .as_ref()
-            .ok_or_else(|| "No project open".to_string())?;
-        let object = project
-            .find_object(oid)
-            .ok_or_else(|| "Object not found".to_string())?;
         let resolved = variable_text::resolve_text_in_project(project, object, &copy_config, i);
-        drop(project_guard);
         copies.push(BatchCopyInput {
             resolved_text: resolved,
-            variable_text_config: copy_config,
+            variable_text_config: if i == 0 {
+                config.clone()
+            } else {
+                frozen_config.clone()
+            },
         });
     }
+    drop(project_guard);
 
-    crate::ops::project::generate_variable_text_batch(svc, oid, copies, offset_step)
-        .map_err(|e| e.to_string())
+    crate::ops::project::generate_variable_text_batch(
+        svc,
+        oid,
+        copies,
+        offset_step,
+        offset_step_y.unwrap_or(offset_step),
+    )
+    .map_err(|e| e.to_string())
 }
 
 super::define_commands! {
@@ -156,5 +206,5 @@ parse_merge_fields { text : String } => Ok :: < _ , String > (parse_merge_fields
 load_csv_file { path : String } => load_csv_file (path);
 resolve_variable_text { object_id : String , config : VariableTextConfig , row : usize } => resolve_variable_text (svc , object_id , config , row);
 generate_batch_preview { object_id : String , config : VariableTextConfig } => generate_batch_preview (svc , object_id , config);
-generate_variable_text_batch { config : VariableTextConfig , object_id : String , offset_step : f64 } => generate_variable_text_batch (svc , config , object_id , offset_step);
+generate_variable_text_batch { config : VariableTextConfig , object_id : String , offset_step : f64 , offset_step_y : Option<f64> } => generate_variable_text_batch (svc , config , object_id , offset_step , offset_step_y);
 }

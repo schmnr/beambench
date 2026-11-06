@@ -100,7 +100,7 @@ pub struct UpdateObjectTransformStateInput {
     pub lock_aspect_ratio: Option<bool>,
 }
 
-/// Per-copy input for batch generation: resolved text + full variable text config.
+/// Resolved copy text and source settings. Only the first entry settings are persisted.
 #[derive(Debug, Clone)]
 pub struct BatchCopyInput {
     pub resolved_text: String,
@@ -3422,8 +3422,8 @@ pub fn align_objects(
 }
 
 /// Atomic batch: create offset duplicates with resolved text, all in one undo
-/// step. The original object is preserved unchanged so the template can be
-/// re-used for subsequent batch runs.
+/// step. The original object is kept as a template with its sequence advanced
+/// for subsequent batch runs.
 ///
 /// Bounds are intentionally preserved from the original — text objects use
 /// bounds as a fixed container box (like a text frame), not a tight fit.
@@ -3433,10 +3433,14 @@ pub fn generate_variable_text_batch(
     object_id: ObjectId,
     copies: Vec<BatchCopyInput>,
     offset_step: f64,
+    offset_step_y: f64,
 ) -> ServiceResult<BatchResult> {
     ctx.atomic_edit(|| {
-        if copies.is_empty() {
-            return Err(ServiceError::invalid_input("No copies provided"));
+        if !offset_step.is_finite() || !offset_step_y.is_finite() {
+            return Err(ServiceError::invalid_input("Copy spacing must be finite"));
+        }
+        if copies.is_empty() || copies.len() > 1000 {
+            return Err(ServiceError::invalid_input("Provide 1 to 1000 copies"));
         }
         let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
         let project = project_guard
@@ -3446,9 +3450,28 @@ pub fn generate_variable_text_batch(
             .find_object(object_id)
             .ok_or_else(|| ServiceError::not_found("Object not found"))?
             .clone();
+        if original.locked {
+            return Err(ServiceError::invalid_input("Unlock the text object first"));
+        }
         match &original.data {
             ObjectData::Text { .. } => {}
             _ => return Err(ServiceError::invalid_input("Object is not a text object")),
+        }
+
+        let dx = offset_step * copies.len() as f64;
+        let dy = offset_step_y * copies.len() as f64;
+        if [
+            original.bounds.min.x + dx,
+            original.bounds.max.x + dx,
+            original.bounds.min.y + dy,
+            original.bounds.max.y + dy,
+        ]
+        .iter()
+        .any(|value| !value.is_finite())
+        {
+            return Err(ServiceError::invalid_input(
+                "Copy spacing produces invalid coordinates",
+            ));
         }
 
         // Single undo snapshot before all mutations
@@ -3458,10 +3481,11 @@ pub fn generate_variable_text_batch(
         let mut result_ids = Vec::new();
         let copy_count = copies.len();
 
-        // Create duplicates for all copies, each with resolved text + per-copy config.
+        let project_snapshot = project.clone();
+        // Create independent editable copies with frozen text values.
         for (i, copy) in copies.iter().enumerate() {
             let dx = (i as f64 + 1.0) * offset_step;
-            let dy = (i as f64 + 1.0) * offset_step;
+            let dy = (i as f64 + 1.0) * offset_step_y;
             let mut dup = ProjectObject::new(
                 format!("{} copy", original.name),
                 original.layer_id,
@@ -3473,6 +3497,9 @@ pub fn generate_variable_text_batch(
             );
             dup.transform = original.transform;
             dup.visible = original.visible;
+            dup.power_scale = original.power_scale;
+            dup.priority = original.priority;
+            dup.lock_aspect_ratio = original.lock_aspect_ratio;
             if let ObjectData::Text {
                 ref mut content,
                 ref mut variable_text,
@@ -3480,9 +3507,8 @@ pub fn generate_variable_text_batch(
             } = dup.data
             {
                 *content = copy.resolved_text.clone();
-                *variable_text = Some(copy.variable_text_config.clone());
+                *variable_text = None;
             }
-            let project_snapshot = project.clone();
             refresh_text_object_cache_with_project_context(&project_snapshot, &mut dup, None);
             let added = project.add_object(dup);
             result_ids.push(added.id);
@@ -3493,14 +3519,15 @@ pub fn generate_variable_text_batch(
         // in the same undo step — no separate updateObjectData needed on the frontend.
         if let Some(orig) = project.find_object_mut(object_id) {
             if let ObjectData::Text {
+                ref mut content,
                 ref mut variable_text,
                 ..
             } = orig.data
             {
-                let config = variable_text.get_or_insert_with(|| {
-                    // Initialize from the first copy's config (template + base source)
-                    copies[0].variable_text_config.clone()
-                });
+                *variable_text = Some(copies[0].variable_text_config.clone());
+                let config = variable_text.as_mut().expect("initialized above");
+                config.source.field_defaults.remove("_date_timestamp");
+                *content = config.template.clone();
                 let delta = config.source.advance_by * copy_count as i64;
                 config.source.current = advance_sequence_value(
                     config.source.current,
@@ -3511,6 +3538,10 @@ pub fn generate_variable_text_batch(
             }
         }
 
+        let snapshot = project.clone();
+        if let Some(source) = project.find_object_mut(object_id) {
+            refresh_text_object_cache_with_project_context(&snapshot, source, None);
+        }
         let updated_original = project
             .find_object(object_id)
             .cloned()
@@ -4722,7 +4753,7 @@ mod tests {
             make_batch_copy("SN-002"),
             make_batch_copy("SN-003"),
         ];
-        let result = generate_variable_text_batch(&ctx, obj_id, copies, 5.0).unwrap();
+        let result = generate_variable_text_batch(&ctx, obj_id, copies, 5.0, 5.0).unwrap();
 
         assert_eq!(result.copies.len(), 3);
         // All results are new duplicates — original is preserved with template
@@ -5020,7 +5051,7 @@ mod tests {
             })
             .collect();
 
-        let result = generate_variable_text_batch(&ctx, obj_id, copies, 5.0).unwrap();
+        let result = generate_variable_text_batch(&ctx, obj_id, copies, 5.0, 5.0).unwrap();
         assert_eq!(result.copies.len(), 4);
 
         // Original's current should be wrapped: (2 + 4) % 3 = 0
@@ -5254,7 +5285,8 @@ mod tests {
         let obj_id = project.objects[0].id;
         *ctx.project.lock().unwrap() = Some(project);
 
-        let result = generate_variable_text_batch(&ctx, obj_id, vec![make_batch_copy("test")], 5.0);
+        let result =
+            generate_variable_text_batch(&ctx, obj_id, vec![make_batch_copy("test")], 5.0, 5.0);
         assert!(result.is_err());
     }
 
@@ -5265,7 +5297,7 @@ mod tests {
         *ctx.project.lock().unwrap() = Some(project);
 
         let result =
-            generate_variable_text_batch(&ctx, obj_id, vec![make_batch_copy("Updated")], 5.0)
+            generate_variable_text_batch(&ctx, obj_id, vec![make_batch_copy("Updated")], 5.0, 5.0)
                 .unwrap();
         assert_eq!(result.copies.len(), 1);
         // Result is a new duplicate, not the original

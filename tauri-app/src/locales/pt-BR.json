@@ -3092,5 +3092,23 @@
     "connection_lost": "Connection lost",
     "disconnect_local": "Disconnect the laser from this computer before choosing a remote host.",
     "preview_title": "Host preview · {host}"
+  },
+  "personalization": {
+    "title": "Personalizar texto...",
+    "create": "Criar cópias",
+    "load": "Carregar CSV...",
+    "first_row": "Primeira linha de dados",
+    "date_format": "Formato da data",
+    "spacing_x": "Espaçamento horizontal",
+    "spacing_y": "Espaçamento vertical",
+    "original": "O texto original permanece como modelo reutilizável.",
+    "preview_help": "Confira os resultados. As cópias mantêm valores fixos como texto editável.",
+    "date_help": "As datas usam o horário local deste computador. Escolha um formato e complete o modelo.",
+    "invalid": "Insira um modelo, de 1 a 1000 cópias e valores inteiros. O incremento não pode ser zero.",
+    "fields_error": "Confira os campos. Use Serial, Date ou uma coluna do CSV carregado.",
+    "rows_error": "Carregue um CSV, escolha linhas válidas e insira uma coluna no modelo.",
+    "empty": "Há resultados vazios. Confira o modelo e as linhas CSV.",
+    "loading": "Preparando a prévia…",
+    "refresh_date": "Atualizar data e hora"
   }
 }

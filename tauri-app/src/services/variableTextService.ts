@@ -39,7 +39,8 @@ export const variableTextService = {
     config: VariableTextConfig,
     objectId: string,
     offsetStep: number,
+    offsetStepY?: number,
   ): Promise<BatchResult> {
-    return invoke<BatchResult>('generate_variable_text_batch', { config, objectId, offsetStep });
+    return invoke<BatchResult>('generate_variable_text_batch', { config, objectId, offsetStep, offsetStepY });
   },
 };

@@ -71,6 +71,7 @@ export const APP_COMMANDS = {
   TOOLS_ADJUST_IMAGE: 'tools.adjust_image',
   TOOLS_TABS: 'tools.tabs',
   TOOLS_TRIM: 'tools.trim',
+  TOOLS_PERSONALIZE_TEXT: 'tools.personalize_text',
   TOOLS_BARCODE: 'tools.barcode',
   TOOLS_APPLY_PATH_TO_TEXT: 'tools.apply_path_to_text',
   TOOLS_APPLY_MASK_TO_IMAGE: 'tools.apply_mask_to_image',

@@ -3092,5 +3092,23 @@
     "connection_lost": "Connection lost",
     "disconnect_local": "Disconnect the laser from this computer before choosing a remote host.",
     "preview_title": "Host preview · {host}"
+  },
+  "personalization": {
+    "title": "Tilpas tekst...",
+    "create": "Opret kopier",
+    "load": "Indlæs CSV...",
+    "first_row": "Første datarække",
+    "date_format": "Datoformat",
+    "spacing_x": "Vandret afstand",
+    "spacing_y": "Lodret afstand",
+    "original": "Den oprindelige tekst bevares som genanvendelig skabelon.",
+    "preview_help": "Kontrollér resultaterne. Kopier bevarer faste værdier som redigerbar tekst.",
+    "date_help": "Datoer bruger computerens lokale tid. Vælg format, og tilføj tekst til skabelonen.",
+    "invalid": "Angiv en skabelon, 1 til 1000 kopier og heltalsværdier. Trinnet må ikke være nul.",
+    "fields_error": "Kontrollér felterne. Brug Serial, Date eller en CSV-kolonne.",
+    "rows_error": "Indlæs CSV, vælg gyldige rækker, og indsæt en kolonne i skabelonen.",
+    "empty": "Nogle resultater er tomme. Kontrollér skabelonen og CSV-rækkerne.",
+    "loading": "Forbereder forhåndsvisning…",
+    "refresh_date": "Opdatér dato og tid"
   }
 }

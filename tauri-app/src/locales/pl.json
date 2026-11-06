@@ -3092,5 +3092,23 @@
     "connection_lost": "Connection lost",
     "disconnect_local": "Disconnect the laser from this computer before choosing a remote host.",
     "preview_title": "Host preview · {host}"
+  },
+  "personalization": {
+    "title": "Personalizuj tekst...",
+    "create": "Utwórz kopie",
+    "load": "Wczytaj CSV...",
+    "first_row": "Pierwszy wiersz danych",
+    "date_format": "Format daty",
+    "spacing_x": "Odstęp poziomy",
+    "spacing_y": "Odstęp pionowy",
+    "original": "Oryginalny tekst pozostaje szablonem do ponownego użycia.",
+    "preview_help": "Sprawdź wyniki. Kopie zachowują stałe wartości jako edytowalny tekst.",
+    "date_help": "Daty używają lokalnego czasu komputera. Wybierz format i uzupełnij szablon.",
+    "invalid": "Wprowadź szablon, od 1 do 1000 kopii i całkowite wartości. Przyrost nie może wynosić zero.",
+    "fields_error": "Sprawdź pola. Użyj Serial, Date lub kolumny z CSV.",
+    "rows_error": "Wczytaj CSV, wybierz prawidłowe wiersze i wstaw kolumnę do szablonu.",
+    "empty": "Niektóre wyniki są puste. Sprawdź szablon i wiersze CSV.",
+    "loading": "Przygotowywanie podglądu…",
+    "refresh_date": "Odśwież datę i godzinę"
   }
 }

@@ -88,6 +88,7 @@ export const MENU_LABEL_KEYS = {
   'Edit Text': 'menus.tools.edit_text',
   'Position Laser': 'menus.tools.position_laser',
   Measure: 'menus.tools.measure',
+  'Personalize Text...': 'personalization.title',
   'Create Bar Code': 'menus.tools.create_bar_code',
   'Offset Shapes': 'menus.tools.offset_shapes',
   'Weld Shapes': 'menus.tools.weld_shapes',

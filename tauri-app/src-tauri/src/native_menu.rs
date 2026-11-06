@@ -81,6 +81,7 @@ pub mod command {
     pub const TOOLS_ADJUST_IMAGE: &str = "tools.adjust_image";
     pub const TOOLS_TABS: &str = "tools.tabs";
     pub const TOOLS_TRIM: &str = "tools.trim";
+    pub const TOOLS_PERSONALIZE_TEXT: &str = "tools.personalize_text";
     pub const TOOLS_BARCODE: &str = "tools.barcode";
     pub const TOOLS_APPLY_PATH_TO_TEXT: &str = "tools.apply_path_to_text";
     pub const TOOLS_APPLY_MASK_TO_IMAGE: &str = "tools.apply_mask_to_image";
@@ -777,6 +778,12 @@ const TOOLS_MENU: &[NativeMenuEntry] = &[
         id: command::TOOLS_MEASURE,
         title: "Measure",
         accelerator: Some("CmdOrCtrl+M"),
+        enabled: false,
+    },
+    NativeMenuEntry::Command {
+        id: command::TOOLS_PERSONALIZE_TEXT,
+        title: "Personalize Text...",
+        accelerator: None,
         enabled: false,
     },
     NativeMenuEntry::Command {

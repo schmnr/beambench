@@ -3092,5 +3092,23 @@
     "connection_lost": "Connection lost",
     "disconnect_local": "Disconnect the laser from this computer before choosing a remote host.",
     "preview_title": "Host preview · {host}"
+  },
+  "personalization": {
+    "title": "個人化文字...",
+    "create": "建立副本",
+    "load": "載入 CSV...",
+    "first_row": "第一個資料列",
+    "date_format": "日期格式",
+    "spacing_x": "水平間距",
+    "spacing_y": "垂直間距",
+    "original": "原始文字將保留為可重複使用的範本。",
+    "preview_help": "請檢查結果。副本將以固定值的可編輯文字儲存。",
+    "date_help": "日期使用本機的當地時間。選擇格式後可繼續編輯範本。",
+    "invalid": "請輸入範本、1 到 1000 個副本及整數序列值。增量不能為零。",
+    "fields_error": "請檢查欄位。使用 Serial、Date 或 CSV 中的欄。",
+    "rows_error": "請載入 CSV，選擇有效的資料列，並將欄插入範本。",
+    "empty": "部分結果為空。請檢查範本和 CSV 資料列。",
+    "loading": "正在準備預覽…",
+    "refresh_date": "重新整理日期與時間"
   }
 }

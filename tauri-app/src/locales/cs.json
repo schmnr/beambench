@@ -3092,5 +3092,23 @@
     "connection_lost": "Connection lost",
     "disconnect_local": "Disconnect the laser from this computer before choosing a remote host.",
     "preview_title": "Host preview · {host}"
+  },
+  "personalization": {
+    "title": "Přizpůsobit text...",
+    "create": "Vytvořit kopie",
+    "load": "Načíst CSV...",
+    "first_row": "První datový řádek",
+    "date_format": "Formát data",
+    "spacing_x": "Vodorovné rozestupy",
+    "spacing_y": "Svislé rozestupy",
+    "original": "Původní text zůstane jako opakovaně použitelná šablona.",
+    "preview_help": "Zkontrolujte výsledky. Kopie zachovají pevné hodnoty jako upravitelný text.",
+    "date_help": "Datum používá místní čas počítače. Vyberte formát a doplňte šablonu.",
+    "invalid": "Zadejte šablonu, 1 až 1000 kopií a celočíselné hodnoty. Přírůstek nesmí být nula.",
+    "fields_error": "Zkontrolujte pole. Použijte Serial, Date nebo sloupec CSV.",
+    "rows_error": "Načtěte CSV, zvolte platné řádky a vložte sloupec do šablony.",
+    "empty": "Některé výsledky jsou prázdné. Zkontrolujte šablonu a řádky CSV.",
+    "loading": "Příprava náhledu…",
+    "refresh_date": "Obnovit datum a čas"
   }
 }

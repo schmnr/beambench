@@ -3092,5 +3092,23 @@
     "connection_lost": "Connection lost",
     "disconnect_local": "Disconnect the laser from this computer before choosing a remote host.",
     "preview_title": "Host preview · {host}"
+  },
+  "personalization": {
+    "title": "テキストを個別設定...",
+    "create": "コピーを作成",
+    "load": "CSVを読み込む...",
+    "first_row": "最初のデータ行",
+    "date_format": "日付形式",
+    "spacing_x": "横方向の間隔",
+    "spacing_y": "縦方向の間隔",
+    "original": "元のテキストは再利用できるテンプレートとして残ります。",
+    "preview_help": "結果を確認してください。コピーは値を固定した編集可能なテキストになります。",
+    "date_help": "日付はこのコンピューターの現地時刻を使用します。形式を選択し、テンプレートを編集してください。",
+    "invalid": "テンプレート、1～1000個のコピー、整数の連番設定を入力してください。増分は0にできません。",
+    "fields_error": "フィールドを確認してください。Serial、Date、またはCSVの列を使用します。",
+    "rows_error": "CSVを読み込み、有効な行を選んで列をテンプレートに挿入してください。",
+    "empty": "空の結果があります。テンプレートとCSVの行を確認してください。",
+    "loading": "プレビューを準備中…",
+    "refresh_date": "日時を更新"
   }
 }

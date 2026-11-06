@@ -3092,5 +3092,23 @@
     "connection_lost": "Connection lost",
     "disconnect_local": "Disconnect the laser from this computer before choosing a remote host.",
     "preview_title": "Host preview · {host}"
+  },
+  "personalization": {
+    "title": "Szöveg személyre szabása...",
+    "create": "Másolatok létrehozása",
+    "load": "CSV betöltése...",
+    "first_row": "Első adatsor",
+    "date_format": "Dátumformátum",
+    "spacing_x": "Vízszintes térköz",
+    "spacing_y": "Függőleges térköz",
+    "original": "Az eredeti szöveg újra felhasználható sablonként megmarad.",
+    "preview_help": "Ellenőrizze az eredményeket. A másolatok rögzített értékű, szerkeszthető szövegek.",
+    "date_help": "A dátumok a számítógép helyi idejét használják. Válasszon formátumot, és egészítse ki a sablont.",
+    "invalid": "Adjon meg sablont, 1 és 1000 közötti másolatot és egész értékeket. A lépésköz nem lehet nulla.",
+    "fields_error": "Ellenőrizze a mezőket. Használja a Serial, Date mezőt vagy egy CSV-oszlopot.",
+    "rows_error": "Töltsön be CSV-t, válasszon érvényes sorokat, és illesszen oszlopot a sablonba.",
+    "empty": "Néhány eredmény üres. Ellenőrizze a sablont és a CSV sorait.",
+    "loading": "Előnézet előkészítése…",
+    "refresh_date": "Dátum és idő frissítése"
   }
 }

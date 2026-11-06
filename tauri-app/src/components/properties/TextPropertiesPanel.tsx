@@ -1,4 +1,6 @@
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { APP_COMMANDS } from '../../commands/appCommandIds';
+import { executeAppCommand } from '../../commands/appCommands';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Type } from 'lucide-react';
 import { useProjectStore } from '../../stores/projectStore';
@@ -63,6 +65,7 @@ function TextContentEditor({
 export function TextPropertiesPanel({ objectId, data }: TextPropertiesPanelProps) {
   const { t } = useTranslation();
   const updateObjectData = useProjectStore((state) => state.updateObjectData);
+  const pendingContentSave = useRef<Promise<boolean> | null>(null);
   const pendingContent = useSyncExternalStore(
     subscribePendingTextEdit,
     () => getPendingContentForObject(objectId),
@@ -172,7 +175,7 @@ export function TextPropertiesPanel({ objectId, data }: TextPropertiesPanelProps
         <TextContentEditor
           label={t('panels.text_properties.content')}
           value={pendingContent ?? data.content}
-          onCommit={(content) => void updateObjectData(objectId, { ...data, content, variable_text: undefined })}
+          onCommit={(content) => { pendingContentSave.current = updateObjectData(objectId, { ...data, content, variable_text: undefined }); }}
         />
 
         {(data.missing_font || missingGlyphs.length > 0) ? (
@@ -182,6 +185,19 @@ export function TextPropertiesPanel({ objectId, data }: TextPropertiesPanelProps
               : t('toolbars.properties.missing_glyphs', { glyphs: missingGlyphs.join(' ') })}
           </div>
         ) : null}
+
+        <button
+          type="button"
+          disabled={useProjectStore.getState().project?.objects.find((object) => object.id === objectId)?.locked}
+          onClick={() => void (async () => {
+            const projectId = useProjectStore.getState().project?.metadata.project_id;
+            if (pendingContentSave.current && !await pendingContentSave.current) return;
+            if (useProjectStore.getState().project?.metadata.project_id === projectId) await executeAppCommand(APP_COMMANDS.TOOLS_PERSONALIZE_TEXT);
+          })()}
+          className="h-8 rounded-lg border border-bb-control-border bg-bb-input px-3 text-xs text-bb-text hover:bg-bb-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-bb-accent disabled:opacity-50"
+        >
+          {t('personalization.title')}
+        </button>
 
         <TextControls
           value={controlValue}

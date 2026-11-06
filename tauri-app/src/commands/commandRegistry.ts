@@ -84,6 +84,7 @@ const COMMAND_DEFINITIONS: CommandDefinition[] = [
   { id: APP_COMMANDS.TOOLS_TEXT, label: 'Edit Text', group: 'Tools', defaultHotkey: 'Ctrl+t', editable: true },
   { id: APP_COMMANDS.TOOLS_POSITION_LASER, label: 'Position Laser', group: 'Tools', defaultHotkey: 'Ctrl+Shift+l', editable: true },
   { id: APP_COMMANDS.TOOLS_MEASURE, label: 'Measure', group: 'Tools', defaultHotkey: 'Ctrl+m', editable: true },
+  { id: APP_COMMANDS.TOOLS_PERSONALIZE_TEXT, label: 'Personalize Text...', group: 'Tools', editable: true },
   { id: APP_COMMANDS.TOOLS_BARCODE, label: 'Create Bar Code', group: 'Tools', editable: true },
   { id: APP_COMMANDS.TOOLS_OFFSET, label: 'Offset Shapes', group: 'Tools', defaultHotkey: 'Alt+o', editable: true },
   { id: APP_COMMANDS.TOOLS_BOOLEAN_WELD, label: 'Weld Shapes', group: 'Tools', defaultHotkey: 'Ctrl+w', editable: true },

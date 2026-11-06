@@ -115,7 +115,7 @@ beambench-cli variable-text batch --input batch.json --json
 
 `library.json` can contain `{"path":"art.bbart","name":"Workshop art"}`. `csv.json` contains `{"path":"names.csv"}`. File paths in these command inputs are resolved relative to the CLI's working directory, including output files that do not yet exist.
 
-For variable-text preview, supply `object_id` and `config`. Batch generation also takes `offset_step`. Obtain a config example from `agent workflows`, set `source.totalCopies`, and customize its template and CSV data. Preview returns the resolved strings; batch creates editable copies and advances the source in one undo step. The standalone CSV loader returns `headers` and `rows`.
+For variable-text preview, supply `object_id` and `config`. Batch generation also takes `offset_step`. Obtain a config example from `agent workflows`, set `source.totalCopies`, and customize its template and CSV data. Choose 1 to 1000 copies. Preview returns the resolved strings; batch creates fixed editable text copies and advances the source in one undo step. Optional `offset_step_y` supplies independent vertical spacing; omitting it preserves the existing diagonal `offset_step` behavior. The standalone CSV loader returns `headers` and `rows`.
 
 Art-library commands support external files, editable selection snapshots, loading/saving, names/categories/tags, thumbnails, moving or copying items, and insertion at explicit coordinates. Use the returned `library_id` and item `id` for subsequent commands.
 
