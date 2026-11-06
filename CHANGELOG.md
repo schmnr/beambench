@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Remove consecutive duplicate rapid moves from generated GRBL G-code.
+
 ## 0.2.40
 
 - Add desktop controls for serial numbers, date/time text and CSV personalization

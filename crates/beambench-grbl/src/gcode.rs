@@ -304,12 +304,23 @@ pub fn generate_gcode(
 struct LineSink<'a> {
     write: &'a mut dyn FnMut(String) -> Result<(), GrblError>,
     error: Option<GrblError>,
+    last_rapid: Option<String>,
 }
 impl LineSink<'_> {
     fn push(&mut self, line: String) {
+        self.last_rapid = None;
         if self.error.is_none() {
             self.error = (self.write)(line).err();
         }
+    }
+    /// Suppress only consecutive identical generated absolute rapids. Any
+    /// intervening output, including custom G-code, invalidates the match.
+    fn push_rapid(&mut self, line: String) {
+        if self.last_rapid.as_ref() == Some(&line) {
+            return;
+        }
+        self.push(line.clone());
+        self.last_rapid = Some(line);
     }
     fn check(&mut self) -> Result<(), GrblError> {
         self.error.take().map_or(Ok(()), Err)
@@ -324,7 +335,11 @@ pub fn generate_gcode_to(
     write: &mut dyn FnMut(String) -> Result<(), GrblError>,
 ) -> Result<(), GrblError> {
     validate_rotary_config(config)?;
-    let mut lines = LineSink { write, error: None };
+    let mut lines = LineSink {
+        write,
+        error: None,
+        last_rapid: None,
+    };
     for line in ["G90", "G21", "M5"] {
         lines.push(line.into());
     }
@@ -411,15 +426,17 @@ pub fn generate_gcode_to(
     // Postamble
     lines.push("M5".to_string()); // Laser off
     match config.finish_position {
-        FinishPosition::Origin if config.rotary.is_none() => lines.push("G0 X0 Y0".to_string()),
+        FinishPosition::Origin if config.rotary.is_none() => {
+            lines.push_rapid("G0 X0 Y0".to_string())
+        }
         FinishPosition::Origin => {
-            lines.push(mapped_motion("G0", Point2D::zero(), None, "", config))
+            lines.push_rapid(mapped_motion("G0", Point2D::zero(), None, "", config))
         }
         FinishPosition::DontMove => { /* no movement command */ }
         FinishPosition::CustomXY => {
             let x = config.finish_x.unwrap_or(0.0);
             let y = config.finish_y.unwrap_or(0.0);
-            lines.push(mapped_motion("G0", Point2D::new(x, y), None, "", config));
+            lines.push_rapid(mapped_motion("G0", Point2D::new(x, y), None, "", config));
         }
     }
 
@@ -867,13 +884,13 @@ fn emit_raster_scanline(
     let mut need_feed = overscan_mm <= 0.0;
     if overscan_mm > 0.0 {
         if config.use_g0_for_overscan {
-            lines.push(geometry.rapid_move(overscan_start, config));
+            lines.push_rapid(geometry.rapid_move(overscan_start, config));
         } else {
             lines.push(geometry.approach_move(overscan_start, speed_mm_min, config));
         }
         lines.push(geometry.feed_move(row_start, Some(speed_mm_min), 0, config));
     } else {
-        lines.push(geometry.rapid_move(row_start, config));
+        lines.push_rapid(geometry.rapid_move(row_start, config));
     }
 
     let mut current_pos = row_start;
@@ -957,7 +974,7 @@ fn generate_segment(
 ) -> Result<(), GrblError> {
     match segment {
         PlanSegment::Travel { end, .. } => {
-            lines.push(mapped_motion("G0", *end, None, "", config));
+            lines.push_rapid(mapped_motion("G0", *end, None, "", config));
         }
         PlanSegment::Vector {
             polyline,
@@ -975,7 +992,7 @@ fn generate_segment(
             let emission_polyline = vector_points_for_emission(polyline, *closed);
 
             // Rapid move to start
-            lines.push(mapped_motion("G0", emission_polyline[0], None, "", config));
+            lines.push_rapid(mapped_motion("G0", emission_polyline[0], None, "", config));
 
             // S-value: power_percent scaled to configured max
             let s_value = percent_to_s_value(*power_percent, config);
@@ -1058,7 +1075,13 @@ fn generate_segment(
                             remaining_off -= advance;
                             let nx = p0.x + ux * traveled;
                             let ny = p0.y + uy * traveled;
-                            lines.push(mapped_motion("G0", Point2D::new(nx, ny), None, "", config));
+                            lines.push_rapid(mapped_motion(
+                                "G0",
+                                Point2D::new(nx, ny),
+                                None,
+                                "",
+                                config,
+                            ));
 
                             if remaining_off < 1e-9 {
                                 // Transition to on-phase
@@ -1102,7 +1125,7 @@ fn generate_segment(
             }
 
             // Rapid move to start
-            lines.push(mapped_motion("G0", path[0], None, "", config));
+            lines.push_rapid(mapped_motion("G0", path[0], None, "", config));
 
             let laser_on = *power_percent > 0.0;
             let s_value = percent_to_s_value(*power_percent, config);
@@ -1542,6 +1565,119 @@ mod tests {
         }]);
         let gcode = generate_gcode(&plan, &GcodeConfig::default()).unwrap();
         assert!(gcode.contains(&"G0 X10.000 Y20.000".to_string()));
+    }
+
+    #[test]
+    fn travel_between_closed_vectors_emits_one_rapid_and_preserves_cuts() {
+        let square = |x| PlanSegment::Vector {
+            polyline: vec![
+                Point2D::new(x, 5.0),
+                Point2D::new(x + 10.0, 5.0),
+                Point2D::new(x + 10.0, 15.0),
+                Point2D::new(x, 15.0),
+            ],
+            closed: true,
+            power_percent: 80.0,
+            speed_mm_min: 1000.0,
+            layer_id: "l1".to_string(),
+            cut_entry_id: String::new(),
+            perforation_enabled: false,
+            perforation_on_ms: 0.0,
+            perforation_off_ms: 0.0,
+            source_object_id: None,
+            source_subpath_index: None,
+        };
+        let plan = make_plan(vec![
+            square(5.0),
+            PlanSegment::Travel {
+                start: Point2D::new(5.0, 5.0),
+                end: Point2D::new(25.0, 5.0),
+            },
+            square(25.0),
+        ]);
+        let config = GcodeConfig {
+            finish_position: FinishPosition::DontMove,
+            ..Default::default()
+        };
+        let expected = [
+            "G90",
+            "G21",
+            "M5",
+            "G0 X5.000 Y5.000",
+            "M4 S800",
+            "G1 X15.000 Y5.000 F1000",
+            "G1 X15.000 Y15.000 F1000",
+            "G1 X5.000 Y15.000 F1000",
+            "G1 X5.000 Y5.000 F1000",
+            "M5",
+            "G0 X25.000 Y5.000",
+            "M4 S800",
+            "G1 X35.000 Y5.000 F1000",
+            "G1 X35.000 Y15.000 F1000",
+            "G1 X25.000 Y15.000 F1000",
+            "G1 X25.000 Y5.000 F1000",
+            "M5",
+            "M5",
+        ];
+        assert_eq!(generate_gcode(&plan, &config).unwrap(), expected);
+        for mut spool in [
+            crate::GcodeSpool::generate(&plan, &config).unwrap(),
+            crate::GcodeSpool::generate_for_file(&plan, &config).unwrap(),
+        ] {
+            let mut bytes = Vec::new();
+            spool.copy_to(&mut bytes).unwrap();
+            assert_eq!(bytes, expected.join("\n").as_bytes());
+        }
+    }
+
+    #[test]
+    fn vector_keeps_start_rapid_after_travel_to_a_different_point() {
+        let plan = make_plan(vec![
+            PlanSegment::Travel {
+                start: Point2D::zero(),
+                end: Point2D::new(99.0, 99.0),
+            },
+            z_test_vector("entry", 5.0),
+        ]);
+        let gcode = generate_gcode(&plan, &GcodeConfig::default()).unwrap();
+        assert!(
+            gcode
+                .windows(3)
+                .any(|lines| lines == ["G0 X99.000 Y99.000", "G0 X0.000 Y5.000", "M4 S500"])
+        );
+    }
+
+    #[test]
+    fn vector_keeps_start_rapid_after_custom_air_assist_motion() {
+        let plan = make_plan(vec![
+            PlanSegment::Travel {
+                start: Point2D::zero(),
+                end: Point2D::new(0.0, 5.0),
+            },
+            z_test_vector("entry", 5.0),
+        ]);
+        for air_on in ["G0 X99 Y99", "G91\nG0 X1\nG0 X1"] {
+            let config = GcodeConfig {
+                air_assist_cut_entry_ids: vec!["entry".into()],
+                air_assist_on_gcode: air_on.into(),
+                ..Default::default()
+            };
+            let gcode = generate_gcode(&plan, &config).unwrap();
+            assert_eq!(
+                gcode
+                    .iter()
+                    .filter(|line| *line == "G0 X0.000 Y5.000")
+                    .count(),
+                2,
+                "Custom motion requires repositioning before cutting: {gcode:?}"
+            );
+            assert!(gcode.join("\n").contains(air_on));
+            assert!(
+                gcode
+                    .windows(2)
+                    .any(|lines| lines == ["G0 X0.000 Y5.000", "M4 S500"])
+            );
+        }
     }
 
     #[test]
@@ -4148,6 +4284,7 @@ mod tests {
                     Ok(())
                 },
                 error: None,
+                last_rapid: None,
             },
             &segment,
             &config,
@@ -4227,6 +4364,7 @@ mod tests {
                     Ok(())
                 },
                 error: None,
+                last_rapid: None,
             },
             &segment,
             &config,
