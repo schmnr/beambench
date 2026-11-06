@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+## 0.2.40
+
+- Add desktop controls for serial numbers, date/time text and CSV personalization
+  under Tools > Personalize Text and Text Properties. Preview each result, choose
+  rows or copy counts, and set horizontal and vertical spacing before generating
+  editable text copies. Undo or redo the complete batch in one step.
+- Keep CSV data with the project, validate headers and row ranges, and preserve
+  quoted, multiline and Unicode values. Generated serial numbers and dates stay
+  fixed while the original text retains its reusable personalization settings.
+- Fix Copy Along Path opening without its options from the native desktop menu.
+  Use the existing controls to choose copies and rotation along a guide.
+- Fix Art Library saves reporting a thumbnail error after artwork was already
+  saved. Refresh saved artwork correctly and restore missing vector thumbnails.
+
 ## 0.2.39
 
 - Retain confirmed framing requests, rejection reasons and command history in
