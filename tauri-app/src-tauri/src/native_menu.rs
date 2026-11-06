@@ -1790,6 +1790,8 @@ impl NativeMenuLabels {
             .get(english)
             .cloned()
             .unwrap_or_else(|| english.to_string())
+            // Menu labels are plain text; Muda treats a single & as a mnemonic.
+            .replace('&', "&&")
     }
 }
 
@@ -2380,6 +2382,19 @@ fn next_accelerator(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn native_menu_labels_escape_literal_ampersands() {
+        let title = "Tutorials & Practice Files";
+        assert_eq!(
+            NativeMenuLabels::default().resolve(title),
+            "Tutorials && Practice Files"
+        );
+        let labels = NativeMenuLabels {
+            by_title: HashMap::from([(title.into(), "Tutoriels & fichiers d'exercice".into())]),
+        };
+        assert_eq!(labels.resolve(title), "Tutoriels && fichiers d'exercice");
+    }
 
     #[derive(Debug, PartialEq, Eq)]
     struct MenuSnapshotRow {
