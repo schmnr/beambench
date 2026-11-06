@@ -305,6 +305,7 @@ struct LineSink<'a> {
     write: &'a mut dyn FnMut(String) -> Result<(), GrblError>,
     error: Option<GrblError>,
     last_rapid: Option<String>,
+    frame_travel_feed: Option<f64>,
 }
 impl LineSink<'_> {
     fn push(&mut self, line: String) {
@@ -335,10 +336,29 @@ pub fn generate_gcode_to(
     write: &mut dyn FnMut(String) -> Result<(), GrblError>,
 ) -> Result<(), GrblError> {
     validate_rotary_config(config)?;
+    let mut frame_feed: Option<f64> = None;
+    for segment in &plan.segments {
+        if let PlanSegment::Frame { speed_mm_min, .. } = segment {
+            if !speed_mm_min.is_finite() || *speed_mm_min <= 0.0 {
+                return Err(GrblError::GcodeError(
+                    "Framing speed must be positive and finite".into(),
+                ));
+            }
+            frame_feed = Some(frame_feed.map_or(*speed_mm_min, |feed| feed.min(*speed_mm_min)));
+        }
+    }
+    let frame_only = frame_feed.is_some()
+        && plan.segments.iter().all(|segment| {
+            matches!(
+                segment,
+                PlanSegment::Travel { .. } | PlanSegment::Frame { .. }
+            )
+        });
     let mut lines = LineSink {
         write,
         error: None,
         last_rapid: None,
+        frame_travel_feed: frame_feed.filter(|_| frame_only),
     };
     for line in ["G90", "G21", "M5"] {
         lines.push(line.into());
@@ -369,7 +389,16 @@ pub fn generate_gcode_to(
     let mut current_absolute_z: Option<f64> = None;
     let mut current_relative_z_offset = 0.0;
 
-    for segment in &plan.segments {
+    for (index, segment) in plan.segments.iter().enumerate() {
+        // Frame emits its own controlled approach. The planner's initial
+        // Travel only describes that same endpoint for preview and bounds.
+        if frame_only
+            && index == 0
+            && let PlanSegment::Travel { end, .. } = segment
+            && matches!(plan.segments.get(1), Some(PlanSegment::Frame { path, .. }) if path.first() == Some(end))
+        {
+            continue;
+        }
         let wants_air_assist =
             segment_cut_entry_id(segment).is_some_and(|id| air_assist_cut_entry_ids.contains(id));
         if wants_air_assist && !air_assist_active {
@@ -426,6 +455,9 @@ pub fn generate_gcode_to(
     // Postamble
     lines.push("M5".to_string()); // Laser off
     match config.finish_position {
+        FinishPosition::Origin if frame_only => {
+            emit_frame_approach(&mut lines, Point2D::zero(), frame_feed.unwrap(), config);
+        }
         FinishPosition::Origin if config.rotary.is_none() => {
             lines.push_rapid("G0 X0 Y0".to_string())
         }
@@ -436,7 +468,11 @@ pub fn generate_gcode_to(
         FinishPosition::CustomXY => {
             let x = config.finish_x.unwrap_or(0.0);
             let y = config.finish_y.unwrap_or(0.0);
-            lines.push_rapid(mapped_motion("G0", Point2D::new(x, y), None, "", config));
+            if let Some(feed) = lines.frame_travel_feed {
+                emit_frame_approach(&mut lines, Point2D::new(x, y), feed, config);
+            } else {
+                lines.push_rapid(mapped_motion("G0", Point2D::new(x, y), None, "", config));
+            }
         }
     }
 
@@ -967,6 +1003,16 @@ fn emit_raster_scanline(
     }
 }
 
+/// The live starting position is not part of an exported plan. Use a
+/// conservative rotary feed for the unknown approach direction as well.
+fn emit_frame_approach(lines: &mut LineSink<'_>, end: Point2D, feed: f64, config: &GcodeConfig) {
+    let feed = config
+        .rotary
+        .map_or(feed, |rotary| feed * rotary.command_scale.abs().min(1.0));
+    lines.push("M5".into());
+    lines.push(mapped_motion("G1", end, Some(feed), " S0", config));
+}
+
 fn generate_segment(
     lines: &mut LineSink<'_>,
     segment: &PlanSegment,
@@ -974,7 +1020,11 @@ fn generate_segment(
 ) -> Result<(), GrblError> {
     match segment {
         PlanSegment::Travel { end, .. } => {
-            lines.push_rapid(mapped_motion("G0", *end, None, "", config));
+            if let Some(feed) = lines.frame_travel_feed {
+                emit_frame_approach(lines, *end, feed, config);
+            } else {
+                lines.push_rapid(mapped_motion("G0", *end, None, "", config));
+            }
         }
         PlanSegment::Vector {
             polyline,
@@ -1124,8 +1174,7 @@ fn generate_segment(
                 return Ok(());
             }
 
-            // Rapid move to start
-            lines.push_rapid(mapped_motion("G0", path[0], None, "", config));
+            emit_frame_approach(lines, path[0], *speed_mm_min, config);
 
             let laser_on = *power_percent > 0.0;
             let s_value = percent_to_s_value(*power_percent, config);
@@ -2784,6 +2833,110 @@ mod tests {
     }
 
     #[test]
+    fn framing_approach_return_and_finish_use_the_frame_feed_with_laser_off() {
+        let bounds =
+            beambench_common::Bounds::new(Point2D::new(100.0, 100.0), Point2D::new(300.0, 350.0));
+        for constant_power in [false, true] {
+            let mut plan = beambench_planner::build_frame_plan(&bounds, 5.0, 1_000.0);
+            plan.segments.push(PlanSegment::Travel {
+                start: Point2D::new(100.0, 100.0),
+                end: Point2D::new(200.0, 200.0),
+            });
+            let config = GcodeConfig {
+                use_constant_power: constant_power,
+                gcode_prefix: "G91\nG20\nM3 S1000".into(),
+                finish_position: FinishPosition::CustomXY,
+                finish_x: Some(25.0),
+                finish_y: Some(30.0),
+                ..GcodeConfig::default()
+            };
+            let lines = generate_gcode(&plan, &config).unwrap();
+            assert!(
+                !lines.iter().any(|line| line.starts_with("G0 ")),
+                "{lines:?}"
+            );
+            for line in lines.iter().filter(|line| line.starts_with("G1 ")) {
+                assert!(line.contains(" F1000"), "{line}");
+            }
+            for expected in [
+                "G1 X100.000 Y100.000 F1000 S0",
+                "G1 X200.000 Y200.000 F1000 S0",
+                "G1 X25.000 Y30.000 F1000 S0",
+            ] {
+                assert!(
+                    lines.windows(2).any(|pair| pair == ["M5", expected]),
+                    "{lines:?}"
+                );
+            }
+            assert_eq!(
+                lines
+                    .iter()
+                    .filter(|line| line.contains("X100.000 Y100.000 F1000 S0"))
+                    .count(),
+                1
+            );
+            assert!(lines.contains(&format!("{} S50", if constant_power { "M3" } else { "M4" })));
+            let mut streamed = Vec::new();
+            generate_gcode_to(&plan, &config, &mut |line| {
+                streamed.push(line);
+                Ok(())
+            })
+            .unwrap();
+            assert_eq!(streamed, lines);
+        }
+    }
+
+    #[test]
+    fn framing_rejects_invalid_speed_before_emitting_any_commands() {
+        for feed in [0.0, -1.0, f64::NAN, f64::INFINITY] {
+            let plan = make_plan(vec![PlanSegment::Frame {
+                path: vec![Point2D::zero(), Point2D::new(10.0, 0.0)],
+                power_percent: 0.0,
+                speed_mm_min: feed,
+            }]);
+            let mut lines = Vec::new();
+            assert!(
+                generate_gcode_to(&plan, &GcodeConfig::default(), &mut |line| {
+                    lines.push(line);
+                    Ok(())
+                })
+                .is_err()
+            );
+            assert!(lines.is_empty());
+        }
+    }
+
+    #[test]
+    fn rotary_frame_approach_conservatively_limits_unknown_travel_direction() {
+        let plan = make_plan(vec![PlanSegment::Frame {
+            path: vec![Point2D::new(100.0, 100.0), Point2D::new(100.0, 120.0)],
+            power_percent: 0.0,
+            speed_mm_min: 1_000.0,
+        }]);
+        let config = GcodeConfig {
+            finish_position: FinishPosition::DontMove,
+            rotary: Some(RotaryGcodeConfig {
+                axis: RotaryAxis::Y,
+                command_scale: 0.25,
+                surface_origin_x_mm: 0.0,
+                surface_origin_y_mm: 0.0,
+                axis_origin_mm: 0.0,
+            }),
+            ..GcodeConfig::default()
+        };
+        let lines = generate_gcode(&plan, &config).unwrap();
+        assert!(
+            lines.contains(&"G1 X100.000 Y25.000 F250 S0".into()),
+            "{lines:?}"
+        );
+        assert!(
+            lines.contains(&"G1 X100.000 Y30.000 F250".into()),
+            "{lines:?}"
+        );
+        assert!(!lines.iter().any(|line| line.starts_with("G0 ")));
+    }
+
+    #[test]
     fn frame_segment_generates_outline() {
         let plan = make_plan(vec![PlanSegment::Frame {
             path: vec![
@@ -2797,7 +2950,7 @@ mod tests {
             speed_mm_min: 3000.0,
         }]);
         let gcode = generate_gcode(&plan, &GcodeConfig::default()).unwrap();
-        assert!(gcode.contains(&"G0 X0.000 Y0.000".to_string()));
+        assert!(gcode.contains(&"G1 X0.000 Y0.000 F3000 S0".to_string()));
         assert!(gcode.contains(&"M4 S50".to_string())); // 5% = 50
         assert!(gcode.contains(&"G1 X50.000 Y0.000 F3000".to_string()));
     }
@@ -2819,19 +2972,24 @@ mod tests {
         };
         let gcode = generate_gcode(&plan, &config).unwrap();
 
-        assert!(gcode.contains(&"G0 X0.000 Y0.000".to_string()));
+        assert!(gcode.contains(&"G1 X0.000 Y0.000 F3000 S0".to_string()));
         assert!(gcode.contains(&"G1 X50.000 Y0.000 F3000".to_string()));
         assert!(
             !gcode
                 .iter()
                 .any(|line| line.starts_with("M3 ") || line.starts_with("M4 "))
         );
+        assert!(!gcode.iter().any(|line| {
+            line.starts_with("G1 ")
+                && line
+                    .split_whitespace()
+                    .any(|word| word.starts_with('S') && word != "S0")
+        }));
         assert!(
-            !gcode
-                .iter()
-                .any(|line| line.starts_with("G1 ") && line.contains(" S"))
+            gcode
+                .windows(2)
+                .any(|pair| { pair[0] == "M5" && pair[1] == "G1 X0.000 Y0.000 F3000 S0" })
         );
-        assert_eq!(gcode.iter().filter(|line| line.as_str() == "M5").count(), 3);
     }
 
     #[test]
@@ -4285,6 +4443,7 @@ mod tests {
                 },
                 error: None,
                 last_rapid: None,
+                frame_travel_feed: None,
             },
             &segment,
             &config,
@@ -4365,6 +4524,7 @@ mod tests {
                 },
                 error: None,
                 last_rapid: None,
+                frame_travel_feed: None,
             },
             &segment,
             &config,

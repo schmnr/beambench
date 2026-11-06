@@ -3,6 +3,12 @@
 ## Unreleased
 
 - Remove consecutive duplicate rapid moves from generated GRBL G-code.
+- Use the selected framing speed for the laser-off approach and return moves,
+  including continuous frames, instead of rapid travel.
+- Start frames at the nearest point on their perimeter so edge and corner job
+  origins close each lap without retracing a side. Stop and Cancel remain immediate.
+- Apply image and object transforms to job-origin bounds so scaled artwork
+  frames and engraves at the intended Current Position or User Origin.
 
 ## 0.2.40
 

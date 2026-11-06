@@ -1,7 +1,8 @@
 use crate::variable_text::VariableTextConfig;
 use beambench_common::markers::{LayerMarker, ObjectMarker};
 use beambench_common::{
-    BarcodeOptions, BarcodeType, Bounds, Id, RasterAdjustments, Transform2D, TransformLocks,
+    BarcodeOptions, BarcodeType, Bounds, Id, Point2D, RasterAdjustments, Transform2D,
+    TransformLocks,
 };
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -331,6 +332,26 @@ where
 }
 
 impl ProjectObject {
+    /// Full object bounds in canvas space after its affine transform. Keep
+    /// raster margins so framing and engraving use the same placement anchor.
+    pub fn world_bounds(&self) -> Bounds {
+        let center = Point2D::new(
+            (self.bounds.min.x + self.bounds.max.x) / 2.0,
+            (self.bounds.min.y + self.bounds.max.y) / 2.0,
+        );
+        [
+            self.bounds.min,
+            Point2D::new(self.bounds.max.x, self.bounds.min.y),
+            self.bounds.max,
+            Point2D::new(self.bounds.min.x, self.bounds.max.y),
+        ]
+        .into_iter()
+        .map(|point| self.transform.apply_around_center(&point, &center))
+        .map(|point| Bounds::new(point, point))
+        .reduce(|a, b| a.union(&b))
+        .unwrap()
+    }
+
     pub fn new(
         name: impl Into<String>,
         layer_id: LayerRef,

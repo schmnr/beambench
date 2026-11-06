@@ -4398,7 +4398,7 @@ pub fn calculate_job_origin_bounds(project: &Project) -> Option<Bounds> {
         .objects
         .iter()
         .filter(|object| object_contributes_to_job(project, object))
-        .map(|object| object.bounds)
+        .map(ProjectObject::world_bounds)
         .reduce(|bounds, object_bounds| bounds.union(&object_bounds))
 }
 
@@ -7907,6 +7907,45 @@ mod tests {
             format: RasterPixelFormat::Grayscale8,
             line_interval_mm: 1.0,
             x_pixel_mm: 1.0,
+        }
+    }
+
+    #[test]
+    fn raster_job_origin_bounds_follow_transformed_extent_before_pixel_padding() {
+        for transform in [
+            Transform2D::scale(0.5, 0.5),
+            Transform2D::scale(-1.0, 1.0),
+            Transform2D::rotate(std::f64::consts::FRAC_PI_2),
+            Transform2D::shear(1.0, 0.0),
+        ] {
+            let mut project = Project::new("Transformed raster origin");
+            let layer = project.ensure_default_layer();
+            let mut object = transformed_raster_test_object(transform);
+            object.layer_id = layer;
+            let (_, baked_bounds) =
+                bake_raster_object_transform(&asymmetric_test_raster(), &object).unwrap();
+            project.add_object(object);
+            let origin_bounds = calculate_job_origin_bounds(&project).unwrap();
+            for (actual, expected) in [
+                (origin_bounds.min.x, baked_bounds.min.x),
+                (origin_bounds.min.y, baked_bounds.min.y),
+            ] {
+                assert!(
+                    (actual - expected).abs() < 1e-9,
+                    "{transform:?}: {origin_bounds:?} vs {baked_bounds:?}"
+                );
+            }
+            // Rasterization rounds up to whole pixels at the far edges;
+            // job placement keeps the full geometric image rectangle.
+            for padding in [
+                baked_bounds.max.x - origin_bounds.max.x,
+                baked_bounds.max.y - origin_bounds.max.y,
+            ] {
+                assert!(
+                    (-1e-9..1.0 + 1e-9).contains(&padding),
+                    "{transform:?}: {origin_bounds:?} vs {baked_bounds:?}"
+                );
+            }
         }
     }
 

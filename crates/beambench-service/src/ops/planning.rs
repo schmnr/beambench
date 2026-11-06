@@ -96,7 +96,7 @@ fn active_profile(ctx: &ServiceContext) -> ServiceResult<MachineProfile> {
 fn bounds_of_objects(objects: &[ProjectObject]) -> Option<Bounds> {
     objects
         .iter()
-        .map(|object| object.bounds)
+        .map(ProjectObject::world_bounds)
         .reduce(|acc, bounds| acc.union(&bounds))
 }
 

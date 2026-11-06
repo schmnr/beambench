@@ -2675,12 +2675,29 @@ mod tests {
 
     #[test]
     fn blazex_preset_keeps_connection_motion_and_accessories_explicit() {
+        let _guard = PersistTestGuard::new();
+        let ctx = ServiceContext::with_settings(AppSettings::default());
+        let created = save_profile(&ctx, sample_input()).unwrap();
         let preset = profile_presets()
             .into_iter()
             .find(|p| p.id == "blazex_m3_10w")
             .unwrap();
-        let mut profile = MachineProfile::default();
-        apply_preset_fields(&mut profile, &preset);
+        assert_eq!(preset.name, "BlazeX M3 (10W)");
+        assert!(
+            !profile_preset_diff(&ctx, created.id, preset.id)
+                .unwrap()
+                .is_empty()
+        );
+        let applied = apply_profile_preset(&ctx, created.id, preset.id).unwrap();
+        assert!(applied.applied);
+        let mut profile = get_profile(&ctx, ProfileLookup::Id(created.id)).unwrap();
+        assert_eq!(profile.preset_id.as_deref(), Some(preset.id));
+        assert_eq!(profile.preset_version, Some(preset.version));
+        assert!(
+            profile_preset_diff(&ctx, created.id, preset.id)
+                .unwrap()
+                .is_empty()
+        );
         assert_eq!(
             (profile.bed_width_mm, profile.bed_height_mm),
             (200.0, 150.0)
