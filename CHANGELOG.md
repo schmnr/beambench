@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.2.41
+
 - Add Help > Tutorials & Practice Files, linking to the Beam Bench lessons,
   videos and practice downloads from both desktop menus in all 23 languages.
 - Remove consecutive duplicate rapid moves from generated GRBL G-code.
