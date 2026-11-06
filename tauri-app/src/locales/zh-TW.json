@@ -261,6 +261,7 @@
     "help": {
       "label": "說明",
       "quick_help": "快速說明",
+      "tutorials": "教學與練習檔案",
       "report_bug": "回報錯誤...",
       "about": "關於 Beam Bench",
       "about_with_ellipsis": "關於梁凳...",

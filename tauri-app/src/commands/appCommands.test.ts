@@ -7,6 +7,7 @@ import {
   isNativeMenuOwnedShortcut,
   nativeMenuShortcutKey,
   QUICK_HELP_DOCS_URL,
+  TUTORIALS_URL,
   setAppCommandDialogActions,
 } from './appCommands';
 import { persistenceService } from '../services/persistenceService';
@@ -109,12 +110,16 @@ describe('app command bridge', () => {
     expect(requestWindowClose).toHaveBeenCalledOnce();
   });
 
-  it('opens docs for Quick Help', async () => {
+  it.each([
+    [APP_COMMANDS.HELP_QUICK_HELP, QUICK_HELP_DOCS_URL],
+    [APP_COMMANDS.HELP_TUTORIALS, TUTORIALS_URL],
+  ])('opens the correct help destination for %s without a project', async (command, url) => {
+    useProjectStore.setState({ project: null });
     const openExternalUrl = vi.spyOn(appService, 'openExternalUrl').mockResolvedValue(undefined);
 
-    await executeAppCommand(APP_COMMANDS.HELP_QUICK_HELP);
+    await executeAppCommand(command);
 
-    expect(openExternalUrl).toHaveBeenCalledWith(QUICK_HELP_DOCS_URL);
+    expect(openExternalUrl).toHaveBeenCalledWith(url);
   });
 
   it('executes Save Processed Bitmap for a single raster selection', async () => {

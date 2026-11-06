@@ -670,14 +670,18 @@ describe('MenuBar', () => {
     expect(screen.getByText('Report a Bug...')).toBeDefined();
   });
 
-  it('opens docs from Quick Help', () => {
+  it.each([
+    ['Quick Help', 'https://beambench.com/docs'],
+    ['Tutorials & Practice Files', 'https://beambench.com/learn'],
+  ])('opens the correct destination from Help > %s', (label, url) => {
     const openExternalUrl = vi.spyOn(appService, 'openExternalUrl').mockResolvedValue(undefined);
 
     render(<MenuBar />);
     fireEvent.click(screen.getByText('Help'));
-    fireEvent.click(screen.getByText('Quick Help'));
+    fireEvent.click(screen.getByText(label));
 
-    expect(openExternalUrl).toHaveBeenCalledWith('https://beambench.com/docs');
+    expect(openExternalUrl).toHaveBeenCalledWith(url);
+    expect(screen.queryByText(label)).toBeNull();
   });
 
   it('captures the launch-time layer for Create Barcode', async () => {

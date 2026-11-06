@@ -261,6 +261,7 @@
     "help": {
       "label": "Βοήθεια",
       "quick_help": "Γρήγορη βοήθεια",
+      "tutorials": "Οδηγοί και αρχεία εξάσκησης",
       "report_bug": "Αναφορά σφάλματος...",
       "about": "Σχετικά με το Beam Bench",
       "about_with_ellipsis": "Σχετικά με το Beam Bench...",

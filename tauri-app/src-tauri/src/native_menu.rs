@@ -231,6 +231,7 @@ pub mod command {
     pub const LANGUAGE_ZH_TW: &str = "language.zh-TW";
 
     pub const HELP_QUICK_HELP: &str = "help.quick_help";
+    pub const HELP_TUTORIALS: &str = "help.tutorials";
     pub const HELP_REPORT_BUG: &str = "help.report_bug";
     pub const HELP_ABOUT: &str = "help.about";
 }
@@ -1703,6 +1704,12 @@ const HELP_MENU: &[NativeMenuEntry] = &[
         id: command::HELP_QUICK_HELP,
         title: "Quick Help",
         accelerator: Some("F1"),
+        enabled: true,
+    },
+    NativeMenuEntry::Command {
+        id: command::HELP_TUTORIALS,
+        title: "Tutorials & Practice Files",
+        accelerator: None,
         enabled: true,
     },
     NativeMenuEntry::Command {

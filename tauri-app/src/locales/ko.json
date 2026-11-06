@@ -261,6 +261,7 @@
     "help": {
       "label": "도움말",
       "quick_help": "빠른 도움말",
+      "tutorials": "튜토리얼 및 연습 파일",
       "report_bug": "버그 신고...",
       "about": "Beam Bench 정보",
       "about_with_ellipsis": "빔 벤치에 대하여...",

@@ -261,6 +261,7 @@
     "help": {
       "label": "Справка",
       "quick_help": "Быстрая справка",
+      "tutorials": "Уроки и файлы для практики",
       "report_bug": "Сообщить об ошибке...",
       "about": "О Beam Bench",
       "about_with_ellipsis": "О Beam Bench...",

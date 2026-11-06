@@ -261,6 +261,7 @@
     "help": {
       "label": "Hjälp",
       "quick_help": "Snabbhjälp",
+      "tutorials": "Guider och övningsfiler",
       "report_bug": "Rapportera ett fel...",
       "about": "Om Beam Bench",
       "about_with_ellipsis": "Om Beam Bench...",

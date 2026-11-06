@@ -261,6 +261,7 @@
     "help": {
       "label": "Pomoc",
       "quick_help": "Szybka pomoc",
+      "tutorials": "Samouczki i pliki ćwiczeniowe",
       "report_bug": "Zgłoś błąd...",
       "about": "O programie Beam Bench",
       "about_with_ellipsis": "O ławce belkowej...",

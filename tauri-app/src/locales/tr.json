@@ -261,6 +261,7 @@
     "help": {
       "label": "Yardım",
       "quick_help": "Hızlı yardım",
+      "tutorials": "Eğitimler ve alıştırma dosyaları",
       "report_bug": "Hata bildir...",
       "about": "Beam Bench hakkında",
       "about_with_ellipsis": "Beam Bench Hakkında...",

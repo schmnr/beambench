@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add Help > Tutorials & Practice Files, linking to the Beam Bench lessons,
+  videos and practice downloads from both desktop menus in all 23 languages.
 - Remove consecutive duplicate rapid moves from generated GRBL G-code.
 - Use the selected framing speed for the laser-off approach and return moves,
   including continuous frames, instead of rapid travel.

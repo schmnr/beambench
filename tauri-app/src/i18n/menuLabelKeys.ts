@@ -233,6 +233,7 @@ export const MENU_LABEL_KEYS = {
   'en-XA (Pseudo-locale)': 'menus.language.pseudo_locale',
   Help: 'menus.help.label',
   'Quick Help': 'menus.help.quick_help',
+  'Tutorials & Practice Files': 'menus.help.tutorials',
   'Report a Bug...': 'menus.help.report_bug',
   'Check for Updates...': 'menus.help.check_for_updates',
   'About Beam Bench': 'menus.help.about',
