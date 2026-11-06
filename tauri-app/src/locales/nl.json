@@ -261,6 +261,7 @@
     "help": {
       "label": "Help",
       "quick_help": "Snelle hulp",
+      "tutorials": "Handleidingen en oefenbestanden",
       "report_bug": "Bug melden...",
       "about": "Over Beam Bench",
       "about_with_ellipsis": "Over Beambank...",

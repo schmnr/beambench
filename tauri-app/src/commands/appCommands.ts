@@ -61,6 +61,7 @@ import {
 } from './windowMenuDefinitions';
 
 export const QUICK_HELP_DOCS_URL = 'https://beambench.com/docs';
+export const TUTORIALS_URL = 'https://beambench.com/learn';
 
 export interface AppCommandDialogActions {
   openAbout?: () => void;
@@ -519,6 +520,9 @@ export async function executeAppCommand(
       return;
     case APP_COMMANDS.HELP_QUICK_HELP:
       await runCommand(() => appService.openExternalUrl(QUICK_HELP_DOCS_URL));
+      return;
+    case APP_COMMANDS.HELP_TUTORIALS:
+      await runCommand(() => appService.openExternalUrl(TUTORIALS_URL));
       return;
     case APP_COMMANDS.APP_PREFERENCES:
       dialogActions.openSettings?.();

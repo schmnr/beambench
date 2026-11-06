@@ -261,6 +261,7 @@
     "help": {
       "label": "Nápověda",
       "quick_help": "Rychlá nápověda",
+      "tutorials": "Návody a cvičné soubory",
       "report_bug": "Nahlásit chybu...",
       "about": "O aplikaci Beam Bench",
       "about_with_ellipsis": "O Beam Bench...",

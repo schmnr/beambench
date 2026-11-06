@@ -261,6 +261,7 @@
     "help": {
       "label": "Aide",
       "quick_help": "Aide rapide",
+      "tutorials": "Tutoriels et fichiers d'exercice",
       "report_bug": "Signaler un bug...",
       "about": "À propos de Beam Bench",
       "about_with_ellipsis": "À propos du banc de poutre...",

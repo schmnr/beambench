@@ -261,6 +261,7 @@
     "help": {
       "label": "Ohje",
       "quick_help": "Pikaohje",
+      "tutorials": "Oppaat ja harjoitustiedostot",
       "report_bug": "Ilmoita virheestä...",
       "about": "Tietoja Beam Benchistä",
       "about_with_ellipsis": "Tietoja Beam Benchistä...",

@@ -261,6 +261,7 @@
     "help": {
       "label": "Súgó",
       "quick_help": "Gyors súgó",
+      "tutorials": "Útmutatók és gyakorlófájlok",
       "report_bug": "Hiba jelentése...",
       "about": "A Beam Benchről",
       "about_with_ellipsis": "A Beam Benchről...",

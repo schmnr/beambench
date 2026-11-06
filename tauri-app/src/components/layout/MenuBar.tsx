@@ -1371,7 +1371,7 @@ export function MenuBar() {
           {ml("Help")}
         </button>
         {openMenu === 'help' && (
-          <div className="absolute top-full left-0 mt-0.5 bg-bb-panel border border-bb-border rounded shadow-lg py-1 min-w-[180px] z-50">
+          <div className="absolute top-full right-0 mt-0.5 bg-bb-panel border border-bb-border rounded shadow-lg py-1 min-w-[180px] w-max max-w-[calc(100vw-1rem)] z-50">
             <MenuItem
               label={ml("Quick Help")}
               shortcut={shortcutFor(APP_COMMANDS.HELP_QUICK_HELP)}
@@ -1379,6 +1379,10 @@ export function MenuBar() {
                 setOpenMenu(null);
                 void runMenuAsync(() => appService.openExternalUrl(QUICK_HELP_DOCS_URL));
               }}
+            />
+            <MenuItem
+              label={ml("Tutorials & Practice Files")}
+              onClick={() => { void handleAppCommand(APP_COMMANDS.HELP_TUTORIALS); }}
             />
             <MenuItem
               label={ml("Report a Bug...")}

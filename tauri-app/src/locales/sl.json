@@ -261,6 +261,7 @@
     "help": {
       "label": "Pomoč",
       "quick_help": "Hitra pomoč",
+      "tutorials": "Vodniki in datoteke za vajo",
       "report_bug": "Prijavi napako...",
       "about": "O programu Beam Bench",
       "about_with_ellipsis": "O Beam Bench ...",

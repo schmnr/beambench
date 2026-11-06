@@ -261,6 +261,7 @@
     "help": {
       "label": "Help",
       "quick_help": "Quick Help",
+      "tutorials": "Tutorials & Practice Files",
       "report_bug": "Report a Bug...",
       "about": "About Beam Bench",
       "check_for_updates": "Check for Updates...",

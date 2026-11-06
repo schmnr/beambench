@@ -225,6 +225,7 @@ export const APP_COMMANDS = {
   LANGUAGE_ZH_TW: 'language.zh-TW',
 
   HELP_QUICK_HELP: 'help.quick_help',
+  HELP_TUTORIALS: 'help.tutorials',
   HELP_REPORT_BUG: 'help.report_bug',
   HELP_ABOUT: 'help.about',
 } as const;

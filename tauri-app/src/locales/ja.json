@@ -261,6 +261,7 @@
     "help": {
       "label": "ヘルプ",
       "quick_help": "クイックヘルプ",
+      "tutorials": "チュートリアルと練習ファイル",
       "report_bug": "バグを報告...",
       "about": "Beam Bench について",
       "about_with_ellipsis": "ビームベンチについて・・・",

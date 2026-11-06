@@ -201,6 +201,7 @@ const COMMAND_DEFINITIONS: CommandDefinition[] = [
   { id: APP_COMMANDS.WINDOW_TOOLBAR_MAIN, label: 'Main', group: 'Window', editable: false },
   { id: APP_COMMANDS.WINDOW_TOOLBAR_TOOLS, label: 'Tools', group: 'Window', editable: false },
   { id: APP_COMMANDS.HELP_QUICK_HELP, label: 'Quick Help', group: 'Help', defaultHotkey: 'F1', editable: true },
+  { id: APP_COMMANDS.HELP_TUTORIALS, label: 'Tutorials & Practice Files', group: 'Help', editable: false },
 ];
 
 const COMMAND_LABEL_KEY_OVERRIDES: Partial<Record<AppCommandId, string>> = {
