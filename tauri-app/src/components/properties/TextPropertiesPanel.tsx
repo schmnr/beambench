@@ -192,7 +192,10 @@ export function TextPropertiesPanel({ objectId, data }: TextPropertiesPanelProps
           onClick={() => void (async () => {
             const projectId = useProjectStore.getState().project?.metadata.project_id;
             if (pendingContentSave.current && !await pendingContentSave.current) return;
-            if (useProjectStore.getState().project?.metadata.project_id === projectId) await executeAppCommand(APP_COMMANDS.TOOLS_PERSONALIZE_TEXT);
+            const current = useProjectStore.getState();
+            if (current.project?.metadata.project_id === projectId && current.selectedObjectIds.length === 1 && current.selectedObjectIds[0] === objectId) {
+              await executeAppCommand(APP_COMMANDS.TOOLS_PERSONALIZE_TEXT);
+            }
           })()}
           className="h-8 rounded-lg border border-bb-control-border bg-bb-input px-3 text-xs text-bb-text hover:bg-bb-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-bb-accent disabled:opacity-50"
         >

@@ -66,13 +66,13 @@ afterEach(() => {
 });
 
 describe('TextPropertiesPanel', () => {
-  it('waits for a pending content save before opening personalization', async () => {
+  it.each([false, true])('waits for content save and preserves its selection context: selection changed=%s', async (selectionChanged) => {
     const prior = useProjectStore.getState();
     const data = makeTextData();
     const object = makeProjectObject({ id: 't1', data });
     let finish!: (saved: boolean) => void;
     const updateObjectData = vi.fn(() => new Promise<boolean>((resolve) => { finish = resolve; }));
-    useProjectStore.setState({ project: makeProject({ objects: [object] }), selectedObjectIds: ['t1'], updateObjectData });
+    useProjectStore.setState({ project: makeProject({ objects: [object, makeProjectObject({ id: 'other', data })] }), selectedObjectIds: ['t1'], updateObjectData });
     const openPersonalizeText = vi.fn();
     const unregister = setAppCommandDialogActions({ openPersonalizeText });
     try {
@@ -81,8 +81,10 @@ describe('TextPropertiesPanel', () => {
       fireEvent.blur(screen.getByLabelText('Content'));
       fireEvent.click(screen.getByRole('button', { name: 'Personalize Text...' }));
       expect(openPersonalizeText).not.toHaveBeenCalled();
+      if (selectionChanged) act(() => useProjectStore.setState({ selectedObjectIds: ['other'] }));
       await act(async () => finish(true));
-      await waitFor(() => expect(openPersonalizeText).toHaveBeenCalledWith('t1'));
+      if (selectionChanged) expect(openPersonalizeText).not.toHaveBeenCalled();
+      else await waitFor(() => expect(openPersonalizeText).toHaveBeenCalledWith('t1'));
       expect(updateObjectData).toHaveBeenCalledOnce();
     } finally { cleanup(); unregister(); useProjectStore.setState(prior, true); }
   });
