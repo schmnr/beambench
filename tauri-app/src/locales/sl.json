@@ -3092,5 +3092,23 @@
     "connection_lost": "Connection lost",
     "disconnect_local": "Disconnect the laser from this computer before choosing a remote host.",
     "preview_title": "Host preview · {host}"
+  },
+  "personalization": {
+    "title": "Prilagodi besedilo...",
+    "create": "Ustvari kopije",
+    "load": "Naloži CSV...",
+    "first_row": "Prva podatkovna vrstica",
+    "date_format": "Oblika datuma",
+    "spacing_x": "Vodoravni razmik",
+    "spacing_y": "Navpični razmik",
+    "original": "Izvirno besedilo ostane kot predloga za ponovno uporabo.",
+    "preview_help": "Preverite rezultate. Kopije ohranijo nespremenljive vrednosti kot besedilo za urejanje.",
+    "date_help": "Datumi uporabljajo lokalni čas računalnika. Izberite obliko in dopolnite predlogo.",
+    "invalid": "Vnesite predlogo, od 1 do 1000 kopij in cela števila. Korak ne sme biti nič.",
+    "fields_error": "Preverite polja. Uporabite Serial, Date ali stolpec CSV.",
+    "rows_error": "Naložite CSV, izberite veljavne vrstice in vstavite stolpec v predlogo.",
+    "empty": "Nekateri rezultati so prazni. Preverite predlogo in vrstice CSV.",
+    "loading": "Priprava predogleda…",
+    "refresh_date": "Osveži datum in čas"
   }
 }

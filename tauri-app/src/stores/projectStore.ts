@@ -1,3 +1,5 @@
+import { variableTextService } from '../services/variableTextService';
+import type { VariableTextConfig } from '../types/variableText';
 import { libraryService, type LibraryFile, type LibraryProvider } from '../services/connectedLibraryService';
 import { isUserCancel } from '../utils/userCancel';
 import { create } from 'zustand';
@@ -489,6 +491,7 @@ interface ProjectStoreState {
   openProject: () => Promise<void>;
   openProjectFromPath: (filePath: string) => Promise<void>;
   loadAssetData: (assetId: string) => Promise<string>;
+  generatePersonalizedCopies: (objectId: string, config: VariableTextConfig, spacingX: number, spacingY: number) => Promise<boolean>;
   advanceAutoVariableText: () => Promise<boolean>;
   exportGcode: () => Promise<string | null>;
 
@@ -1543,6 +1546,29 @@ export const useProjectStore = create<ProjectStoreState>(dropStaleDocumentErrors
       const message = String(error);
       set({ error: message });
       notifyError(message);
+      return false;
+    }
+  },
+
+  generatePersonalizedCopies: async (objectId, config, spacingX, spacingY) => {
+    const generation = documentGeneration;
+    try {
+      const result = requireCurrentDocument(generation, await variableTextService.generateVariableTextBatch(config, objectId, spacingX, spacingY));
+      const project = get().project;
+      if (!project) return false;
+      set({
+        project: {
+          ...project,
+          objects: [...project.objects.map((object) => object.id === objectId ? result.updatedOriginal : object), ...result.copies],
+          dirty: true,
+        },
+        selectedObjectIds: result.copies.map((object) => object.id),
+      });
+      invalidatePreview();
+      await refreshUndo();
+      return true;
+    } catch (error) {
+      if (!isStaleDocument(error)) notifyError(String(error));
       return false;
     }
   },

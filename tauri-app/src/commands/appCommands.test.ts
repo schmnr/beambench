@@ -17,7 +17,7 @@ import { usePreviewStore } from '../stores/previewStore';
 import { useUiStore } from '../stores/uiStore';
 import { useUndoStore } from '../stores/undoStore';
 import { useAppStore } from '../stores/appStore';
-import { makeAppSettings, makeProject, makeProjectObject } from '../test-utils/projectFixtures';
+import { makeAppSettings, makeProject, makeProjectObject, makeTextObjectData } from '../test-utils/projectFixtures';
 import { clearCanvasViewportSize, setCanvasViewportSize } from '../canvas/canvasViewportRegistry';
 import { DEFAULT_TOOLBAR_VISIBILITY } from '../panels';
 import i18n, { SUPPORTED_LOCALES } from '../i18n';
@@ -42,6 +42,17 @@ afterEach(() => {
 });
 
 describe('app command bridge', () => {
+  it.each(['shape', 'locked', 'multiple', 'run', 'text'])('personalization command is available only for an unlocked single text in Design: %s', async (kind) => {
+    const object = makeProjectObject({ id: 'label', locked: kind === 'locked', data: kind === 'shape' ? makeProjectObject().data : makeTextObjectData() });
+    const other = makeProjectObject({ id: 'other' });
+    useProjectStore.setState({ project: makeProject({ objects: [object, other] }), selectedObjectIds: kind === 'multiple' ? [object.id, other.id] : [object.id] });
+    useUiStore.setState({ workspaceMode: kind === 'run' ? 'run' : 'design' });
+    const openPersonalizeText = vi.fn();
+    expect([...getAppCommandState().items].reverse().find((item) => item.id === APP_COMMANDS.TOOLS_PERSONALIZE_TEXT)?.enabled).toBe(kind === 'text');
+    await executeAppCommand(APP_COMMANDS.TOOLS_PERSONALIZE_TEXT, { openPersonalizeText });
+    expect(openPersonalizeText).toHaveBeenCalledTimes(kind === 'text' ? 1 : 0);
+  });
+
   it('activates core inspector panels without toggling their visibility', async () => {
     useUiStore.getState().setZoneActiveTab('top-right', 'outliner');
 

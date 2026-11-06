@@ -3092,5 +3092,23 @@
     "connection_lost": "Connection lost",
     "disconnect_local": "Disconnect the laser from this computer before choosing a remote host.",
     "preview_title": "Host preview · {host}"
+  },
+  "personalization": {
+    "title": "텍스트 개인화...",
+    "create": "복사본 만들기",
+    "load": "CSV 불러오기...",
+    "first_row": "첫 데이터 행",
+    "date_format": "날짜 형식",
+    "spacing_x": "가로 간격",
+    "spacing_y": "세로 간격",
+    "original": "원본 텍스트는 재사용 가능한 템플릿으로 유지됩니다.",
+    "preview_help": "결과를 확인하세요. 복사본은 값이 고정된 편집 가능한 텍스트가 됩니다.",
+    "date_help": "날짜는 컴퓨터의 현지 시간을 사용합니다. 형식을 선택하고 템플릿을 편집하세요.",
+    "invalid": "템플릿, 1~1000개의 복사본과 정수 순서 값을 입력하세요. 증가량은 0일 수 없습니다.",
+    "fields_error": "필드를 확인하세요. Serial, Date 또는 CSV의 열을 사용하세요.",
+    "rows_error": "CSV를 불러오고 유효한 행을 선택한 후 열을 템플릿에 삽입하세요.",
+    "empty": "빈 결과가 있습니다. 템플릿과 CSV 행을 확인하세요.",
+    "loading": "미리보기 준비 중…",
+    "refresh_date": "날짜 및 시간 새로고침"
   }
 }

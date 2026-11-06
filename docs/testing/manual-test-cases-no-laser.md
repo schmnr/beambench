@@ -698,30 +698,30 @@ Shared fixtures:
 - Undo / Redo Expectation: Barcode insertion is undoable.
 - Status: Active
 
-### NL-053 — Variable Text Normal / Serial / Date
-- Source Ref: `FSW-008`, `FSW-009`; `LB 2.4`
-- Feature / Function: Variable text mode switching without CSV
+### NL-053 — Serial numbers and dates
+- Source Ref: `FSW-008`, `FSW-009`; `docs/text-personalization.md`
+- Feature / Function: Configure and preview serial numbers and dates through desktop controls.
 - Hardware Requirement: None
-- Prerequisites: Selected text object
-- Setup / Fixture: Variable text-ready text object
-- Steps: Switch among normal, serial, and date/time modes; edit template, offset, start/end/current/advance.
-- Expected Result: Preview text updates and configuration persists to the object.
-- Edge / Negative Cases: Zero/negative/invalid numeric inputs should not corrupt the variable-text state.
-- Persistence / Reopen Check: Save/reopen and verify the variable text config persists.
-- Undo / Redo Expectation: Config edits are undoable.
+- Prerequisites: One unlocked text object in Design.
+- Setup / Fixture: Ordinary editable text; no configured machine required.
+- Steps: Open Tools > Personalize Text... and repeat from Text Properties. Choose Serial Number; use start 100, increment 2, padding 4 and three copies. Check SN-0100, SN-0102 and SN-0104 with template SN-{Serial}. Apply, reopen the dialog and inspect saved settings. Switch to Date/Time, choose a format including seconds, refresh the timestamp and create two copies.
+- Expected Result: Both entry points open the same dialog. Copy values match the complete preview and remain editable. Date copies keep the reviewed timestamp. The original remains a reusable source.
+- Edge / Negative Cases: Locked or multiple selections disable the menu. Empty templates, zero increments and invalid counts block creation. Cancel makes no project edit. Opening another project closes the dialog and discards late replies.
+- Persistence / Reopen Check: Save/reopen and verify source configuration and fixed generated values.
+- Undo / Redo Expectation: Apply is undoable. One Undo restores the entire state before a batch; Redo restores all copies.
 - Status: Active
 
-### NL-054 — Variable Text CSV / Bake / Warnings
-- Source Ref: `FSW-008`, `FSW-009`; `LB 2.4`
-- Feature / Function: CSV load, merge preview, bake, and warning paths
+### NL-054 — CSV personalization and validation
+- Source Ref: `FSW-008`, `FSW-009`; `docs/text-personalization.md`
+- Feature / Function: Load CSV, insert columns, preview a row range and create editable personalized copies.
 - Hardware Requirement: None
-- Prerequisites: Selected variable-text object
-- Setup / Fixture: Valid CSV and malformed CSV fixture
-- Steps: Load CSV, inspect merge fields, preview row output, use previous/next/reset, then bake resolved text; repeat with malformed/missing-field cases.
-- Expected Result: Valid CSV populates merge metadata and preview; bake resolves text into the object; warnings appear for bad templates or missing fields.
-- Edge / Negative Cases: Clearing CSV must remove source linkage without breaking the text object.
-- Persistence / Reopen Check: Save/reopen and verify post-bake or CSV-linked state.
-- Undo / Redo Expectation: Load/clear/bake/config changes are undoable.
+- Prerequisites: One unlocked text object in Design.
+- Setup / Fixture: UTF-8 CSV with headers Name,Code, Unicode names, quoted commas and multiline cells; malformed quoting and inconsistent rows for negative checks.
+- Steps: Open Personalize Text..., select Merge/CSV, load the CSV, insert Name and Code into the template with a separator, inspect every preview and create copies with horizontal spacing and zero vertical spacing. Undo and Redo. Repeat with first data row 2 and a range beyond the CSV, then malformed files and a missing column name.
+- Expected Result: Data rows exclude the header. Generated text matches preview, retains text styling, and remains editable. Invalid ranges, missing columns, malformed quoting and empty output block creation with feedback.
+- Edge / Negative Cases: Cancelling the file picker or dialog does not alter the project. Failed CSV replacement leaves the original text intact. Late batch replies do not modify a different document.
+- Persistence / Reopen Check: Save/reopen after moving or removing the source CSV; embedded data and generated text remain available.
+- Undo / Redo Expectation: Batch generation and source advancement form one undo step.
 - Status: Active
 
 ### NL-055 — Convert / Close / Join / Optimize / Delete Duplicates

@@ -15,6 +15,7 @@ import { HotkeyEditorDialog } from './components/settings/HotkeyEditorDialog';
 import { TraceImageDialog } from './components/dialogs/TraceImageDialog';
 import { AdjustImageDialog } from './components/dialogs/AdjustImageDialog';
 import { BooleanAssistantDialog } from './components/dialogs/BooleanAssistantDialog';
+import { TextPersonalizationDialog } from './components/dialogs/TextPersonalizationDialog';
 import { CopyAlongPathDialog } from './components/dialogs/CopyAlongPathDialog';
 import { BarcodeDialog } from './components/dialogs/BarcodeDialog';
 import { CloseSelectedPathsWithToleranceDialog } from './components/dialogs/CloseSelectedPathsWithToleranceDialog';
@@ -539,6 +540,7 @@ function App() {
     objectIds: string[];
     pathObjectId: string;
   } | null>(null);
+  const [personalizeTextObjectId, setPersonalizeTextObjectId] = useState<string | null>(null);
   const [barcodeDialogLayerId, setBarcodeDialogLayerId] = useState<string | null>(null);
   const [nestDialogObjectIds, setNestDialogObjectIds] = useState<string[] | null>(null);
   const [closeToleranceObjectIds, setCloseToleranceObjectIds] = useState<string[] | null>(null);
@@ -599,6 +601,7 @@ function App() {
     openCircularArray: (objectIds: string[]) => useUiStore.getState().openModifierProperties('circular_array', objectIds),
     openCopyAlongPath: (objectIds, pathObjectId) => setCopyAlongPathDialogState({ objectIds: [...objectIds], pathObjectId }),
     openBooleanAssistant: (objectIds: string[]) => setBooleanAssistantObjectIds([...objectIds]),
+    openPersonalizeText: setPersonalizeTextObjectId,
     openBarcode: (layerId: string) => setBarcodeDialogLayerId(layerId),
     openNest: (objectIds: string[]) => setNestDialogObjectIds([...objectIds]),
     openCloseSelectedPathsWithTolerance: (objectIds: string[]) => setCloseToleranceObjectIds(objectIds),
@@ -1828,6 +1831,7 @@ function App() {
           onClose={() => setBooleanAssistantObjectIds(null)}
         />
       )}
+      {personalizeTextObjectId && <TextPersonalizationDialog objectId={personalizeTextObjectId} onClose={() => setPersonalizeTextObjectId(null)} />}
       {barcodeDialogLayerId && (
         <BarcodeDialog layerId={barcodeDialogLayerId} onClose={() => setBarcodeDialogLayerId(null)} />
       )}

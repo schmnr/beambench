@@ -11,8 +11,12 @@ pub fn parse_merge_fields(text: String) -> Vec<MergeFieldInfo> {
 }
 /// Load CSV file and return parsed rows + headers.
 #[tauri::command]
-pub fn load_csv_file(path: String) -> Result<CsvData, String> {
-    beambench_service::ops::workflows::variable_text::load_csv_file(path)
+pub async fn load_csv_file(path: String) -> Result<CsvData, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        beambench_service::ops::workflows::variable_text::load_csv_file(path)
+    })
+    .await
+    .map_err(|error| error.to_string())?
 }
 /// Resolve a text template for a specific row.
 /// `row` is the preview row index — sets `source.current` for CSV
@@ -32,29 +36,41 @@ pub fn resolve_variable_text(
 /// Uses `total_copies` as the output count. When CSV data is present,
 /// row indices cycle through available data rows via modulo.
 #[tauri::command]
-pub fn generate_batch_preview(
+pub async fn generate_batch_preview(
     svc: State<'_, Arc<ServiceContext>>,
     object_id: String,
     config: VariableTextConfig,
 ) -> Result<Vec<String>, String> {
-    beambench_service::ops::workflows::variable_text::generate_batch_preview(
-        &svc, object_id, config,
-    )
+    let svc = svc.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        beambench_service::ops::workflows::variable_text::generate_batch_preview(
+            &svc, object_id, config,
+        )
+    })
+    .await
+    .map_err(|error| error.to_string())?
 }
 /// Atomic batch generation: resolve text, create offset duplicates — all
-/// in a single undo step. Each copy gets its own `variable_text` config with
-/// the correct serial/row state. The original's source state is advanced.
+/// in a single undo step. Copies retain fixed editable text. The original's
+/// source configuration is retained and its sequence advanced.
 #[tauri::command]
-pub fn generate_variable_text_batch(
+pub async fn generate_variable_text_batch(
     svc: State<'_, Arc<ServiceContext>>,
     config: VariableTextConfig,
     object_id: String,
     offset_step: f64,
+    offset_step_y: Option<f64>,
 ) -> Result<BatchResult, String> {
-    beambench_service::ops::workflows::variable_text::generate_variable_text_batch(
-        &svc,
-        config,
-        object_id,
-        offset_step,
-    )
+    let svc = svc.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        beambench_service::ops::workflows::variable_text::generate_variable_text_batch(
+            &svc,
+            config,
+            object_id,
+            offset_step,
+            offset_step_y,
+        )
+    })
+    .await
+    .map_err(|error| error.to_string())?
 }

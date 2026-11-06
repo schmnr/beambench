@@ -3092,5 +3092,23 @@
     "connection_lost": "Connection lost",
     "disconnect_local": "Disconnect the laser from this computer before choosing a remote host.",
     "preview_title": "Host preview · {host}"
+  },
+  "personalization": {
+    "title": "Personalize Text...",
+    "create": "Create copies",
+    "load": "Load CSV...",
+    "first_row": "First data row",
+    "date_format": "Date format",
+    "spacing_x": "Horizontal spacing",
+    "spacing_y": "Vertical spacing",
+    "original": "The original text is kept as a reusable template.",
+    "preview_help": "Check every result before creating copies. Copies keep these values as editable text.",
+    "date_help": "Dates use this computer’s local time. Choose a format, then add any text you need to the template.",
+    "invalid": "Enter a template, 1 to 1000 copies, and valid whole-number sequence values. The increment cannot be zero.",
+    "fields_error": "Check the template fields. Use Serial, Date, or a column from the loaded CSV.",
+    "rows_error": "Load a CSV and choose a range within its data rows. Insert a column into the template.",
+    "empty": "Some results are empty. Check the template and CSV rows.",
+    "loading": "Preparing preview…",
+    "refresh_date": "Refresh date/time"
   }
 }

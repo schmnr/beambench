@@ -3092,5 +3092,23 @@
     "connection_lost": "Connection lost",
     "disconnect_local": "Disconnect the laser from this computer before choosing a remote host.",
     "preview_title": "Host preview · {host}"
+  },
+  "personalization": {
+    "title": "Metni kişiselleştir...",
+    "create": "Kopyaları oluştur",
+    "load": "CSV yükle...",
+    "first_row": "İlk veri satırı",
+    "date_format": "Tarih biçimi",
+    "spacing_x": "Yatay aralık",
+    "spacing_y": "Dikey aralık",
+    "original": "Özgün metin yeniden kullanılabilir bir şablon olarak korunur.",
+    "preview_help": "Sonuçları kontrol edin. Kopyalar sabit değerli, düzenlenebilir metin olarak kalır.",
+    "date_help": "Tarihler bilgisayarın yerel saatini kullanır. Bir biçim seçip şablonu tamamlayın.",
+    "invalid": "Şablon, 1 ile 1000 arasında kopya ve tam sayı değerleri girin. Artış sıfır olamaz.",
+    "fields_error": "Alanları kontrol edin. Serial, Date veya bir CSV sütunu kullanın.",
+    "rows_error": "CSV yükleyin, geçerli satırlar seçin ve şablona bir sütun ekleyin.",
+    "empty": "Bazı sonuçlar boş. Şablonu ve CSV satırlarını kontrol edin.",
+    "loading": "Önizleme hazırlanıyor…",
+    "refresh_date": "Tarih ve saati yenile"
   }
 }

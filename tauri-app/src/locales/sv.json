@@ -3092,5 +3092,23 @@
     "connection_lost": "Connection lost",
     "disconnect_local": "Disconnect the laser from this computer before choosing a remote host.",
     "preview_title": "Host preview · {host}"
+  },
+  "personalization": {
+    "title": "Anpassa text...",
+    "create": "Skapa kopior",
+    "load": "Läs in CSV...",
+    "first_row": "Första dataraden",
+    "date_format": "Datumformat",
+    "spacing_x": "Vågrätt avstånd",
+    "spacing_y": "Lodrätt avstånd",
+    "original": "Originaltexten finns kvar som återanvändbar mall.",
+    "preview_help": "Kontrollera resultaten. Kopior behåller fasta värden som redigerbar text.",
+    "date_help": "Datum använder datorns lokala tid. Välj format och komplettera mallen.",
+    "invalid": "Ange en mall, 1 till 1000 kopior och heltalsvärden. Steget får inte vara noll.",
+    "fields_error": "Kontrollera fälten. Använd Serial, Date eller en CSV-kolumn.",
+    "rows_error": "Läs in CSV, välj giltiga rader och infoga en kolumn i mallen.",
+    "empty": "Vissa resultat är tomma. Kontrollera mallen och CSV-raderna.",
+    "loading": "Förbereder förhandsvisning…",
+    "refresh_date": "Uppdatera datum och tid"
   }
 }

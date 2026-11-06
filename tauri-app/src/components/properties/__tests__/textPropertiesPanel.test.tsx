@@ -1,12 +1,13 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, cleanup, fireEvent, act } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent, act, waitFor } from '@testing-library/react';
 import { TextPropertiesPanel } from '../TextPropertiesPanel';
 import { TextDefaultsSection } from '../TextDefaultsSection';
 import { useProjectStore } from '../../../stores/projectStore';
 import { useUiStore } from '../../../stores/uiStore';
 import { useAppStore } from '../../../stores/appStore';
 import type { ObjectData } from '../../../types/project';
-import { makeAppSettings } from '../../../test-utils/projectFixtures';
+import { setAppCommandDialogActions } from '../../../commands/appCommands';
+import { makeProject, makeProjectObject, makeAppSettings } from '../../../test-utils/projectFixtures';
 import {
   clearPendingEdit,
   setPendingEdit,
@@ -65,6 +66,29 @@ afterEach(() => {
 });
 
 describe('TextPropertiesPanel', () => {
+  it.each([false, true])('waits for content save and preserves its selection context: selection changed=%s', async (selectionChanged) => {
+    const prior = useProjectStore.getState();
+    const data = makeTextData();
+    const object = makeProjectObject({ id: 't1', data });
+    let finish!: (saved: boolean) => void;
+    const updateObjectData = vi.fn(() => new Promise<boolean>((resolve) => { finish = resolve; }));
+    useProjectStore.setState({ project: makeProject({ objects: [object, makeProjectObject({ id: 'other', data })] }), selectedObjectIds: ['t1'], updateObjectData });
+    const openPersonalizeText = vi.fn();
+    const unregister = setAppCommandDialogActions({ openPersonalizeText });
+    try {
+      render(<TextPropertiesPanel objectId="t1" data={data} />);
+      fireEvent.change(screen.getByLabelText('Content'), { target: { value: 'Newest text' } });
+      fireEvent.blur(screen.getByLabelText('Content'));
+      fireEvent.click(screen.getByRole('button', { name: 'Personalize Text...' }));
+      expect(openPersonalizeText).not.toHaveBeenCalled();
+      if (selectionChanged) act(() => useProjectStore.setState({ selectedObjectIds: ['other'] }));
+      await act(async () => finish(true));
+      if (selectionChanged) expect(openPersonalizeText).not.toHaveBeenCalled();
+      else await waitFor(() => expect(openPersonalizeText).toHaveBeenCalledWith('t1'));
+      expect(updateObjectData).toHaveBeenCalledOnce();
+    } finally { cleanup(); unregister(); useProjectStore.setState(prior, true); }
+  });
+
   it('uses the contextual tool title treatment', () => {
     render(<TextPropertiesPanel objectId="t1" data={makeTextData()} />);
 

@@ -241,11 +241,11 @@ fn resolve_field(field_name: &str, source: &VariableTextSource, row: usize) -> S
     }
 
     if let Some(fmt) = field_name.strip_prefix("Date:") {
-        return resolve_date(fmt);
+        return resolve_date(fmt, source);
     }
 
     if field_name == "Date" {
-        return resolve_date("YYYY-MM-DD");
+        return resolve_date("YYYY-MM-DD", source);
     }
 
     if let Some(col_name) = field_name.strip_prefix("CSV:") {
@@ -268,20 +268,29 @@ fn resolve_field(field_name: &str, source: &VariableTextSource, row: usize) -> S
 }
 
 fn resolve_serial(start: i64, increment: i64, padding: u8, row: usize) -> String {
-    let value = start + (row as i64) * increment;
+    let value = start.saturating_add((row as i64).saturating_mul(increment));
     format_serial(value, padding)
 }
 
 fn format_serial(value: i64, padding: u8) -> String {
     if value < 0 {
-        format!("-{:0>width$}", value.abs(), width = padding as usize)
+        format!(
+            "-{:0>width$}",
+            value.saturating_abs(),
+            width = padding as usize
+        )
     } else {
         format!("{:0>width$}", value, width = padding as usize)
     }
 }
 
-fn resolve_date(format_str: &str) -> String {
-    let now = chrono::Local::now();
+fn resolve_date(format_str: &str, source: &VariableTextSource) -> String {
+    let now = source
+        .field_defaults
+        .get("_date_timestamp")
+        .and_then(|value| chrono::DateTime::parse_from_rfc3339(value).ok())
+        .map(|value| value.with_timezone(&chrono::Local))
+        .unwrap_or_else(chrono::Local::now);
     let mut result = format_str.to_string();
     result = result.replace("YYYY", &now.format("%Y").to_string());
     result = result.replace("YY", &now.format("%y").to_string());
@@ -354,6 +363,11 @@ pub fn resolve_text_in_project(
         return config.template.clone();
     }
 
+    // Common serial/date/CSV previews do not need a copy of the embedded CSV.
+    if config.offset.unwrap_or(0) == 0 && !matches!(config.mode, Some(VariableTextMode::CutSetting))
+    {
+        return resolve_text(&config.template, &config.source, row);
+    }
     let mut source = config.source.clone();
     if source.end < source.start {
         std::mem::swap(&mut source.start, &mut source.end);
@@ -483,53 +497,77 @@ fn trim_float(value: f64) -> String {
 
 /// Parse a CSV string into rows (header + data).
 pub fn parse_csv(input: &str) -> Result<Vec<Vec<String>>, String> {
+    let input = input.strip_prefix('\u{feff}').unwrap_or(input);
     if input.trim().is_empty() {
         return Err("Empty CSV input".to_string());
     }
-
-    let mut rows: Vec<Vec<String>> = Vec::new();
-
-    for line in input.lines() {
-        let row = parse_csv_line(line);
+    let mut rows = Vec::new();
+    let mut row = Vec::new();
+    let mut field = String::new();
+    let mut quoted = false;
+    let mut closed_quote = false;
+    let mut record_started = false;
+    let mut chars = input.chars().peekable();
+    while let Some(ch) = chars.next() {
+        if quoted {
+            if ch == '"' {
+                if chars.peek() == Some(&'"') {
+                    field.push('"');
+                    chars.next();
+                } else {
+                    quoted = false;
+                    closed_quote = true;
+                }
+            } else {
+                field.push(ch);
+            }
+            continue;
+        }
+        match ch {
+            '"' if field.is_empty() && !closed_quote => {
+                quoted = true;
+                record_started = true;
+            }
+            '"' => return Err("Unexpected quote in CSV field".to_string()),
+            ',' => {
+                row.push(std::mem::take(&mut field));
+                closed_quote = false;
+                record_started = true;
+            }
+            '\n' | '\r' => {
+                if ch == '\r' && chars.peek() == Some(&'\n') {
+                    chars.next();
+                }
+                if record_started || !field.is_empty() || !row.is_empty() {
+                    row.push(std::mem::take(&mut field));
+                    rows.push(std::mem::take(&mut row));
+                }
+                closed_quote = false;
+                record_started = false;
+            }
+            ' ' | '\t' if closed_quote => {}
+            _ if closed_quote => return Err("Unexpected text after a quoted CSV field".to_string()),
+            _ => {
+                field.push(ch);
+                record_started = true;
+            }
+        }
+    }
+    if quoted {
+        return Err("Unclosed quoted CSV field".to_string());
+    }
+    if record_started || !field.is_empty() || !row.is_empty() {
+        row.push(field);
         rows.push(row);
     }
-
     if rows.is_empty() {
         return Err("No rows found in CSV".to_string());
     }
-
-    Ok(rows)
-}
-
-fn parse_csv_line(line: &str) -> Vec<String> {
-    let mut fields = Vec::new();
-    let mut current = String::new();
-    let mut in_quotes = false;
-    let mut chars = line.chars().peekable();
-
-    while let Some(ch) = chars.next() {
-        if in_quotes {
-            if ch == '"' {
-                if chars.peek() == Some(&'"') {
-                    current.push('"');
-                    chars.next();
-                } else {
-                    in_quotes = false;
-                }
-            } else {
-                current.push(ch);
-            }
-        } else if ch == '"' {
-            in_quotes = true;
-        } else if ch == ',' {
-            fields.push(current.clone());
-            current.clear();
-        } else {
-            current.push(ch);
-        }
+    let columns = rows[0].len();
+    if rows.iter().any(|row| row.len() != columns) {
+        return Err("CSV rows must have the same number of columns as the header".to_string());
     }
-    fields.push(current);
-    fields
+    Ok(rows)
 }
 
 #[cfg(test)]
@@ -904,6 +942,27 @@ mod tests {
     }
 
     #[test]
+    fn date_preview_timestamp_is_stable_and_localized() {
+        let mut source = VariableTextSource::default();
+        source
+            .field_defaults
+            .insert("_date_timestamp".into(), "2026-11-05T15:30:45-05:00".into());
+        let expected = chrono::DateTime::parse_from_rfc3339("2026-11-05T15:30:45-05:00")
+            .unwrap()
+            .with_timezone(&chrono::Local)
+            .format("%Y-%m-%d %H:%M:%S")
+            .to_string();
+        assert_eq!(
+            resolve_text("{Date:YYYY-MM-DD HH:mm:ss}", &source, 0),
+            expected
+        );
+        assert_eq!(
+            resolve_text("{Date:YYYY-MM-DD HH:mm:ss}", &source, 99),
+            expected
+        );
+    }
+
+    #[test]
     fn resolve_date_field() {
         let source = VariableTextSource::default();
         let result = resolve_text("Date: {Date:YYYY-MM-DD}", &source, 0);
@@ -942,6 +1001,21 @@ mod tests {
     }
 
     // --- CSV parser tests ---
+
+    #[test]
+    fn parse_csv_handles_bom_multiline_escaped_quotes_and_unicode() {
+        assert_eq!(
+            parse_csv("\u{feff}Name,Note\r\n\"Zoë\",\"Line 1\nLine \"\"2\"\"\"\r\n").unwrap(),
+            vec![vec!["Name", "Note"], vec!["Zoë", "Line 1\nLine \"2\""]]
+        );
+    }
+
+    #[test]
+    fn parse_csv_rejects_unclosed_quotes_and_inconsistent_rows() {
+        assert!(parse_csv("Name\n\"Alice").is_err());
+        assert!(parse_csv("Name,Code\nAlice").is_err());
+        assert!(parse_csv("Name\n\"Alice\"oops").is_err());
+    }
 
     #[test]
     fn parse_csv_basic() {

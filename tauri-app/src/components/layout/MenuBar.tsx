@@ -15,7 +15,7 @@ import { wrapBackendError } from '../../i18n/errors';
 import { useUpdateStore } from '../../stores/updateStore';
 import { appService } from '../../services/appService';
 import { openFeedbackReport } from '../../feedbackEvents';
-import { executeAppCommand, QUICK_HELP_DOCS_URL, type AppCommandDialogActions } from '../../commands/appCommands';
+import { getAppCommandState, executeAppCommand, QUICK_HELP_DOCS_URL, type AppCommandDialogActions } from '../../commands/appCommands';
 import { APP_COMMANDS } from '../../commands/appCommandIds';
 import { getEffectiveHotkey } from '../../commands/commandRegistry';
 import { MachineProfileDialog } from '../machine/MachineProfileDialog';
@@ -807,6 +807,11 @@ export function MenuBar() {
               shortcut={shortcutFor(APP_COMMANDS.TOOLS_MEASURE)}
               disabled={!project}
               onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_MEASURE); }}
+            />
+            <MenuItem
+              label={ml("Personalize Text...")}
+              disabled={![...getAppCommandState().items].reverse().find((item) => item.id === APP_COMMANDS.TOOLS_PERSONALIZE_TEXT)?.enabled}
+              onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_PERSONALIZE_TEXT); }}
             />
             <MenuItem
               label={ml("Create Bar Code")}

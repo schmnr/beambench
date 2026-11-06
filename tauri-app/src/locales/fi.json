@@ -3092,5 +3092,23 @@
     "connection_lost": "Connection lost",
     "disconnect_local": "Disconnect the laser from this computer before choosing a remote host.",
     "preview_title": "Host preview · {host}"
+  },
+  "personalization": {
+    "title": "Mukauta tekstiä...",
+    "create": "Luo kopiot",
+    "load": "Lataa CSV...",
+    "first_row": "Ensimmäinen tietorivi",
+    "date_format": "Päivämäärän muoto",
+    "spacing_x": "Vaakasuora väli",
+    "spacing_y": "Pystysuora väli",
+    "original": "Alkuperäinen teksti säilyy uudelleenkäytettävänä mallina.",
+    "preview_help": "Tarkista tulokset. Kopiot säilyttävät kiinteät arvot muokattavana tekstinä.",
+    "date_help": "Päivämäärät käyttävät tietokoneen paikallista aikaa. Valitse muoto ja täydennä mallia.",
+    "invalid": "Anna malli, 1–1000 kopiota ja kokonaislukuarvot. Askel ei voi olla nolla.",
+    "fields_error": "Tarkista kentät. Käytä Serial-, Date- tai CSV-sarakekenttää.",
+    "rows_error": "Lataa CSV, valitse kelvolliset rivit ja lisää sarake malliin.",
+    "empty": "Jotkin tulokset ovat tyhjiä. Tarkista malli ja CSV-rivit.",
+    "loading": "Valmistellaan esikatselua…",
+    "refresh_date": "Päivitä päivämäärä ja aika"
   }
 }

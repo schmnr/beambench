@@ -3092,5 +3092,23 @@
     "connection_lost": "Connection lost",
     "disconnect_local": "Disconnect the laser from this computer before choosing a remote host.",
     "preview_title": "Host preview · {host}"
+  },
+  "personalization": {
+    "title": "Tekst personaliseren...",
+    "create": "Kopieën maken",
+    "load": "CSV laden...",
+    "first_row": "Eerste gegevensrij",
+    "date_format": "Datumnotatie",
+    "spacing_x": "Horizontale afstand",
+    "spacing_y": "Verticale afstand",
+    "original": "De oorspronkelijke tekst blijft als herbruikbare sjabloon behouden.",
+    "preview_help": "Controleer de resultaten. Kopieën behouden vaste waarden als bewerkbare tekst.",
+    "date_help": "Datums gebruiken de lokale tijd van deze computer. Kies een notatie en vul de sjabloon aan.",
+    "invalid": "Voer een sjabloon, 1 tot 1000 kopieën en gehele reekswaarden in. De stap mag niet nul zijn.",
+    "fields_error": "Controleer de velden. Gebruik Serial, Date of een kolom uit de CSV.",
+    "rows_error": "Laad een CSV, kies geldige rijen en voeg een kolom in de sjabloon in.",
+    "empty": "Sommige resultaten zijn leeg. Controleer de sjabloon en CSV-rijen.",
+    "loading": "Voorbeeld voorbereiden…",
+    "refresh_date": "Datum/tijd vernieuwen"
   }
 }

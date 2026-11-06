@@ -1,3 +1,4 @@
+import { commitPendingTextEdit } from '../canvas/textEditSession';
 import { isUserCancel } from '../utils/userCancel';
 import { appService } from '../services/appService';
 import { persistenceService } from '../services/persistenceService';
@@ -69,6 +70,7 @@ export interface AppCommandDialogActions {
   openHotkeyEditor?: () => void;
   openTraceImage?: (objectId: string) => void;
   openAdjustImage?: (objectId: string) => void;
+  openPersonalizeText?: (objectId: string) => void;
   openBarcode?: (layerId: string) => void;
   openOffset?: (objectIds: string[]) => void;
   openBooleanAssistant?: (objectIds: string[]) => void;
@@ -181,6 +183,7 @@ const DESIGN_ONLY_TOOL_COMMANDS = new Set<string>([
   APP_COMMANDS.TOOLS_DUAL_STAR,
   APP_COMMANDS.TOOLS_TABS,
   APP_COMMANDS.TOOLS_TRIM,
+  APP_COMMANDS.TOOLS_PERSONALIZE_TEXT,
   APP_COMMANDS.TOOLS_BARCODE,
   APP_COMMANDS.TOOLS_OFFSET,
   APP_COMMANDS.TOOLS_TRACE_IMAGE,
@@ -813,6 +816,15 @@ export async function executeAppCommand(
     case APP_COMMANDS.TOOLS_TRIM:
       ui.setActiveTool('trim');
       return;
+    case APP_COMMANDS.TOOLS_PERSONALIZE_TEXT: {
+      if (selectedObjects.length !== 1 || selectedTextObject?.data.type !== 'text' || !unlockedSelection) return;
+      if (!await commitPendingTextEdit()) return;
+      const current = useProjectStore.getState();
+      if (current.project?.metadata.project_id === ps.project?.metadata.project_id && current.selectedObjectIds.length === 1 && current.selectedObjectIds[0] === selectedTextObject.id) {
+        dialogActions.openPersonalizeText?.(selectedTextObject.id);
+      }
+      return;
+    }
     case APP_COMMANDS.TOOLS_BARCODE: {
       let layerId = ps.selectedLayerId ?? ps.project?.layers[0]?.id ?? null;
       if (!layerId && ps.project) {
@@ -1344,6 +1356,7 @@ export function getAppCommandState(): NativeMenuStateUpdate {
       { id: APP_COMMANDS.TOOLS_TEXT, enabled: designMode && projectLoaded, accelerator: accel(APP_COMMANDS.TOOLS_TEXT) },
       { id: APP_COMMANDS.TOOLS_POSITION_LASER, enabled: projectLoaded && canPositionLaser, accelerator: accel(APP_COMMANDS.TOOLS_POSITION_LASER) },
       { id: APP_COMMANDS.TOOLS_MEASURE, enabled: projectLoaded, accelerator: accel(APP_COMMANDS.TOOLS_MEASURE) },
+      { id: APP_COMMANDS.TOOLS_PERSONALIZE_TEXT, enabled: designMode && singleSelection?.data.type === 'text' && unlockedSelection },
       { id: APP_COMMANDS.TOOLS_BARCODE, enabled: designMode && projectLoaded },
       { id: APP_COMMANDS.TOOLS_OFFSET, enabled: designMode && unlockedSelection, accelerator: accel(APP_COMMANDS.TOOLS_OFFSET) },
       { id: APP_COMMANDS.TOOLS_BOOLEAN_WELD, enabled: designMode && canWeld, accelerator: accel(APP_COMMANDS.TOOLS_BOOLEAN_WELD) },
