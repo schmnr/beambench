@@ -5650,36 +5650,17 @@ fn world_bounds_of(objects: &[beambench_core::ProjectObject]) -> Option<Bounds> 
             {
                 return Some(bounds);
             }
-            let center = Point2D::new(
-                (object.bounds.min.x + object.bounds.max.x) / 2.0,
-                (object.bounds.min.y + object.bounds.max.y) / 2.0,
-            );
-            [
-                object.bounds.min,
-                Point2D::new(object.bounds.max.x, object.bounds.min.y),
-                object.bounds.max,
-                Point2D::new(object.bounds.min.x, object.bounds.max.y),
-            ]
-            .into_iter()
-            .map(|point| object.transform.apply_around_center(&point, &center))
-            .map(|point| Bounds::new(point, point))
-            .reduce(|acc, bounds| acc.union(&bounds))
+            Some(object.world_bounds())
         })
         .reduce(|acc, bounds| acc.union(&bounds))
 }
 
 fn bounds_of(objects: &[beambench_core::ProjectObject]) -> Bounds {
-    let mut min_x = f64::MAX;
-    let mut min_y = f64::MAX;
-    let mut max_x = f64::MIN;
-    let mut max_y = f64::MIN;
-    for obj in objects {
-        min_x = min_x.min(obj.bounds.min.x);
-        min_y = min_y.min(obj.bounds.min.y);
-        max_x = max_x.max(obj.bounds.max.x);
-        max_y = max_y.max(obj.bounds.max.y);
-    }
-    Bounds::new(Point2D::new(min_x, min_y), Point2D::new(max_x, max_y))
+    objects
+        .iter()
+        .map(beambench_core::ProjectObject::world_bounds)
+        .reduce(|a, b| a.union(&b))
+        .unwrap_or_else(|| Bounds::new(Point2D::zero(), Point2D::zero()))
 }
 
 fn frame_power_percent(laser_on_override: bool, profile: &MachineProfile) -> f64 {
@@ -5830,6 +5811,57 @@ impl PreparedFrame {
             )
             .into()),
         }
+    }
+}
+
+/// Start a closed frame at the nearest point on its boundary. For a job
+/// origin on an edge, this closes the lap at the placement point itself,
+/// without retracing an edge to return there between continuous passes.
+fn position_frame_start(plan: &mut beambench_planner::ExecutionPlan, target: Point2D) {
+    let Some(path) = plan.segments.iter_mut().find_map(|segment| match segment {
+        beambench_planner::PlanSegment::Frame { path, .. } => Some(path),
+        _ => None,
+    }) else {
+        return;
+    };
+    if path.len() < 3 || path.first() != path.last() {
+        return;
+    }
+    let nearest = path
+        .windows(2)
+        .enumerate()
+        .filter_map(|(index, pair)| {
+            let dx = pair[1].x - pair[0].x;
+            let dy = pair[1].y - pair[0].y;
+            let length_squared = dx * dx + dy * dy;
+            if length_squared <= f64::EPSILON {
+                return None;
+            }
+            let t = (((target.x - pair[0].x) * dx + (target.y - pair[0].y) * dy) / length_squared)
+                .clamp(0.0, 1.0);
+            let point = Point2D::new(pair[0].x + t * dx, pair[0].y + t * dy);
+            Some((index, point, point.distance_to(&target)))
+        })
+        .min_by(|a, b| a.2.total_cmp(&b.2));
+    let Some((edge, first, _)) = nearest else {
+        return;
+    };
+    let count = path.len() - 1;
+    let mut reordered = Vec::with_capacity(count + 2);
+    reordered.push(first);
+    for offset in 1..=count {
+        let point = path[(edge + offset) % count];
+        if reordered.last().unwrap().distance_to(&point) > 1e-9 {
+            reordered.push(point);
+        }
+    }
+    if reordered.last().unwrap().distance_to(&first) > 1e-9 {
+        reordered.push(first);
+    }
+    *path = reordered;
+    if let Some(beambench_planner::PlanSegment::Travel { start, end }) = plan.segments.first_mut() {
+        *start = first;
+        *end = first;
     }
 }
 
@@ -6102,6 +6134,7 @@ fn start_frame_with_policy(
             y_flipped,
             target,
         );
+        position_frame_start(&mut frame_plan, Point2D::new(target.0, target.1));
 
         // Framing must return to the exact placement target. Otherwise a
         // Current Position job would be re-anchored to the frame's final
@@ -6239,6 +6272,9 @@ fn start_frame_with_policy(
     let prepared = match session {
         MachineSessionHandle::Grbl(grbl) => {
             let mut config = frame_gcode_config;
+            // The framing control is in mm/min even if a previous console
+            // command or custom header selected inverse-time feed mode.
+            config.gcode_prefix.push_str("\nG94");
             super::output::apply_rotary_runtime(
                 &mut config,
                 &project,
@@ -11349,7 +11385,7 @@ mod tests {
                     .as_array()
                     .unwrap()
                     .iter()
-                    .any(|line| line["content"].as_str().unwrap().starts_with("G0 X"))
+                    .any(|line| line["content"].as_str().unwrap().starts_with("G1 X"))
             );
             assert!(
                 sent_bytes(&transport)
@@ -12245,6 +12281,193 @@ mod tests {
     }
 
     #[test]
+    fn scaled_image_frames_use_transformed_origin_bounds() {
+        let status = "<Idle|MPos:100,100,0|WCO:0,0,0|FS:0,0>";
+        for mode in ["rectangular", "rubber_band"] {
+            for selected in [false, true] {
+                let (ctx, transport) = ready_grbl_context_with_status(
+                    MachineProfile {
+                        bed_width_mm: 400.0,
+                        bed_height_mm: 400.0,
+                        ..MachineProfile::default()
+                    },
+                    status,
+                );
+                transport
+                    .lock()
+                    .unwrap()
+                    .status_on_query
+                    .push_back(status.into());
+                let mut project = frame_project();
+                project.workspace = Workspace {
+                    bed_width_mm: 400.0,
+                    bed_height_mm: 400.0,
+                    origin: beambench_core::WorkspaceOrigin::BottomLeft,
+                };
+                project.start_from = StartFromMode::CurrentPosition;
+                project.job_origin = beambench_common::AnchorPoint::BottomLeft;
+                project.objects[0].bounds =
+                    Bounds::new(Point2D::zero(), Point2D::new(400.0, 500.0));
+                project.objects[0].transform = beambench_common::Transform2D::scale(0.5, 0.5);
+                project.objects[0].data = ObjectData::RasterImage {
+                    asset_key: "image".into(),
+                    original_width_px: 400,
+                    original_height_px: 500,
+                    adjustments: None,
+                    masks: vec![],
+                };
+                let ids = if selected {
+                    vec![project.objects[0].id.to_string()]
+                } else {
+                    vec![]
+                };
+                *ctx.project.lock().unwrap() = Some(project);
+                frame_job(&ctx, mode, &ids, false, Some(1_000.0)).unwrap();
+                finish_recorded_job(&ctx, &transport);
+                let lines = sent_lines(&transport);
+                for (x, y) in [
+                    (100.0, 100.0),
+                    (300.0, 100.0),
+                    (300.0, 350.0),
+                    (100.0, 350.0),
+                ] {
+                    assert!(
+                        contains_xy(&lines, x, y),
+                        "{mode}, selected={selected}: {lines:?}"
+                    );
+                }
+                let motion: Vec<_> = lines
+                    .iter()
+                    .filter(|line| line.starts_with("G1 "))
+                    .collect();
+                assert_eq!(motion.len(), 5, "{lines:?}");
+                assert!(motion.first().unwrap().contains("X100.000 Y100.000"));
+                assert!(motion.last().unwrap().contains("X100.000 Y100.000"));
+            }
+        }
+    }
+
+    #[test]
+    fn current_position_frames_close_at_perimeter_origins_without_retracing() {
+        use beambench_common::AnchorPoint;
+        for origin in [
+            AnchorPoint::TopLeft,
+            AnchorPoint::TopCenter,
+            AnchorPoint::TopRight,
+            AnchorPoint::CenterLeft,
+            AnchorPoint::CenterRight,
+            AnchorPoint::BottomLeft,
+            AnchorPoint::BottomCenter,
+            AnchorPoint::BottomRight,
+        ] {
+            for workspace in [
+                beambench_core::WorkspaceOrigin::TopLeft,
+                beambench_core::WorkspaceOrigin::BottomLeft,
+            ] {
+                for mode in ["rectangular", "rubber_band"] {
+                    let status = "<Idle|MPos:200,200,0|WCO:0,0,0|FS:0,0>";
+                    let (ctx, transport) =
+                        ready_grbl_context_with_status(MachineProfile::default(), status);
+                    transport
+                        .lock()
+                        .unwrap()
+                        .status_on_query
+                        .push_back(status.into());
+                    let mut project = frame_project();
+                    project.start_from = StartFromMode::CurrentPosition;
+                    project.job_origin = origin;
+                    project.workspace.origin = workspace;
+                    *ctx.project.lock().unwrap() = Some(project);
+                    frame_job(&ctx, mode, &[], false, Some(1_000.0)).unwrap();
+                    finish_recorded_job(&ctx, &transport);
+                    let lines = sent_lines(&transport);
+                    assert!(
+                        !lines.iter().any(|line| line.starts_with("G0 ")),
+                        "{lines:?}"
+                    );
+                    let motion: Vec<_> = lines
+                        .iter()
+                        .filter(|line| line.starts_with("G1 "))
+                        .collect();
+                    assert!(
+                        motion.iter().all(|line| line.contains(" F1000")),
+                        "{lines:?}"
+                    );
+                    assert!(
+                        motion.first().unwrap().contains("X200.000 Y200.000"),
+                        "{origin:?}/{workspace:?}/{mode}: {lines:?}"
+                    );
+                    assert!(
+                        motion.last().unwrap().contains("X200.000 Y200.000"),
+                        "{lines:?}"
+                    );
+                    // One laser-off approach, then one traversal of each edge.
+                    let midpoint = matches!(
+                        origin,
+                        AnchorPoint::TopCenter
+                            | AnchorPoint::CenterLeft
+                            | AnchorPoint::CenterRight
+                            | AnchorPoint::BottomCenter
+                    );
+                    assert_eq!(
+                        motion.len(),
+                        if midpoint { 6 } else { 5 },
+                        "{origin:?}/{mode}: {lines:?}"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn frame_return_is_feed_limited_and_restores_units_per_minute() {
+        let status = "<Idle|MPos:100,100,0|WCO:0,0,0|FS:0,0>";
+        for continuous in [false, true] {
+            let profile = MachineProfile {
+                frame_continuously: continuous,
+                job_header_gcode: "G93".into(),
+                ..MachineProfile::default()
+            };
+            let (ctx, transport) = ready_grbl_context_with_status(profile, status);
+            transport
+                .lock()
+                .unwrap()
+                .status_on_query
+                .push_back(status.into());
+            let mut project = frame_project();
+            project.start_from = StartFromMode::CurrentPosition;
+            project.job_origin = beambench_common::AnchorPoint::Center;
+            *ctx.project.lock().unwrap() = Some(project);
+            frame_job(&ctx, "rectangular", &[], true, Some(1_000.0)).unwrap();
+            finish_recorded_job(&ctx, &transport);
+            let lines = sent_lines(&transport);
+            assert!(
+                lines.iter().position(|line| line == "G94").unwrap()
+                    < lines
+                        .iter()
+                        .position(|line| line.starts_with("G1 "))
+                        .unwrap()
+            );
+            assert!(
+                !lines.iter().any(|line| line.starts_with("G0 ")),
+                "{lines:?}"
+            );
+            assert!(
+                lines
+                    .iter()
+                    .filter(|line| line.starts_with("G1 "))
+                    .all(|line| line.contains(" F1000"))
+            );
+            assert!(
+                lines
+                    .iter()
+                    .any(|line| line == "G1 X100.000 Y100.000 F1000 S0")
+            );
+            cancel_job_for_cleanup(&ctx);
+        }
+    }
+
+    #[test]
     fn frame_job_uses_supplied_feed_rate() {
         let profile = MachineProfile {
             bed_width_mm: 400.0,
@@ -12289,7 +12512,7 @@ mod tests {
         assert!(
             sent_lines(&transport)
                 .iter()
-                .any(|line| line.starts_with("G0 X30.707 Y9.646")),
+                .any(|line| line.starts_with("G1 X30.707 Y9.646")),
             "physical bed point (100,100) should be emitted in the active GRBL work frame"
         );
     }
@@ -12597,20 +12820,23 @@ mod tests {
                         .iter()
                         .filter(|line| line.contains(" X") && line.contains(" Y"))
                     {
+                        let coord = |axis: char| {
+                            line.split_whitespace()
+                                .find_map(|word| word.strip_prefix(axis)?.parse::<f64>().ok())
+                                .unwrap()
+                        };
+                        let (x, y) = (coord('X'), coord('Y'));
+                        let on_boundary = x >= min_x - 0.002
+                            && x <= min_x + 20.002
+                            && y >= min_y - 0.002
+                            && y <= min_y + 10.002
+                            && ((x - min_x).abs() < 0.002
+                                || (x - min_x - 20.0).abs() < 0.002
+                                || (y - min_y).abs() < 0.002
+                                || (y - min_y - 10.0).abs() < 0.002);
                         assert!(
-                            [
-                                (min_x, min_y),
-                                (min_x + 20.0, min_y),
-                                (min_x + 20.0, min_y + 10.0),
-                                (min_x, min_y + 10.0),
-                                target,
-                            ]
-                            .iter()
-                            .any(|(x, y)| contains_xy(
-                                std::slice::from_ref(line),
-                                *x,
-                                *y
-                            )),
+                            on_boundary
+                                || (x - target.0).abs() < 0.002 && (y - target.1).abs() < 0.002,
                             "unexpected frame move for {mode}/{origin:?}/{target:?}: {line}"
                         );
                     }
