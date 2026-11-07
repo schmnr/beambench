@@ -3,6 +3,8 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import i18n from '../../../i18n';
+import { useNotificationStore } from '../../../stores/notificationStore';
 import { useProjectStore } from '../../../stores/projectStore';
 import { usePdfPagePickerStore } from '../../../stores/pdfPagePickerStore';
 import { makeProject, makeProjectObject } from '../../../test-utils/projectFixtures';
@@ -99,5 +101,27 @@ describe('desktop PDF page selection', () => {
       .toEqual([['import_files', { filePaths: ['/tmp/single.pdf'], layerId: 'layer-1' }]]);
     expect(useProjectStore.getState().selectedObjectIds).toEqual(['selected-page']);
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('shows a localized error without prompting for a PDF with no readable pages', async () => {
+    const originalLanguage = i18n.language;
+    await i18n.changeLanguage('fi');
+    try {
+      vi.mocked(open).mockResolvedValue(['/tmp/empty.pdf']);
+      vi.mocked(invoke).mockRejectedValueOnce(
+        "Beam Bench couldn't find a readable page in this PDF. Try exporting the PDF again.",
+      );
+      render(<PdfPagePickerDialog />);
+
+      await act(() => useProjectStore.getState().importFiles());
+
+      const { notifications, dismiss } = useNotificationStore.getState();
+      const notification = notifications.find(({ message }) => message.includes('luettavaa sivua'));
+      expect(notification?.type).toBe('error');
+      expect(screen.queryByRole('dialog')).toBeNull();
+      if (notification) dismiss(notification.id);
+    } finally {
+      await i18n.changeLanguage(originalLanguage);
+    }
   });
 });

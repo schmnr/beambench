@@ -4,6 +4,7 @@ import { getCurrentWebviewWindow, type DragDropEvent } from '@tauri-apps/api/web
 import { useProjectStore } from '../../stores/projectStore';
 import { useNotificationStore } from '../../stores/notificationStore';
 import i18n from '../../i18n';
+import { localizePdfImportError } from '../../i18n/errors';
 import { useArtLibraryStore } from '../../stores/artLibraryStore';
 import { isArtLibraryDragDataTransfer } from '../shared/artLibraryDragData';
 import { blobToBase64 } from '../../utils/systemClipboard';
@@ -43,6 +44,14 @@ function isUnreadableDroppedFileError(error: unknown): boolean {
     return (error as { name?: unknown }).name === 'NotReadableError';
   }
   return String(error).includes('NotReadableError');
+}
+
+function notifyImportFailure(error: unknown) {
+  const detail = String(error);
+  useNotificationStore.getState().push(
+    i18n.t('notifications.import_failed', { detail: localizePdfImportError(detail) ?? detail }),
+    'error',
+  );
 }
 
 export function ImportDropZone({ children }: ImportDropZoneProps) {
@@ -91,9 +100,7 @@ export function ImportDropZone({ children }: ImportDropZoneProps) {
           try {
             await useProjectStore.getState().importFilePaths(filePaths);
           } catch (err) {
-            useNotificationStore
-              .getState()
-              .push(i18n.t('notifications.import_failed', { detail: String(err) }), 'error');
+            notifyImportFailure(err);
           } finally {
             // Some WebViews can deliver a trailing drag-enter while the
             // asynchronous import is being processed. The completed drop
@@ -196,9 +203,7 @@ export function ImportDropZone({ children }: ImportDropZoneProps) {
           await useProjectStore.getState().importFiles();
           return;
         }
-        useNotificationStore
-          .getState()
-          .push(i18n.t('notifications.import_failed', { detail: String(err) }), 'error');
+        notifyImportFailure(err);
       } finally {
         // Keep the drop overlay transient even if the WebView emits a late
         // drag-enter while the file contents are being imported.

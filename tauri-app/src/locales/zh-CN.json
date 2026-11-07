@@ -2934,7 +2934,14 @@
     "controller_connection_lost": "与激光器的连接已断开。请检查线缆和电源，然后重新连接。详细信息：{detail}"
   },
   "import": {
-    "drop_to_import": "拖放文件以导入"
+    "drop_to_import": "拖放文件以导入",
+    "pdf_page": {
+      "title": "选择 PDF 页面",
+      "number": "页码",
+      "range": "请输入 1 到 {count, number} 之间的页码。",
+      "confirm": "导入页面",
+      "no_readable_pages": "Beam Bench 在此 PDF 中找不到可读取的页面。请尝试重新导出 PDF。"
+    }
   },
   "selection": {
     "object": "Object",

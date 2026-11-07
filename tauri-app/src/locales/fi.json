@@ -2934,7 +2934,14 @@
     "controller_connection_lost": "Yhteys laseriin katkesi. Tarkista kaapeli ja virta ja yhdistä sitten uudelleen. Lisätiedot: {detail}"
   },
   "import": {
-    "drop_to_import": "Pudota tiedostot tuotavaksi"
+    "drop_to_import": "Pudota tiedostot tuotavaksi",
+    "pdf_page": {
+      "title": "Valitse PDF-sivu",
+      "number": "Sivunumero",
+      "range": "Anna sivunumero väliltä 1–{count, number}.",
+      "confirm": "Tuo sivu",
+      "no_readable_pages": "Beam Bench ei löytänyt tästä PDF-tiedostosta luettavaa sivua. Kokeile viedä PDF uudelleen."
+    }
   },
   "selection": {
     "object": "Object",

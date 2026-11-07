@@ -2934,7 +2934,14 @@
     "controller_connection_lost": "Forbindelsen til laseren blev afbrudt. Kontroller kablet og strømmen, og opret derefter forbindelse igen. Detaljer: {detail}"
   },
   "import": {
-    "drop_to_import": "Slip filer for at importere"
+    "drop_to_import": "Slip filer for at importere",
+    "pdf_page": {
+      "title": "Vælg en PDF-side",
+      "number": "Sidenummer",
+      "range": "Indtast et sidetal fra 1 til {count, number}.",
+      "confirm": "Importér side",
+      "no_readable_pages": "Beam Bench fandt ingen læsbare sider i denne PDF. Prøv at eksportere PDF-filen igen."
+    }
   },
   "selection": {
     "object": "Object",

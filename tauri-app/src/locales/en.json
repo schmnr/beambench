@@ -2939,7 +2939,8 @@
       "title": "Choose a PDF page",
       "number": "Page number",
       "range": "Enter a page from 1 to {count, number}.",
-      "confirm": "Import Page"
+      "confirm": "Import Page",
+      "no_readable_pages": "Beam Bench couldn't find a readable page in this PDF. Try exporting the PDF again."
     }
   },
   "selection": {

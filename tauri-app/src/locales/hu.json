@@ -2934,7 +2934,14 @@
     "controller_connection_lost": "Megszakadt a kapcsolat a lézerrel. Ellenőrizze a kábelt és a tápellátást, majd csatlakozzon újra. Részletek: {detail}"
   },
   "import": {
-    "drop_to_import": "Húzd ide a fájlokat az importáláshoz"
+    "drop_to_import": "Húzd ide a fájlokat az importáláshoz",
+    "pdf_page": {
+      "title": "PDF-oldal kiválasztása",
+      "number": "Oldalszám",
+      "range": "Adjon meg egy oldalszámot 1 és {count, number} között.",
+      "confirm": "Oldal importálása",
+      "no_readable_pages": "A Beam Bench nem talált olvasható oldalt ebben a PDF-ben. Próbálja meg újra exportálni a PDF-et."
+    }
   },
   "selection": {
     "object": "Object",

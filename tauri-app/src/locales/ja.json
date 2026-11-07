@@ -2934,7 +2934,14 @@
     "controller_connection_lost": "レーザーとの接続が切断されました。ケーブルと電源を確認してから、再接続してください。詳細: {detail}"
   },
   "import": {
-    "drop_to_import": "ファイルをドロップしてインポート"
+    "drop_to_import": "ファイルをドロップしてインポート",
+    "pdf_page": {
+      "title": "PDF のページを選択",
+      "number": "ページ番号",
+      "range": "1〜{count, number} のページ番号を入力してください。",
+      "confirm": "ページをインポート",
+      "no_readable_pages": "この PDF に読み取れるページが見つかりませんでした。PDF を書き出し直してください。"
+    }
   },
   "selection": {
     "object": "Object",

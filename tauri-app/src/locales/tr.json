@@ -2934,7 +2934,14 @@
     "controller_connection_lost": "Lazerle bağlantı kesildi. Kabloyu ve gücü kontrol edin, ardından yeniden bağlanın. Ayrıntılar: {detail}"
   },
   "import": {
-    "drop_to_import": "İçe aktarmak için dosyaları bırakın"
+    "drop_to_import": "İçe aktarmak için dosyaları bırakın",
+    "pdf_page": {
+      "title": "Bir PDF sayfası seçin",
+      "number": "Sayfa numarası",
+      "range": "1 ile {count, number} arasında bir sayfa numarası girin.",
+      "confirm": "Sayfayı içe aktar",
+      "no_readable_pages": "Beam Bench bu PDF’de okunabilir bir sayfa bulamadı. PDF’yi yeniden dışa aktarmayı deneyin."
+    }
   },
   "selection": {
     "object": "Object",

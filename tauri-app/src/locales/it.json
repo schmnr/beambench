@@ -2934,7 +2934,14 @@
     "controller_connection_lost": "La connessione con il laser si è interrotta. Controllare il cavo e l’alimentazione, quindi riconnettersi. Dettagli: {detail}"
   },
   "import": {
-    "drop_to_import": "Trascina i file da importare"
+    "drop_to_import": "Trascina i file da importare",
+    "pdf_page": {
+      "title": "Scegli una pagina del PDF",
+      "number": "Numero di pagina",
+      "range": "Inserisci un numero di pagina da 1 a {count, number}.",
+      "confirm": "Importa pagina",
+      "no_readable_pages": "Beam Bench non ha trovato pagine leggibili in questo PDF. Prova a esportarlo di nuovo."
+    }
   },
   "selection": {
     "object": "Object",

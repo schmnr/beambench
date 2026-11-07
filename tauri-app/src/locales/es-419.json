@@ -2934,7 +2934,14 @@
     "controller_connection_lost": "Se perdió la conexión con el láser. Revise el cable y la alimentación y vuelva a conectarse. Detalles: {detail}"
   },
   "import": {
-    "drop_to_import": "Suelta archivos para importar"
+    "drop_to_import": "Suelta archivos para importar",
+    "pdf_page": {
+      "title": "Elige una página del PDF",
+      "number": "Número de página",
+      "range": "Ingresa un número de página del 1 al {count, number}.",
+      "confirm": "Importar página",
+      "no_readable_pages": "Beam Bench no encontró ninguna página legible en este PDF. Intenta exportarlo de nuevo."
+    }
   },
   "selection": {
     "object": "Object",
