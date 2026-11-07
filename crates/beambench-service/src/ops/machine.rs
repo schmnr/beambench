@@ -5092,7 +5092,10 @@ pub fn start_job_at_generation(
     };
     let started = match (session, built) {
         (MachineSessionHandle::Grbl(session), BuiltJob::Grbl(mut job)) => {
-            if let Err(error) = job.start(session) {
+            let separate_status_queries = session.separate_status_queries(&profile);
+            if let Err(error) =
+                job.start_with_status_query_separation(session, separate_status_queries)
+            {
                 let error = ServiceError::machine(format!("Job start failed: {error}"));
                 let job = ActiveJobHandle::Grbl(*job);
                 retain_terminal_job_diagnostic(
@@ -5729,7 +5732,11 @@ fn clear_job_resources(ctx: &ServiceContext) {
 }
 
 pub(crate) enum PreparedFrame {
-    Grbl(ExecutionPlan, Box<beambench_grbl::GcodeConfig>),
+    Grbl {
+        plan: ExecutionPlan,
+        config: Box<beambench_grbl::GcodeConfig>,
+        separate_status_queries: bool,
+    },
     Marlin(Vec<String>, f64),
     Smoothieware(Vec<String>, f64),
     Ruida(RuidaCompiledJob),
@@ -5760,11 +5767,20 @@ impl PreparedFrame {
     ) -> Result<ActiveJobHandle, FrameStartError> {
         ensure_no_emergency_stop_since(ctx, estop_generation)?;
         match (self, &mut *session) {
-            (Self::Grbl(plan, config), MachineSessionHandle::Grbl(grbl)) => {
+            (
+                Self::Grbl {
+                    plan,
+                    config,
+                    separate_status_queries,
+                },
+                MachineSessionHandle::Grbl(grbl),
+            ) => {
                 let mut job = JobController::prepare(plan, config)
                     .map_err(|e| ServiceError::machine(format!("Frame prepare failed: {e}")))?;
                 ensure_no_emergency_stop_since(ctx, estop_generation)?;
-                if let Err(error) = job.start(grbl) {
+                if let Err(error) =
+                    job.start_with_status_query_separation(grbl, *separate_status_queries)
+                {
                     let error = ServiceError::machine(format!("Frame start failed: {error}"));
                     let job = ActiveJobHandle::Grbl(job);
                     retain_terminal_job_diagnostic(
@@ -6292,7 +6308,11 @@ fn start_frame_with_policy(
                 grbl.last_status(),
             )
             .map_err(ServiceError::invalid_state)?;
-            PreparedFrame::Grbl(output_plan, Box::new(config))
+            PreparedFrame::Grbl {
+                plan: output_plan,
+                config: Box::new(config),
+                separate_status_queries: grbl.separate_status_queries(&profile),
+            }
         }
         MachineSessionHandle::Marlin(marlin) => PreparedFrame::Marlin(
             acknowledged_gcode_commands(marlin.driver(), &output_plan, frame_gcode_config)
@@ -12195,7 +12215,11 @@ mod tests {
             }
             std::thread::yield_now();
         }
-        let frame = PreparedFrame::Grbl(dummy_plan(), Box::new(GcodeConfig::default()));
+        let frame = PreparedFrame::Grbl {
+            plan: dummy_plan(),
+            config: Box::new(GcodeConfig::default()),
+            separate_status_queries: false,
+        };
         let result = frame.start(&ctx, session.as_mut().unwrap(), generation);
         assert!(matches!(result, Err(FrameStartError { error, sent: false })
             if error.message.starts_with("[job_preparation_stopped]")));
@@ -14594,6 +14618,25 @@ mod tests {
         assert_eq!(ctx.job.lock().unwrap().is_some(), false);
         let details = err.details.expect("preflight details should be attached");
         assert_ne!(details["preflight"]["outcome"], "pass");
+    }
+
+    #[test]
+    fn falcon_serial_job_start_waits_for_outstanding_status_before_sending() {
+        for preset_id in [None, Some(super::super::profiles::FALCON2_PRO_40W_PRESET)] {
+            let ctx = profile_switch_preflight_context(100.0);
+            ctx.settings.lock().unwrap().machine_profiles[0].preset_id =
+                preset_id.map(str::to_owned);
+            let mut session_lock = ctx.session.lock().unwrap();
+            let Some(MachineSessionHandle::Grbl(grbl)) = session_lock.as_mut() else {
+                panic!("expected GRBL session");
+            };
+            grbl.poll_status().unwrap();
+            drop(session_lock);
+
+            let progress = start_job(&ctx).unwrap();
+            assert_eq!(progress.state, JobState::Running);
+            assert_eq!(progress.sent_lines == 0, preset_id.is_some());
+        }
     }
 
     #[test]
