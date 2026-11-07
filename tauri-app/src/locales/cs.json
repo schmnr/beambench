@@ -2934,7 +2934,14 @@
     "controller_connection_lost": "Spojení s laserem bylo ztraceno. Zkontrolujte kabel a napájení a poté se znovu připojte. Podrobnosti: {detail}"
   },
   "import": {
-    "drop_to_import": "Přetáhněte soubory k importu"
+    "drop_to_import": "Přetáhněte soubory k importu",
+    "pdf_page": {
+      "title": "Vyberte stránku PDF",
+      "number": "Číslo stránky",
+      "range": "Zadejte číslo stránky od 1 do {count, number}.",
+      "confirm": "Importovat stránku",
+      "no_readable_pages": "Beam Bench v tomto PDF nenašel žádnou čitelnou stránku. Zkuste PDF znovu exportovat."
+    }
   },
   "selection": {
     "object": "Object",

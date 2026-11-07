@@ -2934,7 +2934,14 @@
     "controller_connection_lost": "De verbinding met de laser is verbroken. Controleer de kabel en de stroomvoorziening en maak daarna opnieuw verbinding. Details: {detail}"
   },
   "import": {
-    "drop_to_import": "Sleep bestanden om te importeren"
+    "drop_to_import": "Sleep bestanden om te importeren",
+    "pdf_page": {
+      "title": "Kies een PDF-pagina",
+      "number": "Paginanummer",
+      "range": "Voer een paginanummer in van 1 tot en met {count, number}.",
+      "confirm": "Pagina importeren",
+      "no_readable_pages": "Beam Bench heeft geen leesbare pagina in dit PDF-bestand gevonden. Probeer het PDF-bestand opnieuw te exporteren."
+    }
   },
   "selection": {
     "object": "Object",

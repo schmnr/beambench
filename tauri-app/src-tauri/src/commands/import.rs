@@ -1,10 +1,10 @@
-use std::sync::Arc;
+use std::sync::{Arc, atomic::Ordering};
 use std::time::Instant;
 
 use base64::Engine;
 use beambench_core::{Asset, AssetId, AssetMediaType, ObjectData, Project, ProjectObject};
-use beambench_service::ServiceContext;
 use beambench_service::ops::imports;
+use beambench_service::{ServiceContext, ServiceResult};
 use tauri::State;
 use tauri_plugin_dialog::DialogExt;
 use uuid::Uuid;
@@ -322,22 +322,74 @@ pub fn import_clipboard_artwork(
     apply_drop_position_after_import(&svc, created, drop_position)
 }
 
+#[derive(serde::Deserialize, serde::Serialize)]
+pub struct PdfPageRequest {
+    file_index: usize,
+    pdf_page_count: usize,
+    #[serde(skip_deserializing)]
+    document_epoch: u64,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PdfPageSelection {
+    pages: Vec<Option<u32>>,
+    document_epoch: u64,
+}
+
+#[derive(serde::Serialize)]
+#[serde(untagged)]
+pub enum FileImportOutcome {
+    Imported(Vec<ProjectObject>),
+    PdfPageRequired(PdfPageRequest),
+}
+
+fn file_import_outcome(
+    result: ServiceResult<Vec<ProjectObject>>,
+    document_epoch: u64,
+) -> Result<FileImportOutcome, String> {
+    match result {
+        Ok(objects) => Ok(FileImportOutcome::Imported(objects)),
+        Err(error) => match error
+            .details
+            .and_then(|details| serde_json::from_value::<PdfPageRequest>(details).ok())
+        {
+            Some(request) => Ok(FileImportOutcome::PdfPageRequired(PdfPageRequest {
+                document_epoch,
+                ..request
+            })),
+            None => Err(error.message),
+        },
+    }
+}
+
 #[tauri::command(async)]
 pub fn import_files(
     svc: State<'_, Arc<ServiceContext>>,
     file_paths: Vec<String>,
     layer_id: String,
     create_layer: Option<beambench_service::ops::project::AddObjectLayerInput>,
-) -> Result<Vec<ProjectObject>, String> {
-    imports::import_files_from_paths(
-        &svc,
-        imports::ImportFilesInput {
-            create_layer,
-            file_paths,
-            layer_id: parse_id(&layer_id)?,
-        },
+    pdf_selection: Option<PdfPageSelection>,
+) -> Result<FileImportOutcome, String> {
+    let selected_epoch = pdf_selection
+        .as_ref()
+        .map(|selection| selection.document_epoch);
+    let epoch = selected_epoch.unwrap_or_else(|| svc.document_epoch.load(Ordering::Acquire));
+    file_import_outcome(
+        imports::import_files_from_paths_selecting_pdf_pages(
+            &svc,
+            imports::ImportFilesInput {
+                create_layer,
+                file_paths,
+                layer_id: parse_id(&layer_id)?,
+            },
+            pdf_selection
+                .as_ref()
+                .map_or(&[], |selection| selection.pages.as_slice()),
+            selected_epoch,
+        ),
+        epoch,
     )
-    .map_err(Into::into)
 }
 
 /// Import files delivered by content (HTML5 drag-drop), where the webview
@@ -348,16 +400,27 @@ pub fn import_file_data(
     files: Vec<imports::ImportFileData>,
     layer_id: String,
     create_layer: Option<beambench_service::ops::project::AddObjectLayerInput>,
-) -> Result<Vec<ProjectObject>, String> {
-    imports::import_files_from_data(
-        &svc,
-        imports::ImportFilesDataInput {
-            create_layer,
-            files,
-            layer_id: parse_id(&layer_id)?,
-        },
+    pdf_selection: Option<PdfPageSelection>,
+) -> Result<FileImportOutcome, String> {
+    let selected_epoch = pdf_selection
+        .as_ref()
+        .map(|selection| selection.document_epoch);
+    let epoch = selected_epoch.unwrap_or_else(|| svc.document_epoch.load(Ordering::Acquire));
+    file_import_outcome(
+        imports::import_files_from_data_selecting_pdf_pages(
+            &svc,
+            imports::ImportFilesDataInput {
+                create_layer,
+                files,
+                layer_id: parse_id(&layer_id)?,
+            },
+            pdf_selection
+                .as_ref()
+                .map_or(&[], |selection| selection.pages.as_slice()),
+            selected_epoch,
+        ),
+        epoch,
     )
-    .map_err(Into::into)
 }
 
 #[tauri::command]

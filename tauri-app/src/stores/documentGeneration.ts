@@ -1,4 +1,5 @@
 import type { StateCreator } from 'zustand';
+import { usePdfPagePickerStore } from './pdfPagePickerStore';
 
 /**
  * Document identity for discarding late backend replies.
@@ -13,6 +14,7 @@ export const getDocumentGeneration = () => documentGeneration;
 
 export function beginNewDocument(): void {
   documentGeneration += 1;
+  usePdfPagePickerStore.getState().request?.finish(null);
 }
 
 /** Check in the consuming continuation, immediately after its await. */

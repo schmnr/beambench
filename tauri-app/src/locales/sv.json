@@ -2934,7 +2934,14 @@
     "controller_connection_lost": "Anslutningen till lasern bröts. Kontrollera kabeln och strömmen och anslut sedan igen. Detaljer: {detail}"
   },
   "import": {
-    "drop_to_import": "Släpp filer för att importera"
+    "drop_to_import": "Släpp filer för att importera",
+    "pdf_page": {
+      "title": "Välj en PDF-sida",
+      "number": "Sidnummer",
+      "range": "Ange ett sidnummer från 1 till {count, number}.",
+      "confirm": "Importera sida",
+      "no_readable_pages": "Beam Bench hittade inga läsbara sidor i den här PDF-filen. Försök exportera PDF-filen igen."
+    }
   },
   "selection": {
     "object": "Object",

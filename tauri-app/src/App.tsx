@@ -21,6 +21,7 @@ import { BarcodeDialog } from './components/dialogs/BarcodeDialog';
 import { CloseSelectedPathsWithToleranceDialog } from './components/dialogs/CloseSelectedPathsWithToleranceDialog';
 import { DeleteDuplicatesDialog } from './components/dialogs/DeleteDuplicatesDialog';
 import { UnsavedChangesDialog } from './components/dialogs/UnsavedChangesDialog';
+import { PdfPagePickerDialog } from './components/import/PdfPagePickerDialog';
 import { NestDialog } from './components/dialogs/NestDialog';
 import { MaterialTestDialog } from './components/dialogs/MaterialTestDialog';
 import { FocusTestDialog } from './components/dialogs/FocusTestDialog';
@@ -1883,6 +1884,7 @@ function App() {
       )}
       <PreviewGenerationDialog />
       <NestingOverlay />
+      <PdfPagePickerDialog />
       <UnsavedChangesDialog />
       <PreviewWindowBridge />
     </>

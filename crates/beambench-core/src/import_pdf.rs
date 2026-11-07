@@ -298,9 +298,44 @@ mod artwork;
 mod objects;
 pub use artwork::{PdfArtwork, PdfImage};
 
+#[derive(Debug, thiserror::Error)]
+pub enum PdfImportError {
+    #[error("Beam Bench couldn't find a readable page in this PDF. Try exporting the PDF again.")]
+    NoReadablePages,
+    #[error(
+        "This PDF has {page_count} pages. Choose one page to import or save it as a separate PDF."
+    )]
+    PageRequired { page_count: usize },
+    #[error("Page {page} is out of range. This PDF has {page_count} pages.")]
+    PageOutOfRange { page: u32, page_count: usize },
+    #[error("{0}")]
+    Invalid(String),
+}
+
+impl From<String> for PdfImportError {
+    fn from(error: String) -> Self {
+        Self::Invalid(error)
+    }
+}
+
+impl From<&str> for PdfImportError {
+    fn from(error: &str) -> Self {
+        Self::Invalid(error.into())
+    }
+}
+
 /// Resolve page content through the PDF object graph. Unsupported painting is
 /// rejected rather than silently importing a different design.
 pub fn parse_pdf_artwork(content: &[u8]) -> Result<PdfArtwork, String> {
+    parse_pdf_artwork_page(content, None).map_err(|error| error.to_string())
+}
+
+/// Import the specified one-based page. Without a choice, only a single-page
+/// document can be imported.
+pub fn parse_pdf_artwork_page(
+    content: &[u8],
+    page: Option<u32>,
+) -> Result<PdfArtwork, PdfImportError> {
     if content.len() > PDF_INPUT_LIMIT {
         return Err("PDF exceeds the 64 MiB input limit".into());
     }
@@ -330,12 +365,16 @@ pub fn parse_pdf_artwork(content: &[u8]) -> Result<PdfArtwork, String> {
     let mut remaining = PDF_CONTENT_LIMIT;
     objects::expand(&mut doc, &mut remaining)?;
     let pages = doc.get_pages();
-    if pages.len() != 1 {
-        return Err(
-            "Import a single-page PDF. Split this document into separate pages first.".into(),
-        );
-    }
-    let page_id = *pages.values().next().unwrap();
+    let page_count = pages.len();
+    let page = match (page_count, page) {
+        (0, _) => return Err(PdfImportError::NoReadablePages),
+        (_, Some(page)) => page,
+        (1, None) => 1,
+        (_, None) => return Err(PdfImportError::PageRequired { page_count }),
+    };
+    let page_id = *pages
+        .get(&page)
+        .ok_or(PdfImportError::PageOutOfRange { page, page_count })?;
     let mut ancestor = Some(page_id);
     let mut resources = None;
     let mut media_box = None;
@@ -400,13 +439,13 @@ pub fn parse_pdf_artwork(content: &[u8]) -> Result<PdfArtwork, String> {
         decoded.extend_from_slice(&bytes);
         decoded.push(b'\n');
     }
-    artwork::extract(
+    Ok(artwork::extract(
         &doc,
         resources,
         &decoded,
         remaining,
         media_box.ok_or("Missing PDF MediaBox")?,
-    )
+    )?)
 }
 
 /// Vector-only compatibility API. Never silently discard embedded images.
@@ -1674,6 +1713,46 @@ mod document_regressions {
         doc.save_to(&mut bytes).unwrap();
         bytes
     }
+
+    #[test]
+    fn pdf_page_selection_uses_page_tree_order_and_distinguishes_empty_documents() {
+        let bytes = include_bytes!("../tests/fixtures/pdf/two-pages.pdf");
+        assert!(matches!(
+            parse_pdf_artwork_page(bytes, None),
+            Err(PdfImportError::PageRequired { page_count: 2 })
+        ));
+        for (page, width) in [(1, 12.0), (2, 60.0)] {
+            let artwork = parse_pdf_artwork_page(bytes, Some(page)).unwrap();
+            assert_eq!(artwork.paths.len(), 1);
+            assert_pdf_coord(artwork.paths[0].path.bounds().unwrap().width(), width);
+        }
+        assert!(matches!(
+            parse_pdf_artwork_page(bytes, Some(3)),
+            Err(PdfImportError::PageOutOfRange {
+                page: 3,
+                page_count: 2
+            })
+        ));
+
+        let mut doc = Document::load_mem(bytes).unwrap();
+        let pages_id = doc
+            .catalog()
+            .unwrap()
+            .get(b"Pages")
+            .unwrap()
+            .as_reference()
+            .unwrap();
+        let tree = doc.get_dictionary_mut(pages_id).unwrap();
+        tree.set("Kids", Object::Array(Vec::new()));
+        tree.set("Count", 0);
+        let mut empty = Vec::new();
+        doc.save_to(&mut empty).unwrap();
+        assert!(matches!(
+            parse_pdf_artwork_page(&empty, None),
+            Err(PdfImportError::NoReadablePages)
+        ));
+    }
+
     #[test]
     fn encoding_names_in_metadata_comments_and_stream_bytes_are_not_encodings() {
         for title in [

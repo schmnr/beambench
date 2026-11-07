@@ -2934,7 +2934,14 @@
     "controller_connection_lost": "與雷射機的連線已中斷。請檢查線材和電源，然後重新連線。詳細資訊：{detail}"
   },
   "import": {
-    "drop_to_import": "拖放檔案以匯入"
+    "drop_to_import": "拖放檔案以匯入",
+    "pdf_page": {
+      "title": "選擇 PDF 頁面",
+      "number": "頁碼",
+      "range": "請輸入 1 到 {count, number} 之間的頁碼。",
+      "confirm": "匯入頁面",
+      "no_readable_pages": "Beam Bench 在此 PDF 中找不到可讀取的頁面。請嘗試重新匯出 PDF。"
+    }
   },
   "selection": {
     "object": "Object",

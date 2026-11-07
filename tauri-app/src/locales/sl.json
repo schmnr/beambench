@@ -2934,7 +2934,14 @@
     "controller_connection_lost": "Povezava z laserjem je bila prekinjena. Preverite kabel in napajanje ter se znova povežite. Podrobnosti: {detail}"
   },
   "import": {
-    "drop_to_import": "Spustite datoteke za uvoz"
+    "drop_to_import": "Spustite datoteke za uvoz",
+    "pdf_page": {
+      "title": "Izberite stran PDF",
+      "number": "Številka strani",
+      "range": "Vnesite številko strani od 1 do {count, number}.",
+      "confirm": "Uvozi stran",
+      "no_readable_pages": "Beam Bench v tem PDF-ju ni našel nobene berljive strani. Poskusite znova izvoziti PDF."
+    }
   },
   "selection": {
     "object": "Object",

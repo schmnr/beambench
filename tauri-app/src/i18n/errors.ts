@@ -27,6 +27,8 @@ const DXF_NO_USABLE_GEOMETRY =
   /^DXF import found no usable 2D vector geometry\.(?: Unsupported or malformed entities: (.+)\.)?$/u;
 const DXF_SKIPPED_ENTITIES =
   /^DXF import skipped unsupported or malformed entities: (.+)\.$/u;
+const PDF_NO_READABLE_PAGES =
+  "Beam Bench couldn't find a readable page in this PDF. Try exporting the PDF again.";
 const SERIAL_OPEN_NO_RESPONSE = '[serial_open_no_response]';
 const SERIAL_PROTOCOL_UNRECOGNIZED = '[serial_protocol_unrecognized]';
 const NETWORK_GRBL_NO_STATUS = 'The network controller did not return a GRBL status report';
@@ -154,6 +156,8 @@ export function wrapBackendError(detail: string): string {
         })
       : i18n.t('errors.dxf_no_usable_geometry');
   }
+  const pdfError = localizePdfImportError(normalized);
+  if (pdfError) return pdfError;
   const safety = normalized.match(SAFETY_TAG);
   if (safety) {
     // Safety guidance in the user's language, with the controller detail.
@@ -181,6 +185,12 @@ export function localizeBackendMessage(detail: string): string {
     i18n.t('errors.operation_failed_with_detail', { detail: value }),
   );
   return unknownFrames.includes(wrapped) ? normalized : wrapped;
+}
+
+export function localizePdfImportError(detail: string): string | undefined {
+  if (detail.replace(/^Error:\s*/u, '') === PDF_NO_READABLE_PAGES) {
+    return i18n.t('import.pdf_page.no_readable_pages');
+  }
 }
 
 export function localizeImportWarning(warning: string): string {

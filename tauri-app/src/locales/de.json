@@ -2934,7 +2934,14 @@
     "controller_connection_lost": "Die Verbindung zum Laser wurde unterbrochen. Prüfen Sie Kabel und Stromversorgung und verbinden Sie sich dann erneut. Details: {detail}"
   },
   "import": {
-    "drop_to_import": "Dateien zum Importieren ablegen"
+    "drop_to_import": "Dateien zum Importieren ablegen",
+    "pdf_page": {
+      "title": "PDF-Seite auswählen",
+      "number": "Seitennummer",
+      "range": "Geben Sie eine Seitennummer von 1 bis {count, number} ein.",
+      "confirm": "Seite importieren",
+      "no_readable_pages": "Beam Bench hat in dieser PDF-Datei keine lesbare Seite gefunden. Exportieren Sie die PDF-Datei erneut."
+    }
   },
   "selection": {
     "object": "Object",

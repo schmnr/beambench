@@ -38,7 +38,12 @@ import type {
   OffsetDirection,
 } from '../types/vector';
 import { projectService as rawProjectService, type DrawOrderDirection } from '../services/projectService';
-import { importService as rawImportService, type ImportLayer } from '../services/importService';
+import {
+  importService as rawImportService,
+  type ImportBatchResult,
+  type ImportLayer,
+  type PdfPageSelection,
+} from '../services/importService';
 import { persistenceService } from '../services/persistenceService';
 import { previewService } from '../services/previewService';
 import { sessionJobOptions } from '../types/jobOptions';
@@ -53,6 +58,7 @@ import {
 } from './documentGeneration';
 import { PALETTE_COLORS } from '../constants/palette';
 import { usePreviewStore } from './previewStore';
+import { requestPdfPage } from './pdfPagePickerStore';
 import { useNotificationStore } from './notificationStore';
 import { appService } from '../services/appService';
 import i18n from '../i18n';
@@ -2015,10 +2021,8 @@ export const useProjectStore = create<ProjectStoreState>(dropStaleDocumentErrors
 
   importFilePaths: async (filePaths, layerId) => {
     const artworkPaths = filePaths.filter((path) => !isGcodeImportName(path));
-    await importArtworkBatch(artworkPaths, layerId, (resolvedLayerId, createLayer) =>
-      createLayer
-        ? importService.importFilePaths(artworkPaths, resolvedLayerId, createLayer)
-        : importService.importFilePaths(artworkPaths, resolvedLayerId),
+    await importArtworkBatch(artworkPaths, layerId, (resolvedLayerId, ...options) =>
+      importService.importFilePaths(artworkPaths, resolvedLayerId, ...options),
     );
   },
 
@@ -2036,9 +2040,8 @@ export const useProjectStore = create<ProjectStoreState>(dropStaleDocumentErrors
     await importArtworkBatch(
       artworkFiles.map((file) => file.filename),
       layerId,
-      (resolvedLayerId, createLayer) => createLayer
-        ? importService.importFileData(artworkFiles, resolvedLayerId, createLayer)
-        : importService.importFileData(artworkFiles, resolvedLayerId),
+      (resolvedLayerId, ...options) =>
+        importService.importFileData(artworkFiles, resolvedLayerId, ...options),
     );
   },
 
@@ -3980,7 +3983,11 @@ function isGcodeImportName(name: string): boolean {
 async function importArtworkBatch(
   artworkNames: string[],
   requestedLayerId: string | undefined,
-  doImport: (layerId: string, createLayer?: ImportLayer) => Promise<ProjectObject[]>,
+  doImport: (
+    layerId: string,
+    createLayer?: ImportLayer,
+    pdfSelection?: PdfPageSelection,
+  ) => Promise<ImportBatchResult>,
 ): Promise<void> {
   const generation = documentGeneration;
   const store = useProjectStore.getState();
@@ -4029,7 +4036,24 @@ async function importArtworkBatch(
   }
   if (layerId === AUTO_LAYER_ID) layerId = NIL_UUID;
   // Layer creation and artwork insertion commit together in the backend.
-  const importedObjects = requireCurrentDocument(generation, await doImport(layerId, createLayer));
+  let importedObjects = requireCurrentDocument(
+    generation,
+    await (createLayer ? doImport(layerId, createLayer) : doImport(layerId)),
+  );
+  let pdfSelection: PdfPageSelection | undefined;
+  while (!Array.isArray(importedObjects)) {
+    const { file_index: index, pdf_page_count: pageCount, document_epoch: epoch } = importedObjects;
+    const filename = artworkNames[index]?.split(/[/\\]/u).pop();
+    if (!filename || pdfSelection?.pages[index] != null || !Number.isSafeInteger(pageCount) || pageCount < 2) {
+      throw new Error('Invalid PDF page selection request');
+    }
+    const page = await requestPdfPage(filename, pageCount);
+    if (page === null || generation !== documentGeneration) return;
+    const pages = pdfSelection?.pages.slice() ?? Array.from({ length: artworkNames.length }, () => null);
+    pages[index] = page;
+    pdfSelection = { pages, documentEpoch: pdfSelection?.documentEpoch ?? epoch };
+    importedObjects = requireCurrentDocument(generation, await doImport(layerId, createLayer, pdfSelection));
+  }
   if (importedObjects.length === 0) return;
 
   const { project } = useProjectStore.getState();
