@@ -18,7 +18,7 @@ use beambench_core::{
     AssetId, LayerId, LbrnCutEntry, LbrnDocument, LbrnShape, ObjectData, ObjectId, ProjectObject,
     ShapeKind, TextAlignment, TextAlignmentV, TextCirclePlacement, TextLayoutMode,
     TextTransformStyle, TraceConfig, import_image, import_svg, parse_dxf_with_report,
-    parse_eps_paths, parse_lbrn_project, parse_pdf_artwork, trace_image,
+    parse_eps_paths, parse_lbrn_project, trace_image,
 };
 use beambench_core::{
     CutEntry, Layer, OperationType, PdfImage, PdfPaintMode, PdfPaintedPath, PdfRgbColor,
@@ -634,14 +634,33 @@ fn absolute_source_path(path: &str) -> Option<String> {
         .and_then(|path| path.to_str().map(ToOwned::to_owned))
 }
 
-fn prepare_pending_imports(file_paths: Vec<String>) -> ServiceResult<Vec<PendingImport>> {
+fn prepare_pending_imports(
+    file_paths: Vec<String>,
+    pdf_pages: &[Option<u32>],
+) -> ServiceResult<Vec<PendingImport>> {
     let mut pending = Vec::new();
-    for file_path in file_paths {
+    for (file_index, file_path) in file_paths.into_iter().enumerate() {
         let bytes = read_file_bytes(&file_path)?;
         let source_path = absolute_source_path(&file_path);
-        pending.push(prepare_pending_import(&file_path, bytes, source_path)?);
+        let page = pdf_pages.get(file_index).copied().flatten();
+        pending.push(
+            prepare_pending_import(&file_path, bytes, source_path, page)
+                .map_err(|error| with_import_file_index(error, file_index))?,
+        );
     }
     Ok(pending)
+}
+
+fn with_import_file_index(mut error: ServiceError, file_index: usize) -> ServiceError {
+    if let Some(details) = error
+        .details
+        .as_mut()
+        .and_then(serde_json::Value::as_object_mut)
+        && details.contains_key("pdf_page_count")
+    {
+        details.insert("file_index".into(), json!(file_index));
+    }
+    error
 }
 
 /// Largest vector document (SVG, DXF, EPS, AI, LightBurn) parsed in memory.
@@ -669,6 +688,7 @@ fn prepare_pending_import(
     filename: &str,
     bytes: Vec<u8>,
     source_path: Option<String>,
+    pdf_page: Option<u32>,
 ) -> ServiceResult<PendingImport> {
     let path = PathBuf::from(filename);
     let ext = path
@@ -709,7 +729,7 @@ fn prepare_pending_import(
                 .filter(|stem| !stem.is_empty())
                 .unwrap_or("Import")
                 .to_string();
-            let parsed = parse_vector_bytes(&bytes, format)?;
+            let parsed = parse_vector_bytes_for_page(&bytes, format, pdf_page)?;
             Ok(pending_vector_import(&name_prefix, parsed))
         }
         "lbrn" | "lbrn2" => Ok(PendingImport::Lbrn {
@@ -1280,7 +1300,7 @@ fn import_pending(
     pending: Vec<PendingImport>,
     create_layer: Option<super::project::AddObjectLayerInput>,
 ) -> ServiceResult<Vec<ProjectObject>> {
-    import_pending_guarded(ctx, layer_id, pending, create_layer, None)
+    import_pending_guarded(ctx, layer_id, pending, create_layer, None, None)
 }
 
 pub struct ConnectedLibraryDestination<'a> {
@@ -1295,8 +1315,12 @@ fn import_pending_guarded(
     pending: Vec<PendingImport>,
     create_layer: Option<super::project::AddObjectLayerInput>,
     expected: Option<ConnectedLibraryDestination<'_>>,
+    document_epoch: Option<u64>,
 ) -> ServiceResult<Vec<ProjectObject>> {
     ctx.atomic_edit(|| {
+        if document_epoch.is_some_and(|epoch| ctx.document_epoch.load(Ordering::Acquire) != epoch) {
+            return Err(ServiceError::invalid_input("[stale_document]"));
+        }
         let file_count = pending.len();
         if pending.is_empty() {
             return Ok(Vec::new());
@@ -1837,11 +1861,19 @@ fn parse_vector_bytes(
     bytes: &[u8],
     format: VectorImportFormat,
 ) -> ServiceResult<ParsedVectorImport> {
+    parse_vector_bytes_for_page(bytes, format, None)
+}
+
+fn parse_vector_bytes_for_page(
+    bytes: &[u8],
+    format: VectorImportFormat,
+    pdf_page: Option<u32>,
+) -> ServiceResult<ParsedVectorImport> {
     // The PDF reader enforces its own input and expansion limits.
     if !matches!(format, VectorImportFormat::Pdf) {
         check_vector_import_size(bytes)?;
     }
-    let parsed = parse_vector_bytes_unchecked(bytes, format)?;
+    let parsed = parse_vector_bytes_unchecked(bytes, format, pdf_page)?;
     if parsed.paths.len() > IMPORT_OBJECT_LIMIT {
         return Err(ServiceError::invalid_input(format!(
             "This file has {} separate shapes, more than the {IMPORT_OBJECT_LIMIT} one import can add. Join or simplify the shapes, then import again.",
@@ -1854,6 +1886,7 @@ fn parse_vector_bytes(
 fn parse_vector_bytes_unchecked(
     bytes: &[u8],
     format: VectorImportFormat,
+    pdf_page: Option<u32>,
 ) -> ServiceResult<ParsedVectorImport> {
     match format {
         VectorImportFormat::Dxf => {
@@ -1883,13 +1916,13 @@ fn parse_vector_bytes_unchecked(
                 y_up: true,
             })
         }
-        VectorImportFormat::Pdf => parse_pdf_vector_import(bytes),
+        VectorImportFormat::Pdf => parse_pdf_vector_import(bytes, pdf_page),
         VectorImportFormat::Ai
             if bytes[..bytes.len().min(1024)]
                 .windows(5)
                 .any(|w| w == b"%PDF-") =>
         {
-            parse_pdf_vector_import(bytes)
+            parse_pdf_vector_import(bytes, pdf_page)
         }
         VectorImportFormat::Ai => parse_eps_paths(bytes)
             .map(|paths| ParsedVectorImport {
@@ -1929,9 +1962,19 @@ fn y_up_to_canvas(bed_height_mm: f64) -> Transform2D {
     }
 }
 
-fn parse_pdf_vector_import(bytes: &[u8]) -> ServiceResult<ParsedVectorImport> {
-    let artwork = parse_pdf_artwork(bytes)
-        .map_err(|e| ServiceError::invalid_input(format!("PDF import failed: {e}")))?;
+fn parse_pdf_vector_import(bytes: &[u8], page: Option<u32>) -> ServiceResult<ParsedVectorImport> {
+    use beambench_core::import_pdf::{PdfImportError, parse_pdf_artwork_page};
+
+    let artwork = parse_pdf_artwork_page(bytes, page).map_err(|error| {
+        let service_error = ServiceError::invalid_input(format!("PDF import failed: {error}"));
+        match error {
+            PdfImportError::PageRequired { page_count } => {
+                service_error.with_details(json!({ "pdf_page_count": page_count }))
+            }
+            PdfImportError::NoReadablePages => ServiceError::invalid_input(error.to_string()),
+            _ => service_error,
+        }
+    })?;
     let canvas = artwork.page_to_canvas;
     Ok(ParsedVectorImport {
         paths: artwork
@@ -2041,28 +2084,59 @@ pub fn import_files_from_data(
     ctx: &ServiceContext,
     input: ImportFilesDataInput,
 ) -> ServiceResult<Vec<ProjectObject>> {
+    import_files_from_data_selecting_pdf_pages(ctx, input, &[], None)
+}
+
+pub fn import_files_from_data_selecting_pdf_pages(
+    ctx: &ServiceContext,
+    input: ImportFilesDataInput,
+    pdf_pages: &[Option<u32>],
+    document_epoch: Option<u64>,
+) -> ServiceResult<Vec<ProjectObject>> {
     use base64::Engine;
     let mut pending = Vec::with_capacity(input.files.len());
-    for file in input.files {
+    for (file_index, file) in input.files.into_iter().enumerate() {
         let bytes = base64::engine::general_purpose::STANDARD
             .decode(file.data_base64.trim())
             .map_err(|e| {
                 ServiceError::invalid_input(format!("Invalid data for {}: {e}", file.filename))
             })?;
-        pending.push(prepare_pending_import(&file.filename, bytes, None)?);
+        let page = pdf_pages.get(file_index).copied().flatten();
+        pending.push(
+            prepare_pending_import(&file.filename, bytes, None, page)
+                .map_err(|error| with_import_file_index(error, file_index))?,
+        );
     }
-    import_pending(ctx, input.layer_id, pending, input.create_layer)
+    import_pending_guarded(
+        ctx,
+        input.layer_id,
+        pending,
+        input.create_layer,
+        None,
+        document_epoch,
+    )
 }
 
 pub fn import_files_from_paths(
     ctx: &ServiceContext,
     input: ImportFilesInput,
 ) -> ServiceResult<Vec<ProjectObject>> {
-    import_pending(
+    import_files_from_paths_selecting_pdf_pages(ctx, input, &[], None)
+}
+
+pub fn import_files_from_paths_selecting_pdf_pages(
+    ctx: &ServiceContext,
+    input: ImportFilesInput,
+    pdf_pages: &[Option<u32>],
+    document_epoch: Option<u64>,
+) -> ServiceResult<Vec<ProjectObject>> {
+    import_pending_guarded(
         ctx,
         input.layer_id,
-        prepare_pending_imports(input.file_paths)?,
+        prepare_pending_imports(input.file_paths, pdf_pages)?,
         input.create_layer,
+        None,
+        document_epoch,
     )
 }
 
@@ -2139,9 +2213,10 @@ pub fn import_connected_library_file(
     import_pending_guarded(
         ctx,
         layer_id,
-        vec![prepare_pending_import(filename, bytes, None)?],
+        vec![prepare_pending_import(filename, bytes, None, None)?],
         create_layer,
         Some(destination),
+        None,
     )
 }
 
@@ -3374,7 +3449,7 @@ mod tests {
             .id;
         *ctx.project.lock().unwrap() = Some(project);
         let bytes = include_bytes!("../../../beambench-core/tests/fixtures/pdf/mixed-classic.pdf");
-        let mut parsed = parse_pdf_vector_import(bytes).unwrap();
+        let mut parsed = parse_pdf_vector_import(bytes, None).unwrap();
         parsed.paths.clear();
         parsed.images.truncate(1);
         let objects = import_pending(
@@ -3399,7 +3474,7 @@ mod tests {
         let layer_id = before.ensure_default_layer();
         *ctx.project.lock().unwrap() = Some(before.clone());
         let bytes = include_bytes!("../../../beambench-core/tests/fixtures/pdf/mixed-classic.pdf");
-        let mut parsed = parse_pdf_vector_import(bytes).unwrap();
+        let mut parsed = parse_pdf_vector_import(bytes, None).unwrap();
         // Fail after at least one vector and image have been staged.
         parsed.images[1].png = vec![0, 1, 2];
         assert!(
@@ -4371,6 +4446,93 @@ mod tests {
     }
 
     #[test]
+    fn multi_page_pdf_batches_wait_for_selection_then_import_the_requested_page() {
+        use base64::Engine;
+
+        let pdf = include_bytes!("../../../beambench-core/tests/fixtures/pdf/two-pages.pdf");
+        let dir = tempdir().unwrap();
+        let files: [(&str, &[u8]); 2] = [("other.svg", sample_svg()), ("pages.pdf", pdf)];
+        let paths = files
+            .iter()
+            .map(|(filename, bytes)| {
+                let path = dir.path().join(filename);
+                std::fs::write(&path, bytes).unwrap();
+                path.to_string_lossy().into_owned()
+            })
+            .collect::<Vec<_>>();
+        let data = files
+            .iter()
+            .map(|(filename, bytes)| ImportFileData {
+                filename: filename.to_string(),
+                data_base64: base64::engine::general_purpose::STANDARD.encode(bytes),
+            })
+            .collect::<Vec<_>>();
+
+        for from_paths in [true, false] {
+            let (ctx, layer_id) = art_library_import_context();
+            let import = |pages: &[Option<u32>], epoch| {
+                if from_paths {
+                    import_files_from_paths_selecting_pdf_pages(
+                        &ctx,
+                        ImportFilesInput {
+                            file_paths: paths.clone(),
+                            layer_id,
+                            create_layer: None,
+                        },
+                        pages,
+                        epoch,
+                    )
+                } else {
+                    import_files_from_data_selecting_pdf_pages(
+                        &ctx,
+                        ImportFilesDataInput {
+                            files: data.clone(),
+                            layer_id,
+                            create_layer: None,
+                        },
+                        pages,
+                        epoch,
+                    )
+                }
+            };
+
+            let needs_page = import(&[], None).unwrap_err();
+            assert_eq!(
+                needs_page.details,
+                Some(json!({"file_index": 1, "pdf_page_count": 2}))
+            );
+            assert!(import(&[None, Some(3)], Some(0)).is_err());
+            assert!(
+                import(&[None, Some(2)], Some(1))
+                    .unwrap_err()
+                    .message
+                    .contains("[stale_document]")
+            );
+            assert!(
+                ctx.project
+                    .lock()
+                    .unwrap()
+                    .as_ref()
+                    .unwrap()
+                    .objects
+                    .is_empty()
+            );
+            assert!(!ctx.undo_state().unwrap().can_undo);
+            assert!(ctx.plan_cache.lock().unwrap().is_some());
+
+            let objects = import(&[None, Some(2)], Some(0)).unwrap();
+            assert_eq!(objects.len(), 2);
+            let selected_pdf = objects
+                .iter()
+                .find(|object| object.name.starts_with("pages"))
+                .unwrap();
+            assert!((selected_pdf.bounds.width() - 60.0 * 25.4 / 72.0).abs() < 1e-6);
+            assert!(ctx.undo_state().unwrap().can_undo);
+            assert!(ctx.plan_cache.lock().unwrap().is_none());
+        }
+    }
+
+    #[test]
     fn pdf_color_metadata_uses_painted_color_with_stroke_preferred_for_fill_stroke() {
         let path = VecPath::parse_svg_d("M0 0 L10 10");
         let stroke = PdfRgbColor { r: 255, g: 0, b: 0 };
@@ -4396,7 +4558,7 @@ mod tests {
     fn colored_pdf_reuses_configured_layer_and_creates_safe_line_layer() {
         let (ctx, requested_id, configured_red_id) = colored_pdf_import_context();
         let bytes = sample_colored_pdf_bytes();
-        let expected_paths: Vec<_> = parse_pdf_vector_import(&bytes)
+        let expected_paths: Vec<_> = parse_pdf_vector_import(&bytes, None)
             .unwrap()
             .paths
             .into_iter()
@@ -4678,7 +4840,7 @@ mod tests {
     fn oversized_vector_files_are_refused_before_parsing() {
         let huge = vec![b' '; VECTOR_IMPORT_BYTE_LIMIT + 1];
         for name in ["big.svg", "big.dxf", "big.eps", "big.lbrn2"] {
-            let error = match prepare_pending_import(name, huge.clone(), None) {
+            let error = match prepare_pending_import(name, huge.clone(), None, None) {
                 Err(error) => error,
                 Ok(_) => panic!("{name} was accepted"),
             };
@@ -4710,7 +4872,7 @@ mod tests {
             ("limit.svg", svg.to_vec()),
             ("limit.lbrn2", sample_lbrn_project()),
         ] {
-            let pending = prepare_pending_import(filename, bytes, None).unwrap();
+            let pending = prepare_pending_import(filename, bytes, None, None).unwrap();
             let error = import_pending(&ctx, layer_id, vec![pending], None).unwrap_err();
             assert!(error.message.contains("250000"), "{error}");
             let guard = ctx.project.lock().unwrap();

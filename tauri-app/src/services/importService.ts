@@ -18,6 +18,17 @@ export interface ImportLayer {
   entry_patch?: CutEntryPatch;
 }
 
+export type ImportBatchResult = ProjectObject[] | {
+  file_index: number;
+  pdf_page_count: number;
+  document_epoch: number;
+};
+
+export interface PdfPageSelection {
+  pages: (number | null)[];
+  documentEpoch: number;
+}
+
 export const importService = {
   async importSvgFile(filePath: string, layerId: string): Promise<ProjectObject[]> {
     return invoke<ProjectObject[]>('import_svg_file', { filePath, layerId });
@@ -62,9 +73,10 @@ export const importService = {
     filePaths: string[],
     layerId: string,
     createLayer?: ImportLayer,
-  ): Promise<ProjectObject[]> {
-    return invoke<ProjectObject[]>('import_files', {
-      filePaths, layerId, ...(createLayer ? { createLayer } : {}),
+    pdfSelection?: PdfPageSelection,
+  ): Promise<ImportBatchResult> {
+    return invoke<ImportBatchResult>('import_files', {
+      filePaths, layerId, ...(createLayer ? { createLayer } : {}), ...(pdfSelection ? { pdfSelection } : {}),
     });
   },
 
@@ -73,13 +85,14 @@ export const importService = {
     files: { filename: string; dataBase64: string }[],
     layerId: string,
     createLayer?: ImportLayer,
-  ): Promise<ProjectObject[]> {
-    return invoke<ProjectObject[]>('import_file_data', {
-      files, layerId, ...(createLayer ? { createLayer } : {}),
+    pdfSelection?: PdfPageSelection,
+  ): Promise<ImportBatchResult> {
+    return invoke<ImportBatchResult>('import_file_data', {
+      files, layerId, ...(createLayer ? { createLayer } : {}), ...(pdfSelection ? { pdfSelection } : {}),
     });
   },
 
-  async pickAndImportFiles(layerId: string): Promise<ProjectObject[]> {
+  async pickAndImportFiles(layerId: string): Promise<ImportBatchResult> {
     const filePaths = await this.pickFiles();
     if (filePaths.length === 0) return [];
     return this.importFilePaths(filePaths, layerId);

@@ -2934,7 +2934,13 @@
     "controller_connection_lost": "{detail}"
   },
   "import": {
-    "drop_to_import": "Drop files to import"
+    "drop_to_import": "Drop files to import",
+    "pdf_page": {
+      "title": "Choose a PDF page",
+      "number": "Page number",
+      "range": "Enter a page from 1 to {count, number}.",
+      "confirm": "Import Page"
+    }
   },
   "selection": {
     "object": "Object",
