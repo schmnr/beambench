@@ -1480,7 +1480,8 @@ fn stream_job(
         MachineSessionHandle::Grbl(session) => {
             let mut job = JobController::prepare(&plan, &gcode_config)
                 .map_err(|e| ServiceError::machine(format!("Job prepare failed: {e}")))?;
-            job.start(session)
+            let separate_status_queries = session.separate_status_queries(profile);
+            job.start_with_status_query_separation(session, separate_status_queries)
                 .map_err(|e| ServiceError::machine(format!("Job start failed: {e}")))?;
             ActiveJobHandle::Grbl(job)
         }

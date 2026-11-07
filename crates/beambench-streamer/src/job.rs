@@ -15,6 +15,11 @@ use std::time::{Duration, Instant};
 /// machine state live while streaming and gives the completion gate fresh
 /// reports to act on.
 const STATUS_POLL_INTERVAL: Duration = Duration::from_millis(200);
+/// Leave time for several send windows between routine polls on controllers
+/// whose serial responses can overlap.
+const SEPARATE_STATUS_POLL_INTERVAL: Duration = Duration::from_secs(1);
+/// Probe a stalled or planner-limited controller even if replies haven't drained.
+const STATUS_DRAIN_LIMIT: Duration = Duration::from_millis(750);
 const IDLE_ACK_DESYNC_REPORT_LIMIT: u8 = 5;
 /// A controller that accepts writes but answers no status query for this
 /// long during a job is treated as lost. GRBL answers `?` immediately even
@@ -26,6 +31,8 @@ pub struct JobController {
     engine: StreamingEngine,
     progress: ProgressTracker,
     last_status_poll: Option<Instant>,
+    separate_status_queries: bool,
+    status_drain_started: Option<Instant>,
     /// Status-report count when all lines became acknowledged. Completion
     /// requires a report RECEIVED AFTER this point: `last_status` may hold a
     /// stale pre-job Idle, and trusting it would mark jobs complete while
@@ -62,6 +69,8 @@ impl JobController {
             engine,
             progress,
             last_status_poll: None,
+            separate_status_queries: false,
+            status_drain_started: None,
             awaiting_idle_baseline: None,
             job_start_status_baseline: 0,
             idle_ack_desync_reports: 0,
@@ -74,15 +83,29 @@ impl JobController {
 
     /// Start the job.
     pub fn start(&mut self, session: &mut GrblSession) -> Result<(), StreamerError> {
+        self.start_with_status_query_separation(session, false)
+    }
+
+    /// Start with optional separation between status queries and command replies.
+    pub fn start_with_status_query_separation(
+        &mut self,
+        session: &mut GrblSession,
+        separate_status_queries: bool,
+    ) -> Result<(), StreamerError> {
         session.start_running()?;
         self.progress.set_state(JobState::Running);
+        self.separate_status_queries = separate_status_queries;
+        self.last_status_poll = separate_status_queries.then(Instant::now);
+        self.status_drain_started = None;
         self.awaiting_idle_baseline = None;
         self.job_start_status_baseline = session.status_report_count();
         self.idle_ack_desync_reports = 0;
         self.idle_ack_desync_started = None;
         self.last_idle_ack_desync_status_count = self.job_start_status_baseline;
-        // Send initial batch
-        self.engine.send_tick(session, &mut self.progress)?;
+        // A status request from idle may still be outstanding at Start.
+        if !separate_status_queries || session.status_response_wait_age().is_none() {
+            self.engine.send_tick(session, &mut self.progress)?;
+        }
         Ok(())
     }
 
@@ -103,18 +126,20 @@ impl JobController {
             }
         }
 
-        // Send more if possible
-        self.engine.send_tick(session, &mut self.progress)?;
-
-        // Keep machine status live throughout the job: nothing else queries
-        // status while a job is active, so without this the panel freezes on
-        // the pre-job snapshot and completion has nothing fresh to act on.
-        if self
-            .last_status_poll
-            .is_none_or(|at| at.elapsed() >= STATUS_POLL_INTERVAL)
-        {
-            session.poll_status()?;
-            self.last_status_poll = Some(Instant::now());
+        if self.separate_status_queries {
+            // A fresh Idle from a drained window cannot confirm a stall for
+            // commands we have not sent yet.
+            self.fail_if_idle_with_unacknowledged_bytes(session)?;
+            self.tick_with_separate_status_queries(session)?;
+        } else {
+            self.engine.send_tick(session, &mut self.progress)?;
+            if self
+                .last_status_poll
+                .is_none_or(|at| at.elapsed() >= STATUS_POLL_INTERVAL)
+            {
+                session.poll_status()?;
+                self.last_status_poll = Some(Instant::now());
+            }
         }
 
         // The idle health check does not run during a job, so detect a
@@ -133,7 +158,9 @@ impl JobController {
 
         self.stop_spindle_mode_output_when_held(session)?;
 
-        self.fail_if_idle_with_unacknowledged_bytes(session)?;
+        if !self.separate_status_queries {
+            self.fail_if_idle_with_unacknowledged_bytes(session)?;
+        }
 
         // Check completion. A GRBL `ok` only means the line was accepted into
         // the controller's buffer — motion (including the final M5) can lag by
@@ -152,6 +179,42 @@ impl JobController {
             }
         }
 
+        Ok(())
+    }
+
+    fn tick_with_separate_status_queries(
+        &mut self,
+        session: &mut GrblSession,
+    ) -> Result<(), StreamerError> {
+        let waiting_for_status = session.status_response_wait_age().is_some();
+        let paused = self.engine.is_paused();
+        let confirming_idle_stall = self.idle_ack_desync_reports > 0;
+        let interval =
+            if waiting_for_status || paused || confirming_idle_stall || self.engine.all_sent() {
+                STATUS_POLL_INTERVAL
+            } else {
+                SEPARATE_STATUS_POLL_INTERVAL
+            };
+        let due = self
+            .last_status_poll
+            .is_none_or(|at| at.elapsed() >= interval);
+        if due {
+            // Stop refilling the send window so ordinary status replies have
+            // a turn on the wire. Keep probing on a stall or during feed hold.
+            let draining_since = self.status_drain_started.get_or_insert_with(Instant::now);
+            if waiting_for_status
+                || paused
+                || confirming_idle_stall
+                || self.engine.bytes_in_flight() == 0
+                || draining_since.elapsed() >= STATUS_DRAIN_LIMIT
+            {
+                session.poll_status()?;
+                self.last_status_poll = Some(Instant::now());
+                self.status_drain_started = None;
+            }
+        } else if !waiting_for_status && !confirming_idle_stall {
+            self.engine.send_tick(session, &mut self.progress)?;
+        }
         Ok(())
     }
 
@@ -544,6 +607,159 @@ mod tests {
             .iter()
             .filter(|bytes| bytes.as_slice() == beambench_grbl::commands::spindle_stop_override())
             .count()
+    }
+
+    #[test]
+    fn separating_status_queries_prevents_reported_falcon_reply_collisions() {
+        // Synthetic coordinates with the two observed 64-byte status prefixes.
+        let joined_replies = [
+            "<Run|MPos:120.000,130.000,0.000|Bf:12,65520|FS:8000,0|WCO:0.000,ok\r",
+            "<Run|MPos:130.000,135.000,0.000|Bf:0,65518|FS:6000,300|Ov:100,10ok\r",
+        ];
+        let config = GcodeConfig {
+            gcode_prefix: "G1 X100.000 S000000\n".repeat(600),
+            ..Default::default()
+        };
+        let plan = make_plan();
+        let expected = generate_gcode(&plan, &config).unwrap();
+        for separate in [false, true] {
+            let (mut session, wire) = ready_session_with_laser_mode(1);
+            let mut job = JobController::prepare(&plan, &config).unwrap();
+            job.start_with_status_query_separation(&mut session, separate)
+                .unwrap();
+
+            let mut replied = 0;
+            let mut collisions = 0;
+            let mut status_queries = 0;
+            for tick in 0..expected.len() * 2 {
+                let sent = wire.sent_lines().len();
+                let queries = wire.sent_bytes().len();
+                for _ in status_queries..queries {
+                    if replied < sent && collisions < 6 {
+                        wire.enqueue_response(joined_replies[collisions % joined_replies.len()]);
+                        collisions += 1;
+                        replied += 1;
+                    } else if replied == sent {
+                        wire.enqueue_response("<Idle|MPos:100,10,0|FS:0,0>");
+                    } else {
+                        wire.enqueue_response("<Run|MPos:100,10,0|FS:6000,0>");
+                    }
+                }
+                status_queries = queries;
+                if replied < sent {
+                    wire.enqueue_response("ok\r");
+                    replied += 1;
+                }
+
+                // Advance the poll timer without sleeping. The device model
+                // replies to one buffered command at a time between ticks.
+                if tick % 19 == 0 {
+                    job.last_status_poll = None;
+                }
+                if let Err(error) = job.tick(&mut session) {
+                    assert!(!separate, "unexpected separated job failure: {error}");
+                    assert!(
+                        error
+                            .to_string()
+                            .contains("command stream is desynchronized")
+                    );
+                    break;
+                }
+                if job.is_complete() {
+                    break;
+                }
+            }
+
+            assert!(
+                status_queries > 6,
+                "the test must exercise repeated status queries"
+            );
+            let progress = job.progress();
+            if separate {
+                assert_eq!(collisions, 0);
+                assert_eq!(progress.state, JobState::Completed);
+                assert_eq!(progress.acknowledged_lines, expected.len());
+                assert_eq!(wire.sent_lines(), expected);
+            } else {
+                assert_eq!(collisions, 6);
+                assert_eq!(progress.state, JobState::Failed);
+                assert_eq!(progress.sent_lines - progress.acknowledged_lines, 6);
+                assert!(progress.sent_lines < expected.len());
+            }
+        }
+    }
+
+    #[test]
+    fn separated_job_waits_for_an_outstanding_status_and_retries_a_truncated_reply() {
+        let (mut session, wire) = ready_session_with_laser_mode(1);
+        session.poll_status().unwrap();
+        let mut job = JobController::prepare(&make_plan(), &GcodeConfig::default()).unwrap();
+        job.start_with_status_query_separation(&mut session, true)
+            .unwrap();
+        assert!(wire.sent_lines().is_empty());
+
+        wire.enqueue_response("<Idle|MPos:0,0,0|FS:0,0|WCO:0.000,");
+        job.last_status_poll = None;
+        job.tick(&mut session).unwrap();
+        assert_eq!(wire.sent_bytes(), [b"?", b"?"]);
+        assert!(wire.sent_lines().is_empty());
+
+        wire.enqueue_response("<Idle|MPos:0,0,0|FS:0,0>");
+        job.tick(&mut session).unwrap();
+        assert!(!wire.sent_lines().is_empty());
+    }
+
+    #[test]
+    fn separated_job_still_probes_and_stops_on_missing_replies() {
+        let (mut session, wire) = ready_session_with_laser_mode(1);
+        let config = GcodeConfig {
+            gcode_prefix: "G1 X100.000 S000000\n".repeat(30),
+            ..Default::default()
+        };
+        let mut job = JobController::prepare(&make_plan(), &config).unwrap();
+        job.start_with_status_query_separation(&mut session, true)
+            .unwrap();
+        let sent = wire.sent_lines();
+        assert!(!sent.is_empty());
+
+        job.last_status_poll = None;
+        job.tick(&mut session).unwrap();
+        assert!(wire.sent_bytes().is_empty());
+        job.status_drain_started = Some(Instant::now() - STATUS_DRAIN_LIMIT);
+        job.tick(&mut session).unwrap();
+        assert_eq!(wire.sent_bytes(), [b"?"]);
+
+        for _ in 1..IDLE_ACK_DESYNC_REPORT_LIMIT {
+            wire.enqueue_response("<Idle|MPos:100,0,0|FS:0,0>");
+            job.last_status_poll = None;
+            job.tick(&mut session).unwrap();
+        }
+        wire.enqueue_response("<Idle|MPos:100,0,0|FS:0,0>");
+        let error = job.tick(&mut session).unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("command stream is desynchronized")
+        );
+        assert_eq!(wire.sent_lines(), sent);
+        assert_eq!(job.progress().acknowledged_lines, 0);
+    }
+
+    #[test]
+    fn separated_job_polls_for_spindle_hold_even_with_pending_commands() {
+        let (mut session, wire) = ready_session_with_laser_mode(0);
+        let mut job = JobController::prepare(&make_plan(), &GcodeConfig::default()).unwrap();
+        job.start_with_status_query_separation(&mut session, true)
+            .unwrap();
+        assert!(job.progress().buffer_fill_bytes > 0);
+        job.pause(&mut session).unwrap();
+        job.last_status_poll = Some(Instant::now() - STATUS_POLL_INTERVAL);
+        job.tick(&mut session).unwrap();
+        assert_eq!(wire.sent_bytes(), [b"!", b"?"]);
+
+        wire.enqueue_response("<Hold:0|MPos:5,0,0|FS:0,1000>");
+        job.tick(&mut session).unwrap();
+        assert_eq!(spindle_stops(&wire), 1);
     }
 
     #[test]

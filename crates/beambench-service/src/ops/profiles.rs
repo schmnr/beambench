@@ -19,6 +19,7 @@ use crate::persist::persist_settings_to_disk;
 pub const MACHINE_PROFILE_FILE_EXTENSION: &str = "bbprofile";
 pub const MACHINE_PROFILE_FILE_FORMAT: &str = "beam-bench.machine-profile";
 pub const MACHINE_PROFILE_FILE_FORMAT_VERSION: &str = "1.0";
+pub(crate) const FALCON2_PRO_40W_PRESET: &str = "creality_falcon2_pro_40w";
 
 /// Portable, versioned wrapper for sharing one machine profile.
 ///
@@ -719,7 +720,7 @@ pub fn profile_presets() -> Vec<MachineProfilePreset> {
         },
         // Sources and stock hardware scope: docs/machines/creality-falcon2-pro-40w.md.
         MachineProfilePreset {
-            id: "creality_falcon2_pro_40w",
+            id: FALCON2_PRO_40W_PRESET,
             version: 1,
             name: "Creality Falcon2 Pro 40W",
             description: "Documentation-based USB preset for stock hardware. Check travel and S-value max. Physical testing pending.",

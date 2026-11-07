@@ -227,6 +227,13 @@ impl GrblRuntimeSession {
     pub const fn transport_kind(&self) -> TransportKind {
         self.transport_kind
     }
+
+    /// Falcon2 Pro 40W USB captures show status text joined to command replies.
+    pub(crate) fn separate_status_queries(&self, profile: &beambench_core::MachineProfile) -> bool {
+        self.driver == ControllerDriverId::Grbl
+            && self.transport_kind == TransportKind::Serial
+            && profile.preset_id.as_deref() == Some(crate::ops::profiles::FALCON2_PRO_40W_PRESET)
+    }
 }
 
 /// Runtime metadata and coarse machine state for a Smoothieware session.
