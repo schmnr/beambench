@@ -3723,6 +3723,16 @@ fn refresh_idle_session_health_with_timeout(
 }
 
 fn refresh_idle_session_health(session: &mut MachineSessionHandle) -> ServiceResult<()> {
+    // A job can start after the caller's job tick but before it locks the
+    // session. Recheck under that lock so only the streamer consumes its replies.
+    if let MachineSessionHandle::Grbl(grbl) = session
+        && matches!(
+            grbl.session_state(),
+            SessionState::Running | SessionState::Paused
+        )
+    {
+        return Ok(());
+    }
     refresh_idle_session_health_with_timeout(session, IDLE_STATUS_RESPONSE_TIMEOUT)
 }
 
@@ -13697,6 +13707,31 @@ mod tests {
 
         let progress_after_streamer_tick = tick_job(&ctx).unwrap().unwrap();
         assert_eq!(progress_after_streamer_tick.acknowledged_lines, 1);
+    }
+
+    #[test]
+    fn stale_idle_poll_leaves_acknowledgements_for_the_job_that_just_started() {
+        let (ctx, transport) = ready_grbl_context(MachineProfile::default());
+        assert!(tick_job(&ctx).unwrap().is_none());
+
+        // Start wins the session lock after the status caller saw no job.
+        let mut job = JobController::prepare(&dummy_plan(), &GcodeConfig::default()).unwrap();
+        let mut job_lock = ctx.job.lock().unwrap();
+        let mut session_lock = ctx.session.lock().unwrap();
+        let Some(MachineSessionHandle::Grbl(grbl)) = session_lock.as_mut() else {
+            panic!("expected GRBL session");
+        };
+        job.start(grbl).unwrap();
+        *job_lock = Some(ActiveJobHandle::Grbl(job));
+        transport.lock().unwrap().rx.push_back("ok".into());
+        drop(session_lock);
+        drop(job_lock);
+
+        // The status caller now takes the session lock with its stale snapshot.
+        refresh_idle_session_health(ctx.session.lock().unwrap().as_mut().unwrap()).unwrap();
+
+        let progress = tick_job(&ctx).unwrap().unwrap();
+        assert_eq!(progress.acknowledged_lines, 1);
     }
 
     #[test]
