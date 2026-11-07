@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.2.42
+
+- Fix a timing issue where a routine GRBL status check could take a reply
+  intended for a job that had just started, causing the job to stop later.
+  This update is ready for a retest on the reported Falcon2 Pro 40W.
+
 ## 0.2.41
 
 - Add Help > Tutorials & Practice Files, linking to the Beam Bench lessons,
