@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.2.43
+
+- Choose which page to import from a multipage PDF through File > Import or
+  drag and drop. Single-page PDFs import directly. PDFs with no readable pages
+  show a separate message. The picker and error are available in all 23 languages.
+- Separate routine USB status checks from job replies on the Creality Falcon2
+  Pro 40W to reduce interruptions during long engraving jobs. The reproduced
+  freeze passed a simulated retest. Confirmation on the physical laser is pending.
+
 ## 0.2.42
 
 - Fix a timing issue where a routine GRBL status check could take a reply
