@@ -137,6 +137,8 @@ own specifications support an entry. Do not copy the S9 defaults across a brand.
 
 ## Evidence records
 
+- [Creality CR-Laser Falcon USB presets, version 1](machines/creality-cr-laser-falcon.md)
+  for the original 5W, 7.5W and 10W models. Includes the Creality catalog audit.
 - [Creality Falcon A1 10W, preset version 1](machines/creality-falcon-a1-10w.md):
   documentation-based USB preset, X 381 x Y 305 mm, physical testing pending.
 - [ACMER USB presets, version 1](machines/acmer-usb-presets.md):
