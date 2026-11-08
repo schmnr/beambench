@@ -2446,6 +2446,18 @@
             "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
             "advisory": "385 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Use laser-spot positioning. Crosshair positioning and autofocus need separate setup."
           },
+          "creality_cr_laser_falcon_5w": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "400 x 415 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup."
+          },
+          "creality_cr_laser_falcon_7_5w": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "400 x 415 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup."
+          },
+          "creality_cr_laser_falcon_10w": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "400 x 415 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup."
+          },
           "creality_falcon2_12w": {
             "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
             "advisory": "400 x 415 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup."

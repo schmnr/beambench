@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add USB machine presets for the original Creality CR-Laser Falcon 5W, 7.5W
+  and 10W with a 400 x 415 mm workspace. Physical testing is pending.
+
 ## 0.2.43
 
 - Choose which page to import from a multipage PDF through File > Import or

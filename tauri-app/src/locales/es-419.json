@@ -2294,6 +2294,18 @@
             "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
             "advisory": "385 x 400 mm, origen delantero izquierdo, S1000. Verifica $30 y el modo láser $32=1. El retorno al origen y la asistencia de aire automática están desactivados. Otro firmware y las extensiones requieren una configuración aparte. Usa el punto láser para posicionar. El posicionamiento con cruceta y el enfoque automático requieren otra configuración."
           },
+          "creality_cr_laser_falcon_5w": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "400 x 415 mm, origen delantero izquierdo, S1000. Verifica $30 y el modo láser $32=1. El retorno al origen y la asistencia de aire automática están desactivados. Otro firmware y las extensiones requieren una configuración aparte."
+          },
+          "creality_cr_laser_falcon_7_5w": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "400 x 415 mm, origen delantero izquierdo, S1000. Verifica $30 y el modo láser $32=1. El retorno al origen y la asistencia de aire automática están desactivados. Otro firmware y las extensiones requieren una configuración aparte."
+          },
+          "creality_cr_laser_falcon_10w": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "400 x 415 mm, origen delantero izquierdo, S1000. Verifica $30 y el modo láser $32=1. El retorno al origen y la asistencia de aire automática están desactivados. Otro firmware y las extensiones requieren una configuración aparte."
+          },
           "creality_falcon2_12w": {
             "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
             "advisory": "400 x 415 mm, origen delantero izquierdo, S1000. Verifica $30 y el modo láser $32=1. El retorno al origen y la asistencia de aire automática están desactivados. Otro firmware y las extensiones requieren una configuración aparte."
