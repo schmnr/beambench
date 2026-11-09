@@ -368,7 +368,7 @@ export function TransformSection() {
       ? machineToCanvasPoint({ x: newX, y: displayY }, project.workspace)
       : { x: newX, y: displayY };
     const dx = nextCanvasPoint.x - canvasAnchorPoint.x;
-    if (multiSel) {
+    if (multiSel || obj?.data.type === 'group') {
       void nudgeObjects(selectedObjectIds, dx, 0);
     } else if (obj) {
       void updateObject(obj.id, {
@@ -386,7 +386,7 @@ export function TransformSection() {
       ? machineToCanvasPoint({ x: displayX, y: newY }, project.workspace)
       : { x: displayX, y: newY };
     const dy = nextCanvasPoint.y - canvasAnchorPoint.y;
-    if (multiSel) {
+    if (multiSel || obj?.data.type === 'group') {
       void nudgeObjects(selectedObjectIds, 0, dy);
     } else if (obj) {
       void updateObject(obj.id, {

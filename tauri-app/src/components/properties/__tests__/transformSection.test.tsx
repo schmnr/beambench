@@ -133,6 +133,68 @@ describe('TransformSection — position/size', () => {
     });
   });
 
+  it.each([
+    { selectedId: 'outer', isolationPath: [], movedIds: ['outer', 'inner', 'obj1', 'obj2'] },
+    { selectedId: 'inner', isolationPath: ['outer'], movedIds: ['inner', 'obj1'] },
+  ])('moves $selectedId and its members when X and Y are edited', async ({
+    selectedId, isolationPath, movedIds,
+  }) => {
+    const project = makeBottomLeftProject();
+    const leaf = project.objects[0];
+    const sibling = makeProjectObject({
+      ...leaf,
+      id: 'obj2',
+      bounds: { min: { x: 80, y: 20 }, max: { x: 130, y: 70 } },
+    });
+    const inner = makeProjectObject({
+      id: 'inner', layer_id: 'l1', bounds: leaf.bounds,
+      data: { type: 'group', children: [leaf.id] },
+    });
+    const outer = makeProjectObject({
+      id: 'outer', layer_id: 'l1', bounds: { min: leaf.bounds.min, max: sibling.bounds.max },
+      data: { type: 'group', children: [inner.id, sibling.id] },
+    });
+    const objects = [outer, inner, leaf, sibling];
+    let backendProject = { ...project, objects };
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockClear();
+    await invokeMock.withImplementation(async (command, args) => {
+      if (command === 'get_project') return backendProject;
+      if (command === 'update_object') return objects.find((object) => object.id === selectedId);
+      if (command === 'nudge_objects') {
+        const { objectIds, dx, dy } = args as { objectIds: string[]; dx: number; dy: number };
+        backendProject = {
+          ...backendProject,
+          objects: backendProject.objects.map((object) => objectIds.includes(object.id) ? {
+            ...object,
+            bounds: {
+              min: { x: object.bounds.min.x + dx, y: object.bounds.min.y + dy },
+              max: { x: object.bounds.max.x + dx, y: object.bounds.max.y + dy },
+            },
+          } : object),
+        };
+        return undefined;
+      }
+      return null;
+    }, async () => {
+      useUiStore.setState({ selectionIsolationPath: isolationPath });
+      useProjectStore.setState({ project: backendProject, selectedObjectIds: [selectedId] });
+      render(<TransformSection />);
+      const inputs = screen.getAllByRole('spinbutton');
+
+      await act(async () => {
+        typeAndCommit(inputs[IDX_X], '15');
+        typeAndCommit(inputs[IDX_Y], '270');
+      });
+
+      expect(invokeMock).toHaveBeenCalledWith('nudge_objects', { objectIds: movedIds, dx: 5, dy: 0 });
+      expect(invokeMock).toHaveBeenCalledWith('nudge_objects', { objectIds: movedIds, dx: 0, dy: 10 });
+      expect(useProjectStore.getState().project?.objects).toEqual(backendProject.objects);
+      expect(inputs[IDX_X]).toHaveProperty('value', '15');
+      expect(inputs[IDX_Y]).toHaveProperty('value', '270');
+    });
+  });
+
   it('Lock aspect constrains dimensions proportionally', () => {
     const updateObject = vi.fn().mockResolvedValue(undefined);
     const project = makeProject();
