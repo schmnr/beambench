@@ -1695,11 +1695,14 @@ export const useProjectStore = create<ProjectStoreState>(dropStaleDocumentErrors
     const generation = documentGeneration;
     try {
       const currentProject = get().project;
+      const isolationPath = useUiStore.getState().selectionIsolationPath;
+      const isolationRootId = isolationPath[isolationPath.length - 1];
+      const expandMembers = isolationRootId
+        ? expandSelectionMembers
+        : expandArrangementSelectionMembers;
       const targetIds = currentProject
-        ? expandArrangementSelectionMembers(currentProject, objectIds)
+        ? expandMembers(currentProject, objectIds, isolationRootId)
         : objectIds;
-      // Remember where each object was, so the move is applied once: a refresh
-      // that lands while this request is pending already shows the result.
       const before = new Map(
         (currentProject?.objects ?? [])
           .filter((o) => targetIds.includes(o.id))
@@ -1707,7 +1710,15 @@ export const useProjectStore = create<ProjectStoreState>(dropStaleDocumentErrors
       );
       requireCurrentDocument(generation, await projectService.nudgeObjects(targetIds, dx, dy));
       const { project } = get();
-      if (project) {
+      const boundsChanged = project?.objects.some(
+        (object) => before.has(object.id) && before.get(object.id) !== object.bounds,
+      );
+      if (boundsChanged) {
+        // Another edit or refresh updated the bounds while this request was
+        // pending. Read the committed result so neither edit is lost or applied twice.
+        const refreshed = requireCurrentDocument(generation, await getProjectForCurrentDocument(generation));
+        if (refreshed) set({ project: decorateProject({ ...refreshed, dirty: true }) });
+      } else if (project) {
         set({
           project: {
             ...project,
