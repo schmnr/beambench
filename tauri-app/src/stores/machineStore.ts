@@ -278,6 +278,7 @@ interface MachineStoreState {
   pauseJob: () => Promise<void>;
   resumeJob: () => Promise<void>;
   cancelJob: () => Promise<void>;
+  finishFraming: (frameId: string) => Promise<void>;
   loadProfiles: () => Promise<void>;
   saveProfile: (profile: MachineProfile) => Promise<void>;
   deleteProfile: (profileId: string) => Promise<void>;
@@ -859,6 +860,8 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
   },
 
   frameJob: async (frameMode, selectedObjectIds, laserOnOverride = false) => {
+    const generation = connectionGeneration;
+    const stopGeneration = get().emergencyStopGeneration;
     set({ loading: true, error: null, activeJobPurpose: 'frame', lastJobFailure: null });
     try {
       const progress = await machineService.frameJob(
@@ -867,6 +870,11 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
         laserOnOverride,
         useUiStore.getState().moveWindowJogFeedRateMmMin,
       );
+      if (!isCurrentConnection(generation)) return null;
+      if (get().emergencyStopGeneration !== stopGeneration) {
+        set({ loading: false });
+        return null;
+      }
       set({ jobProgress: progress, loading: false });
       useNotificationStore
         .getState()
@@ -924,12 +932,24 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
 
   refreshJobProgress: async () => {
     const generation = connectionGeneration;
+    const stopGeneration = get().emergencyStopGeneration;
+    const previousProgress = get().jobProgress;
     try {
       const progress = await machineService.getJobProgress();
-      if (!isCurrentConnection(generation)) return;
+      if (!isCurrentConnection(generation) ||
+        get().emergencyStopGeneration !== stopGeneration ||
+        get().jobProgress !== previousProgress) return;
       set({ jobProgress: progress, error: null });
     } catch (e) {
       set({ error: String(e) });
+    }
+  },
+
+  finishFraming: async (frameId) => {
+    try {
+      await machineService.finishFraming(frameId);
+    } catch (e) {
+      notifyError(backendErrorMessage(e));
     }
   },
 

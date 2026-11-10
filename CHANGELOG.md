@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Use Finish Framing to end continuous framing after the current lap and its
+  return move. Red Stop still interrupts immediately.
 - Move grouped artwork with its selection box when editing X or Y in the
   Transformation panel.
 - Add USB machine presets for the original Creality CR-Laser Falcon 5W, 7.5W

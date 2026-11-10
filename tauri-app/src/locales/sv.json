@@ -2051,6 +2051,8 @@
         "cleanup": "Rengöring",
         "clear_user_origin": "Rensa användarens ursprung",
         "confirm_frame": "Bekräfta ram",
+        "finish_framing": "Avsluta inramning",
+        "finishing_frame": "Avslutar inramning…",
         "confirm_laser_frame": "Bekräfta laserram",
         "connection": {
           "alarm": "Larm",

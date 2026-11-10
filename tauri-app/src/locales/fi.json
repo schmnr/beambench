@@ -2051,6 +2051,8 @@
         "cleanup": "Puhdistus",
         "clear_user_origin": "Tyhjennä käyttäjän alkuperä",
         "confirm_frame": "Vahvista kehys",
+        "finish_framing": "Viimeistele rajaus",
+        "finishing_frame": "Viimeistellään rajausta…",
         "confirm_laser_frame": "Vahvista laserkehys",
         "connection": {
           "alarm": "Hälytys",

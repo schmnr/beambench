@@ -2051,6 +2051,8 @@
         "cleanup": "Čištění",
         "clear_user_origin": "Vymazat původ uživatele",
         "confirm_frame": "Potvrďte snímek",
+        "finish_framing": "Dokončit obrys",
+        "finishing_frame": "Dokončování obrysu…",
         "confirm_laser_frame": "Potvrďte laserový rámeček",
         "connection": {
           "alarm": "Alarm",

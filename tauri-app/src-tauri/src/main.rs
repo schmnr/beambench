@@ -638,6 +638,7 @@ fn main() {
             commands::machine::pause_job,
             commands::machine::resume_job,
             commands::machine::cancel_job,
+            commands::machine::finish_framing,
             commands::machine::get_machine_profiles,
             commands::machine::save_machine_profile,
             commands::machine::export_machine_profile,

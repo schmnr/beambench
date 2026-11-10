@@ -164,6 +164,7 @@ function LocalLaserPanel() {
   const dismissJobFailure = useMachineStore((s) => s.dismissJobFailure);
   const setActiveProfile = useMachineStore((s) => s.setActiveProfile);
   const frameJob = useMachineStore((s) => s.frameJob);
+  const finishFraming = useMachineStore((s) => s.finishFraming);
   const loading = useMachineStore((s) => s.loading);
   const runPreflight = useMachineStore((s) => s.runPreflight);
   const startJob = useMachineStore((s) => s.startJob);
@@ -286,6 +287,7 @@ function LocalLaserPanel() {
     jobProgress?.state === 'ready_to_run' ||
     jobProgress?.state === 'running' ||
     jobProgress?.state === 'paused';
+  const continuousFrame = isJobActive ? jobProgress?.continuous_frame : undefined;
   const canStart =
     sessionState === 'ready' &&
     machineStatus?.run_state === 'idle' &&
@@ -294,7 +296,7 @@ function LocalLaserPanel() {
     !startInFlight &&
     !isJobActive &&
     positioningReady;
-  const canFrame = canUseMotionControls && positioningReady;
+  const canFrame = canUseMotionControls && positioningReady && !loading;
   const canPause = jobProgress?.state === 'running';
   const canResume = jobProgress?.state === 'paused';
   const canStop =
@@ -530,8 +532,22 @@ function LocalLaserPanel() {
           </div>
         )}
 
-        {/* 4. Frame (when connected + idle, no active job) */}
-        {isConnected && !hasJob && (
+        {isConnected && continuousFrame && (
+          <button
+            type="button"
+            data-testid="frame-button"
+            className="px-2 py-1 rounded border bg-bb-bg border-bb-border text-bb-text hover:bg-bb-hover disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={continuousFrame.finishing || jobProgress?.state === 'paused'}
+            onClick={() => void finishFraming(continuousFrame.id)}
+          >
+            {continuousFrame.finishing
+              ? t('panels.machine.laser.finishing_frame')
+              : t('panels.machine.laser.finish_framing')}
+          </button>
+        )}
+
+        {/* 4. Frame (when connected, with no active job) */}
+        {isConnected && !isJobActive && (
           <div className="flex flex-col gap-1">
             <button
               data-testid="frame-button"

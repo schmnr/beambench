@@ -185,6 +185,10 @@ export const machineService = {
     return invoke<void>('cancel_job');
   },
 
+  async finishFraming(frameId: string): Promise<void> {
+    return invoke<void>('finish_framing', { frameId });
+  },
+
   async getMachineProfiles(): Promise<MachineProfile[]> {
     return invoke<MachineProfile[]>('get_machine_profiles');
   },

@@ -2051,6 +2051,8 @@
         "cleanup": "Tisztítás",
         "clear_user_origin": "Felhasználói eredet törlése",
         "confirm_frame": "Erősítse meg a keretet",
+        "finish_framing": "Keretezés befejezése",
+        "finishing_frame": "Keretezés befejezése folyamatban…",
         "confirm_laser_frame": "Erősítse meg a lézerkeretet",
         "connection": {
           "alarm": "Riasztás",

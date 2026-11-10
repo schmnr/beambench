@@ -2051,6 +2051,8 @@
         "cleanup": "Nettoyage",
         "clear_user_origin": "Effacer l'origine de l'utilisateur",
         "confirm_frame": "Confirmer le cadre",
+        "finish_framing": "Terminer le cadrage",
+        "finishing_frame": "Cadrage en cours de finition…",
         "confirm_laser_frame": "Confirmer le cadre laser",
         "connection": {
           "alarm": "Alarme",

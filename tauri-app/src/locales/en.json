@@ -2203,6 +2203,8 @@
         "cleanup": "Cleanup",
         "clear_user_origin": "Clear User Origin",
         "confirm_frame": "Confirm Frame",
+        "finish_framing": "Finish Framing",
+        "finishing_frame": "Finishing Framing…",
         "confirm_laser_frame": "Confirm Laser Frame",
         "connection": {
           "alarm": "Alarm",

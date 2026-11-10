@@ -2051,6 +2051,8 @@
         "cleanup": "清理",
         "clear_user_origin": "清晰的用户来源",
         "confirm_frame": "确认帧",
+        "finish_framing": "结束边框预览",
+        "finishing_frame": "正在完成边框预览…",
         "confirm_laser_frame": "确认激光框",
         "connection": {
           "alarm": "报警",

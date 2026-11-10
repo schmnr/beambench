@@ -2051,6 +2051,8 @@
         "cleanup": "Καθαρισμός",
         "clear_user_origin": "Εκκαθάριση προέλευσης χρήστη",
         "confirm_frame": "Επιβεβαίωση καρέ",
+        "finish_framing": "Ολοκλήρωση πλαισίωσης",
+        "finishing_frame": "Ολοκλήρωση πλαισίωσης σε εξέλιξη…",
         "confirm_laser_frame": "Επιβεβαιώστε το πλαίσιο λέιζερ",
         "connection": {
           "alarm": "Συναγερμός",

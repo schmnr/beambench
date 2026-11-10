@@ -2051,6 +2051,8 @@
         "cleanup": "Oprydning",
         "clear_user_origin": "Ryd brugeroprindelse",
         "confirm_frame": "Bekræft ramme",
+        "finish_framing": "Afslut indramning",
+        "finishing_frame": "Afslutter indramning…",
         "confirm_laser_frame": "Bekræft laserramme",
         "connection": {
           "alarm": "Alarm",

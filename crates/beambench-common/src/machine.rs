@@ -369,6 +369,13 @@ pub enum JobState {
     Cancelled,
 }
 
+/// The identity and finish request for a continuous framing run.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ContinuousFrameProgress {
+    pub id: Uuid,
+    pub finishing: bool,
+}
+
 /// Snapshot of job streaming progress.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct JobProgress {
@@ -384,6 +391,8 @@ pub struct JobProgress {
     pub error_message: Option<String>,
     #[serde(default)]
     pub buckets: Vec<JobProgressBucket>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub continuous_frame: Option<ContinuousFrameProgress>,
 }
 
 /// Per-layer / per-cut-entry progress bucket metadata for multi-entry jobs.
@@ -742,6 +751,10 @@ mod tests {
                 cut_entry_id: "entry-1".to_string(),
                 segment_count: 3,
             }],
+            continuous_frame: Some(ContinuousFrameProgress {
+                id: Uuid::nil(),
+                finishing: true,
+            }),
         };
         let json = serde_json::to_string(&progress).unwrap();
         let restored: JobProgress = serde_json::from_str(&json).unwrap();

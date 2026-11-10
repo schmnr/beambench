@@ -77,6 +77,7 @@ impl GalvoJob {
                 buffer_fill_bytes: 0,
                 error_message: None,
                 buckets: Vec::new(),
+                continuous_frame: None,
             },
             started_at: Utc::now(),
             frame,

@@ -2051,6 +2051,8 @@
         "cleanup": "정리",
         "clear_user_origin": "사용자 출처 지우기",
         "confirm_frame": "프레임 확인",
+        "finish_framing": "프레이밍 마치기",
+        "finishing_frame": "프레이밍 마무리 중…",
         "confirm_laser_frame": "레이저 프레임 확인",
         "connection": {
           "alarm": "알람",
