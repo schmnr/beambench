@@ -2051,6 +2051,8 @@
         "cleanup": "Limpeza",
         "clear_user_origin": "Limpar origem do usuário",
         "confirm_frame": "Confirmar quadro",
+        "finish_framing": "Finalizar enquadramento",
+        "finishing_frame": "Finalizando enquadramento…",
         "confirm_laser_frame": "Confirme a moldura do laser",
         "connection": {
           "alarm": "Alarme",

@@ -2051,6 +2051,8 @@
         "cleanup": "Aufräumen",
         "clear_user_origin": "Benutzerherkunft löschen",
         "confirm_frame": "Rahmen bestätigen",
+        "finish_framing": "Rahmenfahrt beenden",
+        "finishing_frame": "Rahmenfahrt wird beendet…",
         "confirm_laser_frame": "Bestätigen Sie den Laserrahmen",
         "connection": {
           "alarm": "Alarm",

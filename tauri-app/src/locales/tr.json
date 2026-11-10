@@ -2051,6 +2051,8 @@
         "cleanup": "Temizleme",
         "clear_user_origin": "Kullanıcı Kaynağını Temizle",
         "confirm_frame": "Çerçeveyi Onayla",
+        "finish_framing": "Çerçevelemeyi bitir",
+        "finishing_frame": "Çerçeveleme tamamlanıyor…",
         "confirm_laser_frame": "Lazer Çerçeveyi Onayla",
         "connection": {
           "alarm": "Alarm",

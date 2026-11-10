@@ -442,6 +442,7 @@ impl RuidaRuntimeJob {
             buffer_fill_bytes: 0,
             error_message: self.error_message.clone(),
             buckets: Vec::new(),
+            continuous_frame: None,
         }
     }
 

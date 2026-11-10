@@ -13,10 +13,11 @@ use beambench_common::controller_choice::{
 use beambench_common::feedback::{DiagnosticConnectionEvent, DiagnosticTerminalJob};
 use beambench_common::geometry::{Bounds, Point2D};
 use beambench_common::machine::{
-    ControllerEvidenceState, ControllerFamily, ControllerModel, ControllerProductTier,
-    DeviceCapabilities, DeviceIdentity, JobProgress, JobState, MachineConnectionTarget,
-    MachineRunState, MachineStatus, PortInfo, PreflightAdvisory, PreflightCheck, PreflightDetail,
-    PreflightOutcome, PreflightReport, SessionState, TransportKind,
+    ContinuousFrameProgress, ControllerEvidenceState, ControllerFamily, ControllerModel,
+    ControllerProductTier, DeviceCapabilities, DeviceIdentity, JobProgress, JobState,
+    MachineConnectionTarget, MachineRunState, MachineStatus, PortInfo, PreflightAdvisory,
+    PreflightCheck, PreflightDetail, PreflightOutcome, PreflightReport, SessionState,
+    TransportKind,
 };
 use beambench_core::object::ObjectData;
 use beambench_core::{MachineProfile, MachineProfileId, Project, RuidaTableAxis, Workspace};
@@ -965,6 +966,7 @@ fn emit_job_progress_if_changed(ctx: &ServiceContext, progress: &JobProgress) ->
             last.state != progress.state
                 || last.acknowledged_lines != progress.acknowledged_lines
                 || last.sent_lines != progress.sent_lines
+                || last.continuous_frame != progress.continuous_frame
         });
         if changed {
             *guard = Some(progress.clone());
@@ -977,6 +979,16 @@ fn emit_job_progress_if_changed(ctx: &ServiceContext, progress: &JobProgress) ->
     }
 
     Ok(())
+}
+
+fn continuous_frame_progress(
+    ctx: &ServiceContext,
+) -> ServiceResult<Option<ContinuousFrameProgress>> {
+    Ok(ctx
+        .job_resources
+        .lock()
+        .map_err(|e| lock_err("job_resources", e))?
+        .continuous_frame())
 }
 
 // Call after delivering Stop, with job/session guards already acquired by the caller.
@@ -5368,7 +5380,8 @@ pub fn tick_job(ctx: &ServiceContext) -> ServiceResult<Option<JobProgress>> {
         })
     });
 
-    if let Some(progress) = progress.as_ref() {
+    if let Some(progress) = progress.as_mut() {
+        progress.continuous_frame = continuous_frame_progress(ctx)?;
         emit_job_progress_if_changed(ctx, progress)?;
         let terminal = matches!(
             progress.state,
@@ -5526,7 +5539,8 @@ pub fn pause_job(ctx: &ServiceContext) -> ServiceResult<()> {
     let session = session_lock
         .as_mut()
         .ok_or_else(|| ServiceError::invalid_state("Not connected"))?;
-    let progress = job.pause(session).map_err(ServiceError::invalid_state)?;
+    let mut progress = job.pause(session).map_err(ServiceError::invalid_state)?;
+    progress.continuous_frame = continuous_frame_progress(ctx)?;
     drop(session_lock);
     drop(job_lock);
     remember_job_progress(ctx, Some(progress.clone()))?;
@@ -5543,7 +5557,8 @@ pub fn resume_job(ctx: &ServiceContext) -> ServiceResult<()> {
     let session = session_lock
         .as_mut()
         .ok_or_else(|| ServiceError::invalid_state("Not connected"))?;
-    let progress = job.resume(session).map_err(ServiceError::invalid_state)?;
+    let mut progress = job.resume(session).map_err(ServiceError::invalid_state)?;
+    progress.continuous_frame = continuous_frame_progress(ctx)?;
     drop(session_lock);
     drop(job_lock);
     remember_job_progress(ctx, Some(progress.clone()))?;
@@ -5607,6 +5622,19 @@ pub fn cancel_job(ctx: &ServiceContext) -> ServiceResult<()> {
         );
         ctx.push_error(message.clone());
         return Err(ServiceError::machine(message));
+    }
+    Ok(())
+}
+
+pub fn finish_framing(ctx: &ServiceContext, frame_id: uuid::Uuid) -> ServiceResult<()> {
+    let mut resources = ctx
+        .job_resources
+        .lock()
+        .map_err(|e| lock_err("job_resources", e))?;
+    if resources.continuous_frame_id == Some(frame_id) {
+        // The active lap owns its return path and completion barrier. Only
+        // disarm the next lap; sending any motion here would race that path.
+        resources.repeat = None;
     }
     Ok(())
 }
@@ -5701,7 +5729,7 @@ fn install_job_resources(
     repeat: Option<PreparedFrame>,
     estop_generation: u64,
     is_frame: bool,
-) -> ServiceResult<()> {
+) -> ServiceResult<Option<ContinuousFrameProgress>> {
     let sleep = match sleep {
         Ok(guard) => Some(guard),
         Err(error) => {
@@ -5713,15 +5741,18 @@ fn install_job_resources(
             None
         }
     };
-    *ctx.job_resources
-        .lock()
-        .map_err(|e| lock_err("job_resources", e))? = crate::job_lifecycle::JobResources {
+    let resources = crate::job_lifecycle::JobResources {
         _sleep: sleep,
+        continuous_frame_id: repeat.as_ref().map(|_| uuid::Uuid::new_v4()),
         repeat,
         estop_generation,
         is_frame,
     };
-    Ok(())
+    let continuous_frame = resources.continuous_frame();
+    *ctx.job_resources
+        .lock()
+        .map_err(|e| lock_err("job_resources", e))? = resources;
+    Ok(continuous_frame)
 }
 
 fn clear_job_resources(ctx: &ServiceContext) {
@@ -6363,13 +6394,13 @@ fn start_frame_with_policy(
             return Err(error);
         }
     };
-    let progress = job.progress();
+    let mut progress = job.progress();
     clear_retained_terminal_job(ctx)?;
     *ctx.pending_relative_frame_confirmation
         .lock()
         .map_err(|e| lock_err("pending_relative_frame_confirmation", e))? =
         relative_frame_fingerprint(ctx, &project, &profile)?;
-    install_job_resources(
+    progress.continuous_frame = install_job_resources(
         ctx,
         sleep,
         (profile.frame_continuously && !laser_off_once).then_some(prepared),
@@ -12090,7 +12121,13 @@ mod tests {
 
     #[test]
     fn continuous_frame_reuses_frozen_motion_and_releases_resources_on_all_stop_paths() {
-        for stop in ["cancel", "disconnect", "emergency", "shutdown"] {
+        for stop in [
+            "cancel",
+            "disconnect",
+            "emergency",
+            "finish_then_emergency",
+            "shutdown",
+        ] {
             let (ctx, transport) = ready_grbl_context(MachineProfile {
                 bed_width_mm: 400.0,
                 bed_height_mm: 400.0,
@@ -12098,7 +12135,8 @@ mod tests {
                 ..MachineProfile::default()
             });
             *ctx.project.lock().unwrap() = Some(frame_project());
-            frame_job(&ctx, "rectangular", &[], false, Some(1234.0)).unwrap();
+            let progress = frame_job(&ctx, "rectangular", &[], false, Some(1234.0)).unwrap();
+            let frame = progress.continuous_frame.unwrap();
             assert!(ctx.job_resources.lock().unwrap()._sleep.is_some());
             // Editing the source after Start must not change a later pass.
             ctx.project.lock().unwrap().as_mut().unwrap().objects[0].bounds =
@@ -12116,6 +12154,7 @@ mod tests {
                     .push_back("<Idle|MPos:10,20,0|FS:0,0>".into());
                 let progress = tick_job(&ctx).unwrap().unwrap();
                 assert_ne!(progress.state, JobState::Completed);
+                assert_eq!(progress.continuous_frame, Some(frame));
             }
             let lines = sent_lines(&transport);
             assert!(
@@ -12137,6 +12176,10 @@ mod tests {
                 "cancel" => cancel_job(&ctx).unwrap(),
                 "disconnect" => disconnect_machine(&ctx).unwrap(),
                 "emergency" => emergency_stop(&ctx).unwrap(),
+                "finish_then_emergency" => {
+                    finish_framing(&ctx, frame.id).unwrap();
+                    emergency_stop(&ctx).unwrap();
+                }
                 _ => prepare_shutdown(&ctx).unwrap(),
             }
             assert!(ctx.job_resources.lock().unwrap().repeat.is_none(), "{stop}");
@@ -12149,6 +12192,84 @@ mod tests {
                 "{stop} restarted a frame"
             );
         }
+    }
+
+    #[test]
+    fn finish_continuous_frame_waits_for_the_lap_and_return_without_restarting() {
+        let idle = "<Idle|MPos:100,100,0|WCO:0,0,0|FS:0,0>";
+        let (ctx, transport) = ready_grbl_context_with_status(
+            MachineProfile {
+                frame_continuously: true,
+                ..MachineProfile::default()
+            },
+            idle,
+        );
+        let mut project = frame_project();
+        project.start_from = StartFromMode::CurrentPosition;
+        project.job_origin = beambench_common::AnchorPoint::Center;
+        *ctx.project.lock().unwrap() = Some(project);
+        transport
+            .lock()
+            .unwrap()
+            .status_on_query
+            .push_back(idle.into());
+        let mut progress = frame_job(&ctx, "rectangular", &[], true, Some(1000.0)).unwrap();
+        let frame = progress.continuous_frame.unwrap();
+        assert!(!frame.finishing);
+
+        let before = sent_bytes(&transport);
+        finish_framing(&ctx, Uuid::nil()).unwrap();
+        assert!(ctx.job_resources.lock().unwrap().repeat.is_some());
+        finish_framing(&ctx, frame.id).unwrap();
+        finish_framing(&ctx, frame.id).unwrap();
+        assert_eq!(sent_bytes(&transport), before);
+
+        for _ in 0..20 {
+            let mut wire = transport.lock().unwrap();
+            wire.rx
+                .extend((progress.acknowledged_lines..progress.sent_lines).map(|_| "ok".into()));
+            wire.rx.push_back("<Run|MPos:105,105,0|FS:1000,0>".into());
+            drop(wire);
+            progress = tick_job(&ctx).unwrap().unwrap();
+            if progress.acknowledged_lines == progress.total_lines {
+                break;
+            }
+        }
+        assert_eq!(progress.acknowledged_lines, progress.total_lines);
+        assert_eq!(progress.state, JobState::Running);
+        assert_eq!(
+            progress.continuous_frame,
+            Some(ContinuousFrameProgress {
+                id: frame.id,
+                finishing: true
+            })
+        );
+        assert!(ctx.job_resources.lock().unwrap()._sleep.is_some());
+        assert!(
+            start_job(&ctx)
+                .unwrap_err()
+                .message
+                .contains("already active")
+        );
+
+        transport.lock().unwrap().rx.push_back(idle.into());
+        let progress = tick_job(&ctx).unwrap().unwrap();
+        assert_eq!(progress.state, JobState::Completed);
+        assert!(ctx.job_resources.lock().unwrap()._sleep.is_none());
+        assert!(tick_job(&ctx).unwrap().is_none());
+        let lines = sent_lines(&transport);
+        assert_eq!(
+            lines.iter().filter(|line| line.as_str() == "G21").count(),
+            1
+        );
+        assert_eq!(
+            lines
+                .iter()
+                .rev()
+                .find(|line| line.starts_with("G1 X"))
+                .map(String::as_str),
+            Some("G1 X100.000 Y100.000 F1000 S0")
+        );
     }
 
     #[test]

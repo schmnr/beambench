@@ -75,7 +75,7 @@ import { discoveryService } from '../../services/discoveryService';
 import { machineService } from '../../services/machineService';
 import { usePreviewStore } from '../previewStore';
 import type { AppSettings } from '../../types/commands';
-import type { MachineProfile } from '../../types/machine';
+import type { JobProgress, MachineProfile } from '../../types/machine';
 import { makeJobProgress, makeMachineStatus, makeProject } from '../../test-utils/projectFixtures';
 
 const mockedApp = appService as unknown as {
@@ -317,6 +317,23 @@ describe('machineStore frame-selected toggle', () => {
       loading: false,
       error: null,
     });
+  });
+
+  it('an older poll cannot clear a frame that is still finishing', async () => {
+    let reply!: (value: JobProgress | null) => void;
+    vi.mocked(machineService.getJobProgress).mockReturnValueOnce(new Promise((resolve) => {
+      reply = resolve;
+    }));
+    useMachineStore.setState({ jobProgress: null });
+    const poll = useMachineStore.getState().refreshJobProgress();
+    const finishing = makeJobProgress({
+      state: 'running',
+      continuous_frame: { id: 'frame-1', finishing: true },
+    });
+    useMachineStore.setState({ jobProgress: finishing });
+    reply(null);
+    await poll;
+    expect(useMachineStore.getState().jobProgress).toBe(finishing);
   });
 
   it('turns structured frame bounds failures into actionable report context', async () => {

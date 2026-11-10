@@ -12,6 +12,7 @@ const localMachineCommands = new Set([
   'continue_controller_connection',
   'disconnect_machine',
   'emergency_stop',
+  'finish_framing',
   'frame_job',
   'laser_fire_keepalive',
   'laser_fire_start',

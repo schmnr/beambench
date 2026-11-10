@@ -373,6 +373,11 @@ pub fn cancel_job(svc: State<'_, Arc<ServiceContext>>) -> Result<(), String> {
     machine::cancel_job(&svc).map_err(Into::into)
 }
 
+#[tauri::command(async)]
+pub fn finish_framing(svc: State<'_, Arc<ServiceContext>>, frame_id: Uuid) -> Result<(), String> {
+    machine::finish_framing(&svc, frame_id).map_err(Into::into)
+}
+
 #[tauri::command]
 pub fn get_machine_profiles(
     svc: State<'_, Arc<ServiceContext>>,

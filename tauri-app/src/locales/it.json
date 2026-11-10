@@ -2051,6 +2051,8 @@
         "cleanup": "Pulizia",
         "clear_user_origin": "Cancella origine utente",
         "confirm_frame": "Conferma cornice",
+        "finish_framing": "Termina inquadratura",
+        "finishing_frame": "Completamento inquadratura…",
         "confirm_laser_frame": "Conferma cornice laser",
         "connection": {
           "alarm": "Allarme",

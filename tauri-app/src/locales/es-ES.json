@@ -2051,6 +2051,8 @@
         "cleanup": "limpieza",
         "clear_user_origin": "Borrar origen de usuario",
         "confirm_frame": "Confirmar marco",
+        "finish_framing": "Finalizar encuadre",
+        "finishing_frame": "Finalizando encuadre…",
         "confirm_laser_frame": "Confirmar marco láser",
         "connection": {
           "alarm": "alarma",

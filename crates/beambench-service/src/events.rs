@@ -136,7 +136,7 @@ pub fn machine_summary(
 }
 
 pub fn job_summary(progress: &JobProgress) -> Value {
-    json!({
+    let mut summary = json!({
         "state": progress.state,
         "total_lines": progress.total_lines,
         "queued_lines": progress.queued_lines,
@@ -146,7 +146,11 @@ pub fn job_summary(progress: &JobProgress) -> Value {
         "estimated_remaining_secs": progress.estimated_remaining_secs,
         "buffer_fill_bytes": progress.buffer_fill_bytes,
         "error_message": progress.error_message.clone(),
-    })
+    });
+    if let Some(frame) = progress.continuous_frame {
+        summary["continuous_frame"] = json!(frame);
+    }
+    summary
 }
 
 pub fn runtime_snapshot(ctx: &ServiceContext) -> ServiceResult<RuntimeSnapshot> {

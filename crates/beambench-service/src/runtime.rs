@@ -481,6 +481,7 @@ impl SmoothiewareRuntimeJob {
             buffer_fill_bytes: usize::from(self.in_flight),
             error_message: self.error_message.clone(),
             buckets: Vec::new(),
+            continuous_frame: None,
         }
     }
 }
@@ -739,6 +740,7 @@ impl MarlinRuntimeJob {
             buffer_fill_bytes: usize::from(self.in_flight),
             error_message: self.error_message.clone(),
             buckets: Vec::new(),
+            continuous_frame: None,
         }
     }
 }

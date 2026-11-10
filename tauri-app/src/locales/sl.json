@@ -2051,6 +2051,8 @@
         "cleanup": "Čiščenje",
         "clear_user_origin": "Počisti izvor uporabnika",
         "confirm_frame": "Potrdite okvir",
+        "finish_framing": "Dokončaj okvirjanje",
+        "finishing_frame": "Dokončevanje okvirjanja…",
         "confirm_laser_frame": "Potrdite laserski okvir",
         "connection": {
           "alarm": "Alarm",

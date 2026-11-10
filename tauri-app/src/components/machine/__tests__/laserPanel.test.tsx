@@ -33,6 +33,7 @@ vi.mock('../../../services/machineService', () => ({
     pauseJob: vi.fn().mockResolvedValue(undefined),
     resumeJob: vi.fn().mockResolvedValue(undefined),
     cancelJob: vi.fn().mockResolvedValue(undefined),
+    finishFraming: vi.fn().mockResolvedValue(undefined),
     emergencyStop: vi.fn().mockResolvedValue(undefined),
     getSessionState: vi.fn().mockResolvedValue('ready'),
     setWorkOrigin: vi.fn().mockResolvedValue([10, 20]),
@@ -261,6 +262,61 @@ describe('LaserPanel', () => {
       expect(machineService.emergencyStop).toHaveBeenCalled();
     });
     expect(machineService.cancelJob).not.toHaveBeenCalled();
+  });
+
+  it('finishes the active continuous lap and waits for completion and idle before enabling Start', async () => {
+    setConnectedWithProject();
+    const progress = makeJobProgress({
+      state: 'running',
+      continuous_frame: { id: 'frame-1', finishing: false },
+    });
+    vi.mocked(machineService.frameJob).mockResolvedValueOnce(progress);
+    render(<LaserPanel />);
+    fireEvent.click(screen.getByTestId('frame-button'));
+    fireEvent.click(screen.getByTestId('frame-button'));
+
+    const finish = await screen.findByRole('button', { name: 'Finish Framing' }) as HTMLButtonElement;
+    const start = screen.getByTestId('start-button') as HTMLButtonElement;
+    const stop = screen.getByTestId('stop-button') as HTMLButtonElement;
+    expect(start.disabled).toBe(true);
+    fireEvent.click(finish, { shiftKey: true });
+    expect(machineService.finishFraming).toHaveBeenCalledWith('frame-1');
+    expect(machineService.frameJob).toHaveBeenCalledTimes(1);
+    expect(machineService.emergencyStop).not.toHaveBeenCalled();
+
+    act(() => useMachineStore.setState({
+      jobProgress: { ...progress, continuous_frame: { id: 'frame-1', finishing: true } },
+      sessionState: 'running',
+      machineStatus: makeMachineStatus({ run_state: 'run' }),
+    }));
+    expect((screen.getByRole('button', { name: 'Finishing Framing…' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(start.disabled).toBe(true);
+    expect(stop.disabled).toBe(false);
+
+    act(() => useMachineStore.setState({ jobProgress: { ...progress, state: 'completed' } }));
+    expect(start.disabled).toBe(true);
+    act(() => useMachineStore.setState({
+      sessionState: 'ready',
+      machineStatus: makeMachineStatus({ run_state: 'idle' }),
+    }));
+    expect(start.disabled).toBe(false);
+    expect(screen.getByTestId('frame-button').textContent).toBe('Frame');
+  });
+
+  it('red Stop still uses emergency stop while finishing a frame', async () => {
+    setConnectedWithProject();
+    useMachineStore.setState({
+      sessionState: 'running',
+      jobProgress: makeJobProgress({
+        state: 'running',
+        continuous_frame: { id: 'frame-1', finishing: true },
+      }),
+    });
+    render(<LaserPanel />);
+    fireEvent.click(screen.getByTestId('stop-button'));
+
+    await waitFor(() => expect(machineService.emergencyStop).toHaveBeenCalledTimes(1));
+    expect(machineService.finishFraming).not.toHaveBeenCalled();
   });
 
   it('hides job buttons when disconnected', () => {

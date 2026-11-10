@@ -2051,6 +2051,8 @@
         "cleanup": "Opruimen",
         "clear_user_origin": "Wis de oorsprong van de gebruiker",
         "confirm_frame": "Bevestig Kader",
+        "finish_framing": "Kaderen afronden",
+        "finishing_frame": "Kaderen wordt afgerond…",
         "confirm_laser_frame": "Bevestig laserframe",
         "connection": {
           "alarm": "Alarm",

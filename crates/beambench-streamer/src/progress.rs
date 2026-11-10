@@ -121,6 +121,7 @@ impl ProgressTracker {
             buffer_fill_bytes: self.buffer_fill_bytes,
             error_message: self.error_message.clone(),
             buckets: self.buckets.clone(),
+            continuous_frame: None,
         }
     }
 }

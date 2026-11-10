@@ -2051,6 +2051,8 @@
         "cleanup": "Очистка",
         "clear_user_origin": "Очистить происхождение пользователя",
         "confirm_frame": "Подтвердить кадр",
+        "finish_framing": "Завершить обводку",
+        "finishing_frame": "Завершение обводки…",
         "confirm_laser_frame": "Подтвердить лазерную рамку",
         "connection": {
           "alarm": "Сигнализация",

@@ -73,6 +73,7 @@ export interface JobProgress {
   buffer_fill_bytes: number;
   error_message?: string | null;
   buckets?: JobProgressBucket[];
+  continuous_frame?: { id: string; finishing: boolean };
 }
 
 export interface PortInfo {

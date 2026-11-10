@@ -2051,6 +2051,8 @@
         "cleanup": "クリーンアップ",
         "clear_user_origin": "ユーザーの原点をクリアする",
         "confirm_frame": "フレームの確認",
+        "finish_framing": "フレーミングを終了",
+        "finishing_frame": "フレーミングを終了中…",
         "confirm_laser_frame": "レーザーフレームの確認",
         "connection": {
           "alarm": "アラーム",
