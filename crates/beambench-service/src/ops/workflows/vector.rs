@@ -564,7 +564,7 @@ fn get_object_vecpath(
         .ok_or("Object not found")?;
     let resolved = project.resolve_clone(obj);
     let effective = resolved.as_ref().unwrap_or(obj);
-    let vp = beambench_core::vector::convert::object_to_vecpath(&effective.data)
+    let vp = beambench_core::vector::convert::object_to_local_vecpath(effective)
         .ok_or("Object is not a vector type")?;
     Ok((obj.clone(), vp))
 }
@@ -5868,6 +5868,175 @@ mod tests {
             other => panic!("expected vector path, got {other:?}"),
         }
         assert!(!svc.undo_state().unwrap().can_undo);
+    }
+
+    #[test]
+    fn place_tab_matches_resized_rounded_rectangle_visible_edge() {
+        let (mut project, layer_id) = test_project();
+        let object = ProjectObject::new(
+            "Resized rounded rectangle",
+            layer_id,
+            Bounds::new(Point2D::new(0.0, 0.0), Point2D::new(20.0, 20.0)),
+            ObjectData::Shape {
+                kind: ShapeKind::Rectangle,
+                width: 20.0,
+                height: 20.0,
+                corner_radius: 10.0,
+            },
+        );
+        let id = object.id;
+        project.add_object(object);
+        let bounds = Bounds::new(Point2D::new(150.0, 100.0), Point2D::new(250.0, 200.0));
+        // This is the resize commit used by the selection handles. Canvas
+        // draws a 10 mm corner and a straight top edge at x=min+12 here.
+        beambench_core::operations::update_object_bounds_batch(&mut project, &[(id, bounds)]);
+        let svc = Arc::new(svc_with_project(project));
+        let before = svc.project.lock().unwrap().as_ref().unwrap().clone();
+        if let ObjectData::Shape {
+            width,
+            height,
+            corner_radius,
+            ..
+        } = before.find_object(id).unwrap().data
+        {
+            assert_eq!(width, bounds.width());
+            assert_eq!(height, bounds.height());
+            assert_eq!(corner_radius, 10.0);
+        } else {
+            panic!("expected shape");
+        }
+        let click = Point2D::new(bounds.min.x + 12.0, bounds.min.y);
+        let result = place_tab_inner(&svc, id, click.x, click.y)
+            .expect("a click on the displayed straight edge should place a tab");
+        assert_eq!(result.tabs.len(), 1);
+        assert!(
+            crate::ops::project::undo_project(&svc)
+                .unwrap()
+                .find_object(id)
+                .unwrap()
+                .tabs
+                .is_empty()
+        );
+        let after = crate::ops::project::redo_project(&svc).unwrap();
+        let reopened = serde_json::from_slice(&serde_json::to_vec(&after).unwrap()).unwrap();
+        *svc.project.lock().unwrap() = Some(reopened);
+        let markers = resolve_tab_markers(&svc, id.to_string()).unwrap();
+        assert_eq!(markers.len(), 1);
+        assert!(click.distance_to(&Point2D::new(markers[0].world_x, markers[0].world_y)) < 0.02);
+
+        let plain_plan = beambench_planner::build_plan(&before).unwrap();
+        let tabbed_plan =
+            beambench_planner::build_plan(svc.project.lock().unwrap().as_ref().unwrap()).unwrap();
+        let burn_length = |plan: &beambench_planner::ExecutionPlan| {
+            plan.segments
+                .iter()
+                .map(|segment| {
+                    if let beambench_planner::PlanSegment::Vector {
+                        polyline, closed, ..
+                    } = segment
+                    {
+                        let length: f64 =
+                            polyline.windows(2).map(|p| p[0].distance_to(&p[1])).sum();
+                        length
+                            + if *closed {
+                                polyline.last().unwrap().distance_to(&polyline[0])
+                            } else {
+                                0.0
+                            }
+                    } else {
+                        0.0
+                    }
+                })
+                .sum::<f64>()
+        };
+        assert!(
+            (burn_length(&plain_plan) - burn_length(&tabbed_plan) - 3.0).abs() < 0.1,
+            "one tab should leave a 3 mm laser-off gap"
+        );
+        let cut_distance = tabbed_plan
+            .segments
+            .iter()
+            .filter_map(|segment| {
+                if let beambench_planner::PlanSegment::Vector {
+                    polyline, closed, ..
+                } = segment
+                {
+                    Some(
+                        beambench_core::vector::trim::project_point_on_polyline_with_dist(
+                            click, polyline, *closed,
+                        )
+                        .0,
+                    )
+                } else {
+                    None
+                }
+            })
+            .fold(f64::INFINITY, f64::min);
+        assert!(
+            cut_distance > 1.2,
+            "cut must not cross the tab center: {cut_distance}"
+        );
+        assert!(
+            remove_tab_inner(&svc, id, markers[0].world_x, markers[0].world_y)
+                .unwrap()
+                .tabs
+                .is_empty()
+        );
+        assert_eq!(
+            crate::ops::project::undo_project(&svc)
+                .unwrap()
+                .find_object(id)
+                .unwrap()
+                .tabs
+                .len(),
+            1
+        );
+        assert!(
+            crate::ops::project::redo_project(&svc)
+                .unwrap()
+                .find_object(id)
+                .unwrap()
+                .tabs
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn place_tab_on_resized_clone_preserves_the_source() {
+        let (mut project, layer_id) = test_project();
+        let source_id = add_rect(&mut project, layer_id, 0.0, 0.0, 20.0, 20.0);
+        if let ObjectData::Shape { corner_radius, .. } =
+            &mut project.find_object_mut(source_id).unwrap().data
+        {
+            *corner_radius = 10.0;
+        }
+        let source = project.find_object(source_id).unwrap().clone();
+        let clone = ProjectObject::new(
+            "Large clone",
+            layer_id,
+            Bounds::new(Point2D::new(100.0, 100.0), Point2D::new(200.0, 180.0)),
+            ObjectData::VirtualClone { source_id },
+        );
+        let clone_id = clone.id;
+        project.add_object(clone);
+        let svc = Arc::new(svc_with_project(project));
+        let updated = place_tab_inner(&svc, clone_id, 112.0, 100.0).unwrap();
+        assert_eq!(updated.tabs.len(), 1);
+        let markers = resolve_tab_markers(&svc, clone_id.to_string()).unwrap();
+        assert!(
+            Point2D::new(markers[0].world_x, markers[0].world_y)
+                .distance_to(&Point2D::new(112.0, 100.0))
+                < 0.02
+        );
+        assert_eq!(
+            svc.project
+                .lock()
+                .unwrap()
+                .as_ref()
+                .unwrap()
+                .find_object(source_id),
+            Some(&source)
+        );
     }
 
     #[test]

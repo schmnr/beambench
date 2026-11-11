@@ -769,8 +769,8 @@ Shared fixtures:
 - Hardware Requirement: None
 - Prerequisites: Valid vector shapes and selections
 - Setup / Fixture: Path-intersection fixture and closed-path fixture
-- Steps: Use Trim tool, Tabs tool, Offset dialog, Grid Array, Circular Array, Radius tool, and Set Start Point.
-- Expected Result: Each tool produces the intended geometry or metadata change and returns to a sane selection state.
+- Steps: Use Trim tool, Tabs tool, Offset dialog, Grid Array, Circular Array, Radius tool, and Set Start Point. Resize rounded and concave rectangles uniformly and nonuniformly, then place tabs on their visible straight and curved edges. Repeat after rotation and on a resized clone. Remove markers at low and high zoom, click without first hovering, and change selection while marker requests are pending.
+- Expected Result: Each tool produces the intended geometry or metadata change and returns to a sane selection state. Resized shape outlines match tab markers, preview and cutting paths; a placed tab leaves the configured gap in the cutting plan. Clicking a highlighted marker removes that marker at every zoom. Stale hover or selection data does not edit a different object or choose the wrong action.
 - Edge / Negative Cases: Tiny geometry, open paths, or invalid selections must fail safely.
 - Persistence / Reopen Check: Save/reopen and verify the resulting geometry/start-point metadata.
 - Undo / Redo Expectation: Each mutation is undoable.

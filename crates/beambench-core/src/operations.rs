@@ -369,7 +369,7 @@ pub fn shear_objects(
 }
 
 /// Batch-update object bounds, setting each object's bounds to the provided values.
-/// Handles vector path refitting, text property scaling, text cache refresh,
+/// Handles primitive dimensions, vector path refitting, text property scaling, text cache refresh,
 /// and dependent text object refresh atomically.
 pub fn update_object_bounds_batch(project: &mut Project, entries: &[(ObjectId, Bounds)]) {
     for (id, new_bounds) in entries {
@@ -386,6 +386,11 @@ pub fn update_object_bounds_batch(project: &mut Project, entries: &[(ObjectId, B
             match &mut obj.data {
                 ObjectData::VectorPath { .. } => {
                     refit_vector_path_to_bounds(obj, new_bounds);
+                }
+                ObjectData::Shape { width, height, .. } => {
+                    *width = new_bounds.width();
+                    *height = new_bounds.height();
+                    obj.bounds = *new_bounds;
                 }
                 ObjectData::Text {
                     font_size_mm,
