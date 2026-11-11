@@ -7,6 +7,7 @@ import { useAppStore } from '../../../stores/appStore';
 import type { MachineProfile } from '../../../types/machine';
 import { MachinePresetPanel } from '../MachinePresetPanel';
 import { FEEDBACK_REPORT_OPEN_EVENT } from '../../../feedbackEvents';
+import { atomstackPresetCases } from '../../../test-utils/atomstackPresets';
 
 const mockInvoke = vi.fn().mockResolvedValue([]);
 const mockOpen = vi.fn().mockResolvedValue(null);
@@ -585,9 +586,7 @@ describe('MachineProfileDialog', () => {
     { presetId: 'ortur_lm3_le_10w', name: 'Ortur Laser Master 3 LE 10W (LU2-10A)', airOn: '', width: 400, height: 400, homing: false, constantPower: false, usbEvidence: true },
     { presetId: 'aufero_laser_1', name: 'Aufero Laser 1 (LU2-2 / LU2-4)', airOn: '', width: 180, height: 180, homing: false, constantPower: false, usbEvidence: true },
     { presetId: 'aufero_laser_2', name: 'Aufero Laser 2 (LU2-2 / LU2-4)', airOn: '', width: 390, height: 390, homing: false, constantPower: false, usbEvidence: true },
-    { presetId: 'atomstack_a10_pro_v2', name: 'AtomStack A10 Pro V2', airOn: '', width: 400, height: 365, homing: false, constantPower: false, usbEvidence: true },
-    { presetId: 'atomstack_a20_pro_v2', name: 'AtomStack A20 Pro V2', airOn: '', width: 400, height: 365, homing: false, constantPower: false, usbEvidence: true },
-    { presetId: 'atomstack_a40_pro_v2', name: 'AtomStack A40 Pro V2', airOn: '', width: 385, height: 400, homing: false, constantPower: false, usbEvidence: true },
+    ...atomstackPresetCases,
     { presetId: 'creality_cr_laser_falcon_5w', name: 'Creality CR-Laser Falcon 5W', airOn: '', width: 400, height: 415, homing: false, constantPower: false, usbEvidence: true },
     { presetId: 'creality_cr_laser_falcon_7_5w', name: 'Creality CR-Laser Falcon 7.5W', airOn: '', width: 400, height: 415, homing: false, constantPower: false, usbEvidence: true },
     { presetId: 'creality_cr_laser_falcon_10w', name: 'Creality CR-Laser Falcon 10W', airOn: '', width: 400, height: 415, homing: false, constantPower: false, usbEvidence: true },
@@ -605,7 +604,7 @@ describe('MachineProfileDialog', () => {
     { presetId: 'twotrees_tts_20_pro', name: 'Two Trees TTS-20 Pro', airOn: '', width: 418, height: 418, homing: false, constantPower: true, usbEvidence: true },
     { presetId: 'twotrees_ts2_10w', name: 'Two Trees TS2 10W', airOn: '', width: 450, height: 450, homing: false, constantPower: true, usbEvidence: true },
     { presetId: 'twotrees_ts2_20w', name: 'Two Trees TS2 20W', airOn: '', width: 410, height: 410, homing: false, constantPower: true, usbEvidence: true },
-  ])('previews and applies $presetId with explicit confirmation', async ({ presetId, name, airOn, width, height, homing, constantPower, usbEvidence }) => {
+  ].map((preset) => ({ baud: 115200, maxSpeed: 6000, ...preset })))('previews and applies $presetId with explicit confirmation', async ({ presetId, name, airOn, width, height, homing, constantPower, usbEvidence, baud, maxSpeed }) => {
     const profile = makeProfile({ id: 'prof-preset', name: 'Preset Profile' });
     const appliedProfile = {
       ...profile,
@@ -617,6 +616,8 @@ describe('MachineProfileDialog', () => {
       bed_height_mm: height,
       homing_enabled: homing,
       use_constant_power: constantPower,
+      default_baud_rate: baud,
+      max_speed_mm_min: maxSpeed,
     };
 
     let storedProfile = profile;
@@ -631,10 +632,10 @@ describe('MachineProfileDialog', () => {
             advisory_text: 'Use a wall outlet if air assist resets the controller.',
             origin: 'bottom_left',
             firmware_type: 'grbl',
-            default_baud_rate: 115200,
+            default_baud_rate: baud,
             bed_width_mm: width,
             bed_height_mm: height,
-            max_speed_mm_min: 6000,
+            max_speed_mm_min: maxSpeed,
             max_power_percent: 100,
             s_value_max: 1000,
             homing_enabled: homing,

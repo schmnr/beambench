@@ -2410,6 +2410,138 @@
           "acmer_s2_pro_48w": {
             "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
             "advisory": "400 x 400 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning."
+          },
+          "atomstack_swift_7w": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "USB: 460800 baud. 300 x 300 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning."
+          },
+          "atomstack_swift_12w": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "USB: 460800 baud. 300 x 300 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning."
+          },
+          "atomstack_a5_10w": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "410 x 400 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning. Konstant strøm (M3)."
+          },
+          "atomstack_a5_15w": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "410 x 400 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning. Konstant strøm (M3)."
+          },
+          "atomstack_a5_20w": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "410 x 400 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning. Konstant strøm (M3)."
+          },
+          "atomstack_a5_30w": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "410 x 400 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning. Konstant strøm (M3)."
+          },
+          "atomstack_a5_pro": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "410 x 400 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning. Konstant strøm (M3)."
+          },
+          "atomstack_a5_pro_plus": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "410 x 400 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning. Konstant strøm (M3)."
+          },
+          "atomstack_a5_m30": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "410 x 400 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning. Konstant strøm (M3)."
+          },
+          "atomstack_a5_m40": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "410 x 400 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning. Konstant strøm (M3)."
+          },
+          "atomstack_a5_m50": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "410 x 400 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning. Konstant strøm (M3)."
+          },
+          "atomstack_a5_m50_pro": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "410 x 400 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning. Konstant strøm (M3)."
+          },
+          "atomstack_a5_pro_v2": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "400 x 365 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning."
+          },
+          "atomstack_a6_pro": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "365 x 305 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning."
+          },
+          "atomstack_a12_pro": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "365 x 305 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning."
+          },
+          "atomstack_a24_pro": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "360 x 280 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning."
+          },
+          "atomstack_x12_pro": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "365 x 305 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning."
+          },
+          "atomstack_a20_pro": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "400 x 400 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning. Konstant strøm (M3)."
+          },
+          "atomstack_a30_pro": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "400 x 400 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning. Konstant strøm (M3)."
+          },
+          "atomstack_a40_pro": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "400 x 400 mm, nulpunkt forrest til venstre, S1000, luftassistance M7/M9. Kontrollér $30, $32=1, endestop og pumpe. Automatisk hjemkørsel er som standard slået fra. Ændrede maskiner kræver separat opsætning."
+          },
+          "atomstack_a40_max": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "800 x 400 mm, nulpunkt forrest til venstre, S1000, luftassistance M7/M9. Kontrollér $30, $32=1, endestop og pumpe. Automatisk hjemkørsel er som standard slået fra. Ændrede maskiner kræver separat opsætning."
+          },
+          "atomstack_x40_pro": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "400 x 400 mm, nulpunkt forrest til venstre, S1000, luftassistance M7/M9. Kontrollér $30, $32=1, endestop og pumpe. Automatisk hjemkørsel er som standard slået fra. Ændrede maskiner kræver separat opsætning."
+          },
+          "atomstack_x40_max": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "800 x 400 mm, nulpunkt forrest til venstre, S1000, luftassistance M7/M9. Kontrollér $30, $32=1, endestop og pumpe. Automatisk hjemkørsel er som standard slået fra. Ændrede maskiner kræver separat opsætning."
+          },
+          "atomstack_s40_pro": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "400 x 400 mm, nulpunkt forrest til venstre, S1000, luftassistance M7/M9. Kontrollér $30, $32=1, endestop og pumpe. Automatisk hjemkørsel er som standard slået fra. Ændrede maskiner kræver separat opsætning."
+          },
+          "atomstack_s40_max": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "800 x 400 mm, nulpunkt forrest til venstre, S1000, luftassistance M7/M9. Kontrollér $30, $32=1, endestop og pumpe. Automatisk hjemkørsel er som standard slået fra. Ændrede maskiner kræver separat opsætning."
+          },
+          "atomstack_a70_pro": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "500 x 400 mm, nulpunkt forrest til venstre, S1000, luftassistance M8/M9. Kontrollér $30, $32=1, endestop og pumpe. Automatisk hjemkørsel er som standard slået fra. Ændrede maskiner kræver separat opsætning. Indstil fokus med maskinens betjening før indramning. Kamera, rotationsenhed og transportbånd kræver separat opsætning."
+          },
+          "atomstack_a70_max": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "850 x 800 mm, nulpunkt forrest til venstre, S1000, luftassistance M8/M9. Kontrollér $30, $32=1, endestop og pumpe. Automatisk hjemkørsel er som standard slået fra. Ændrede maskiner kræver separat opsætning. Indstil fokus med maskinens betjening før indramning. Kamera, rotationsenhed og transportbånd kræver separat opsætning."
+          },
+          "atomstack_x70_max": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "850 x 800 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning. Indstil fokus med maskinens betjening før indramning. Kamera, rotationsenhed og transportbånd kræver separat opsætning."
+          },
+          "atomstack_p1_5w": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "USB: 460800 baud. 110 x 110 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning."
+          },
+          "atomstack_kraft_lite_40w": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "USB: 460800 baud. 500 x 320 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning. Indstil fokus med maskinens betjening før indramning. Kamera, rotationsenhed og transportbånd kræver separat opsætning."
+          },
+          "atomstack_hurricane_55w": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "USB: 460800 baud. 500 x 300 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning. Indstil fokus med maskinens betjening før indramning. Kamera, rotationsenhed og transportbånd kræver separat opsætning."
+          },
+          "atomstack_glacier_90w": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "USB: 460800 baud. 800 x 800 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning. Indstil fokus med maskinens betjening før indramning. Kamera, rotationsenhed og transportbånd kræver separat opsætning. Vælg effekttilstanden i AtomStack Studio, og luk programmet, før du forbinder Beam Bench."
+          },
+          "atomstack_glacier_120w": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "USB: 460800 baud. 800 x 800 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning. Indstil fokus med maskinens betjening før indramning. Kamera, rotationsenhed og transportbånd kræver separat opsætning. Vælg effekttilstanden i AtomStack Studio, og luk programmet, før du forbinder Beam Bench."
           }
         },
         "report_active_profile": "Gem og aktivér denne profil for at dele dens indstillinger med resultaterne.",

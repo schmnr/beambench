@@ -2410,6 +2410,138 @@
           "acmer_s2_pro_48w": {
             "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
             "advisory": "400 x 400 mm, origen delantero izquierdo, S1000. Comprueba $30 y el modo láser $32=1. El retorno al origen y el aire asistido automático están desactivados. Otro firmware y las ampliaciones requieren una configuración aparte."
+          },
+          "atomstack_swift_7w": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "USB: 460800 baudios. 300 x 300 mm, origen delantero izquierdo, S1000. Comprueba $30 y el modo láser $32=1. El retorno al origen y el aire asistido automático están desactivados. Otro firmware y las ampliaciones requieren una configuración aparte."
+          },
+          "atomstack_swift_12w": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "USB: 460800 baudios. 300 x 300 mm, origen delantero izquierdo, S1000. Comprueba $30 y el modo láser $32=1. El retorno al origen y el aire asistido automático están desactivados. Otro firmware y las ampliaciones requieren una configuración aparte."
+          },
+          "atomstack_a5_10w": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "410 x 400 mm, origen delantero izquierdo, S1000. Comprueba $30 y el modo láser $32=1. El retorno al origen y el aire asistido automático están desactivados. Otro firmware y las ampliaciones requieren una configuración aparte. Potencia constante (M3)."
+          },
+          "atomstack_a5_15w": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "410 x 400 mm, origen delantero izquierdo, S1000. Comprueba $30 y el modo láser $32=1. El retorno al origen y el aire asistido automático están desactivados. Otro firmware y las ampliaciones requieren una configuración aparte. Potencia constante (M3)."
+          },
+          "atomstack_a5_20w": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "410 x 400 mm, origen delantero izquierdo, S1000. Comprueba $30 y el modo láser $32=1. El retorno al origen y el aire asistido automático están desactivados. Otro firmware y las ampliaciones requieren una configuración aparte. Potencia constante (M3)."
+          },
+          "atomstack_a5_30w": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "410 x 400 mm, origen delantero izquierdo, S1000. Comprueba $30 y el modo láser $32=1. El retorno al origen y el aire asistido automático están desactivados. Otro firmware y las ampliaciones requieren una configuración aparte. Potencia constante (M3)."
+          },
+          "atomstack_a5_pro": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "410 x 400 mm, origen delantero izquierdo, S1000. Comprueba $30 y el modo láser $32=1. El retorno al origen y el aire asistido automático están desactivados. Otro firmware y las ampliaciones requieren una configuración aparte. Potencia constante (M3)."
+          },
+          "atomstack_a5_pro_plus": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "410 x 400 mm, origen delantero izquierdo, S1000. Comprueba $30 y el modo láser $32=1. El retorno al origen y el aire asistido automático están desactivados. Otro firmware y las ampliaciones requieren una configuración aparte. Potencia constante (M3)."
+          },
+          "atomstack_a5_m30": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "410 x 400 mm, origen delantero izquierdo, S1000. Comprueba $30 y el modo láser $32=1. El retorno al origen y el aire asistido automático están desactivados. Otro firmware y las ampliaciones requieren una configuración aparte. Potencia constante (M3)."
+          },
+          "atomstack_a5_m40": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "410 x 400 mm, origen delantero izquierdo, S1000. Comprueba $30 y el modo láser $32=1. El retorno al origen y el aire asistido automático están desactivados. Otro firmware y las ampliaciones requieren una configuración aparte. Potencia constante (M3)."
+          },
+          "atomstack_a5_m50": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "410 x 400 mm, origen delantero izquierdo, S1000. Comprueba $30 y el modo láser $32=1. El retorno al origen y el aire asistido automático están desactivados. Otro firmware y las ampliaciones requieren una configuración aparte. Potencia constante (M3)."
+          },
+          "atomstack_a5_m50_pro": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "410 x 400 mm, origen delantero izquierdo, S1000. Comprueba $30 y el modo láser $32=1. El retorno al origen y el aire asistido automático están desactivados. Otro firmware y las ampliaciones requieren una configuración aparte. Potencia constante (M3)."
+          },
+          "atomstack_a5_pro_v2": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "400 x 365 mm, origen delantero izquierdo, S1000. Comprueba $30 y el modo láser $32=1. El retorno al origen y el aire asistido automático están desactivados. Otro firmware y las ampliaciones requieren una configuración aparte."
+          },
+          "atomstack_a6_pro": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "365 x 305 mm, origen delantero izquierdo, S1000. Comprueba $30 y el modo láser $32=1. El retorno al origen y el aire asistido automático están desactivados. Otro firmware y las ampliaciones requieren una configuración aparte."
+          },
+          "atomstack_a12_pro": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "365 x 305 mm, origen delantero izquierdo, S1000. Comprueba $30 y el modo láser $32=1. El retorno al origen y el aire asistido automático están desactivados. Otro firmware y las ampliaciones requieren una configuración aparte."
+          },
+          "atomstack_a24_pro": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "360 x 280 mm, origen delantero izquierdo, S1000. Comprueba $30 y el modo láser $32=1. El retorno al origen y el aire asistido automático están desactivados. Otro firmware y las ampliaciones requieren una configuración aparte."
+          },
+          "atomstack_x12_pro": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "365 x 305 mm, origen delantero izquierdo, S1000. Comprueba $30 y el modo láser $32=1. El retorno al origen y el aire asistido automático están desactivados. Otro firmware y las ampliaciones requieren una configuración aparte."
+          },
+          "atomstack_a20_pro": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "400 x 400 mm, origen delantero izquierdo, S1000. Comprueba $30 y el modo láser $32=1. El retorno al origen y el aire asistido automático están desactivados. Otro firmware y las ampliaciones requieren una configuración aparte. Potencia constante (M3)."
+          },
+          "atomstack_a30_pro": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "400 x 400 mm, origen delantero izquierdo, S1000. Comprueba $30 y el modo láser $32=1. El retorno al origen y el aire asistido automático están desactivados. Otro firmware y las ampliaciones requieren una configuración aparte. Potencia constante (M3)."
+          },
+          "atomstack_a40_pro": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "400 x 400 mm, origen frontal izquierdo, S1000, asistencia de aire M7/M9. Comprueba $30, $32=1, los finales de carrera y la bomba. El retorno automático al origen está desactivado por defecto. Las máquinas modificadas requieren otra configuración."
+          },
+          "atomstack_a40_max": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "800 x 400 mm, origen frontal izquierdo, S1000, asistencia de aire M7/M9. Comprueba $30, $32=1, los finales de carrera y la bomba. El retorno automático al origen está desactivado por defecto. Las máquinas modificadas requieren otra configuración."
+          },
+          "atomstack_x40_pro": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "400 x 400 mm, origen frontal izquierdo, S1000, asistencia de aire M7/M9. Comprueba $30, $32=1, los finales de carrera y la bomba. El retorno automático al origen está desactivado por defecto. Las máquinas modificadas requieren otra configuración."
+          },
+          "atomstack_x40_max": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "800 x 400 mm, origen frontal izquierdo, S1000, asistencia de aire M7/M9. Comprueba $30, $32=1, los finales de carrera y la bomba. El retorno automático al origen está desactivado por defecto. Las máquinas modificadas requieren otra configuración."
+          },
+          "atomstack_s40_pro": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "400 x 400 mm, origen frontal izquierdo, S1000, asistencia de aire M7/M9. Comprueba $30, $32=1, los finales de carrera y la bomba. El retorno automático al origen está desactivado por defecto. Las máquinas modificadas requieren otra configuración."
+          },
+          "atomstack_s40_max": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "800 x 400 mm, origen frontal izquierdo, S1000, asistencia de aire M7/M9. Comprueba $30, $32=1, los finales de carrera y la bomba. El retorno automático al origen está desactivado por defecto. Las máquinas modificadas requieren otra configuración."
+          },
+          "atomstack_a70_pro": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "500 x 400 mm, origen frontal izquierdo, S1000, asistencia de aire M8/M9. Comprueba $30, $32=1, los finales de carrera y la bomba. El retorno automático al origen está desactivado por defecto. Las máquinas modificadas requieren otra configuración. Enfoque con los controles de la máquina antes de enmarcar. La cámara, el accesorio giratorio y la cinta transportadora requieren una configuración independiente."
+          },
+          "atomstack_a70_max": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "850 x 800 mm, origen frontal izquierdo, S1000, asistencia de aire M8/M9. Comprueba $30, $32=1, los finales de carrera y la bomba. El retorno automático al origen está desactivado por defecto. Las máquinas modificadas requieren otra configuración. Enfoque con los controles de la máquina antes de enmarcar. La cámara, el accesorio giratorio y la cinta transportadora requieren una configuración independiente."
+          },
+          "atomstack_x70_max": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "850 x 800 mm, origen delantero izquierdo, S1000. Comprueba $30 y el modo láser $32=1. El retorno al origen y el aire asistido automático están desactivados. Otro firmware y las ampliaciones requieren una configuración aparte. Enfoque con los controles de la máquina antes de enmarcar. La cámara, el accesorio giratorio y la cinta transportadora requieren una configuración independiente."
+          },
+          "atomstack_p1_5w": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "USB: 460800 baudios. 110 x 110 mm, origen delantero izquierdo, S1000. Comprueba $30 y el modo láser $32=1. El retorno al origen y el aire asistido automático están desactivados. Otro firmware y las ampliaciones requieren una configuración aparte."
+          },
+          "atomstack_kraft_lite_40w": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "USB: 460800 baudios. 500 x 320 mm, origen delantero izquierdo, S1000. Comprueba $30 y el modo láser $32=1. El retorno al origen y el aire asistido automático están desactivados. Otro firmware y las ampliaciones requieren una configuración aparte. Enfoque con los controles de la máquina antes de enmarcar. La cámara, el accesorio giratorio y la cinta transportadora requieren una configuración independiente."
+          },
+          "atomstack_hurricane_55w": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "USB: 460800 baudios. 500 x 300 mm, origen delantero izquierdo, S1000. Comprueba $30 y el modo láser $32=1. El retorno al origen y el aire asistido automático están desactivados. Otro firmware y las ampliaciones requieren una configuración aparte. Enfoque con los controles de la máquina antes de enmarcar. La cámara, el accesorio giratorio y la cinta transportadora requieren una configuración independiente."
+          },
+          "atomstack_glacier_90w": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "USB: 460800 baudios. 800 x 800 mm, origen delantero izquierdo, S1000. Comprueba $30 y el modo láser $32=1. El retorno al origen y el aire asistido automático están desactivados. Otro firmware y las ampliaciones requieren una configuración aparte. Enfoque con los controles de la máquina antes de enmarcar. La cámara, el accesorio giratorio y la cinta transportadora requieren una configuración independiente. Seleccione el modo de potencia en AtomStack Studio y ciérrelo antes de conectar Beam Bench."
+          },
+          "atomstack_glacier_120w": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "USB: 460800 baudios. 800 x 800 mm, origen delantero izquierdo, S1000. Comprueba $30 y el modo láser $32=1. El retorno al origen y el aire asistido automático están desactivados. Otro firmware y las ampliaciones requieren una configuración aparte. Enfoque con los controles de la máquina antes de enmarcar. La cámara, el accesorio giratorio y la cinta transportadora requieren una configuración independiente. Seleccione el modo de potencia en AtomStack Studio y ciérrelo antes de conectar Beam Bench."
           }
         },
         "report_active_profile": "Guarda y activa este perfil para compartir sus ajustes con los resultados.",

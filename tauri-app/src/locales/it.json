@@ -2410,6 +2410,138 @@
           "acmer_s2_pro_48w": {
             "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
             "advisory": "400 x 400 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata."
+          },
+          "atomstack_swift_7w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "USB: 460800 baud. 300 x 300 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata."
+          },
+          "atomstack_swift_12w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "USB: 460800 baud. 300 x 300 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata."
+          },
+          "atomstack_a5_10w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "410 x 400 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata. Potenza costante (M3)."
+          },
+          "atomstack_a5_15w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "410 x 400 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata. Potenza costante (M3)."
+          },
+          "atomstack_a5_20w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "410 x 400 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata. Potenza costante (M3)."
+          },
+          "atomstack_a5_30w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "410 x 400 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata. Potenza costante (M3)."
+          },
+          "atomstack_a5_pro": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "410 x 400 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata. Potenza costante (M3)."
+          },
+          "atomstack_a5_pro_plus": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "410 x 400 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata. Potenza costante (M3)."
+          },
+          "atomstack_a5_m30": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "410 x 400 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata. Potenza costante (M3)."
+          },
+          "atomstack_a5_m40": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "410 x 400 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata. Potenza costante (M3)."
+          },
+          "atomstack_a5_m50": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "410 x 400 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata. Potenza costante (M3)."
+          },
+          "atomstack_a5_m50_pro": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "410 x 400 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata. Potenza costante (M3)."
+          },
+          "atomstack_a5_pro_v2": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "400 x 365 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata."
+          },
+          "atomstack_a6_pro": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "365 x 305 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata."
+          },
+          "atomstack_a12_pro": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "365 x 305 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata."
+          },
+          "atomstack_a24_pro": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "360 x 280 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata."
+          },
+          "atomstack_x12_pro": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "365 x 305 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata."
+          },
+          "atomstack_a20_pro": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "400 x 400 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata. Potenza costante (M3)."
+          },
+          "atomstack_a30_pro": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "400 x 400 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata. Potenza costante (M3)."
+          },
+          "atomstack_a40_pro": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "400 x 400 mm, origine anteriore sinistra, S1000, assistenza aria M7/M9. Verifica $30, $32=1, finecorsa e pompa. Il ritorno automatico all’origine è disattivato per impostazione predefinita. Le macchine modificate richiedono una configurazione separata."
+          },
+          "atomstack_a40_max": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "800 x 400 mm, origine anteriore sinistra, S1000, assistenza aria M7/M9. Verifica $30, $32=1, finecorsa e pompa. Il ritorno automatico all’origine è disattivato per impostazione predefinita. Le macchine modificate richiedono una configurazione separata."
+          },
+          "atomstack_x40_pro": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "400 x 400 mm, origine anteriore sinistra, S1000, assistenza aria M7/M9. Verifica $30, $32=1, finecorsa e pompa. Il ritorno automatico all’origine è disattivato per impostazione predefinita. Le macchine modificate richiedono una configurazione separata."
+          },
+          "atomstack_x40_max": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "800 x 400 mm, origine anteriore sinistra, S1000, assistenza aria M7/M9. Verifica $30, $32=1, finecorsa e pompa. Il ritorno automatico all’origine è disattivato per impostazione predefinita. Le macchine modificate richiedono una configurazione separata."
+          },
+          "atomstack_s40_pro": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "400 x 400 mm, origine anteriore sinistra, S1000, assistenza aria M7/M9. Verifica $30, $32=1, finecorsa e pompa. Il ritorno automatico all’origine è disattivato per impostazione predefinita. Le macchine modificate richiedono una configurazione separata."
+          },
+          "atomstack_s40_max": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "800 x 400 mm, origine anteriore sinistra, S1000, assistenza aria M7/M9. Verifica $30, $32=1, finecorsa e pompa. Il ritorno automatico all’origine è disattivato per impostazione predefinita. Le macchine modificate richiedono una configurazione separata."
+          },
+          "atomstack_a70_pro": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "500 x 400 mm, origine anteriore sinistra, S1000, assistenza aria M8/M9. Verifica $30, $32=1, finecorsa e pompa. Il ritorno automatico all’origine è disattivato per impostazione predefinita. Le macchine modificate richiedono una configurazione separata. Regolare la messa a fuoco dai comandi della macchina prima del tracciamento del riquadro. Fotocamera, dispositivo rotante e nastro trasportatore richiedono una configurazione separata."
+          },
+          "atomstack_a70_max": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "850 x 800 mm, origine anteriore sinistra, S1000, assistenza aria M8/M9. Verifica $30, $32=1, finecorsa e pompa. Il ritorno automatico all’origine è disattivato per impostazione predefinita. Le macchine modificate richiedono una configurazione separata. Regolare la messa a fuoco dai comandi della macchina prima del tracciamento del riquadro. Fotocamera, dispositivo rotante e nastro trasportatore richiedono una configurazione separata."
+          },
+          "atomstack_x70_max": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "850 x 800 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata. Regolare la messa a fuoco dai comandi della macchina prima del tracciamento del riquadro. Fotocamera, dispositivo rotante e nastro trasportatore richiedono una configurazione separata."
+          },
+          "atomstack_p1_5w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "USB: 460800 baud. 110 x 110 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata."
+          },
+          "atomstack_kraft_lite_40w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "USB: 460800 baud. 500 x 320 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata. Regolare la messa a fuoco dai comandi della macchina prima del tracciamento del riquadro. Fotocamera, dispositivo rotante e nastro trasportatore richiedono una configurazione separata."
+          },
+          "atomstack_hurricane_55w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "USB: 460800 baud. 500 x 300 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata. Regolare la messa a fuoco dai comandi della macchina prima del tracciamento del riquadro. Fotocamera, dispositivo rotante e nastro trasportatore richiedono una configurazione separata."
+          },
+          "atomstack_glacier_90w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "USB: 460800 baud. 800 x 800 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata. Regolare la messa a fuoco dai comandi della macchina prima del tracciamento del riquadro. Fotocamera, dispositivo rotante e nastro trasportatore richiedono una configurazione separata. Selezionare la modalità di potenza in AtomStack Studio e chiuderlo prima di collegare Beam Bench."
+          },
+          "atomstack_glacier_120w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "USB: 460800 baud. 800 x 800 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata. Regolare la messa a fuoco dai comandi della macchina prima del tracciamento del riquadro. Fotocamera, dispositivo rotante e nastro trasportatore richiedono una configurazione separata. Selezionare la modalità di potenza in AtomStack Studio e chiuderlo prima di collegare Beam Bench."
           }
         },
         "report_active_profile": "Salva e attiva questo profilo per condividere le impostazioni con i risultati.",

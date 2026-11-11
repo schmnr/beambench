@@ -164,6 +164,10 @@ own specifications support an entry. Do not copy the S9 defaults across a brand.
 - [Common GRBL USB expansion, 24 presets at version 1](machines/common-grbl-usb-presets.md):
   Ortur/Aufero, AtomStack Pro V2, standard Falcon2, Sculpfun S10/S30/Ultra and
   Two Trees TTS/TS2. Documentation-based, physical testing pending.
+- [AtomStack USB catalog, 36 presets at version 1](machines/atomstack-usb-presets.md):
+  Swift, original A5/M-series, Pro/V2/Max revisions, P1 blue diode, Kraft Lite,
+  Hurricane and Glacier. Includes exact baud, travel and air-command differences.
+  Documentation-based, physical testing pending.
 - [xTool D1/D1 Pro](machines/xtool-d1.md): eight Experimental stock-module
   presets at version 1 in 0.2.32, four USB and four Wi-Fi. Physical testing pending.
   USB uses 230400 baud and physical-button start/resume.

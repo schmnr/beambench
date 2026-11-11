@@ -8585,6 +8585,31 @@ mod tests {
     }
 
     #[test]
+    fn atomstack_swift_uses_the_preset_baud_before_any_reset_or_fallback() {
+        let ctx = ServiceContext::new();
+        let preset = crate::ops::profiles::profile_presets()
+            .into_iter()
+            .find(|preset| preset.id == "atomstack_swift_7w")
+            .unwrap();
+        let mut attempts = Vec::new();
+        let (_, baud) = detect_grbl_connection(
+            &ctx,
+            "COM3",
+            preset.default_baud_rate,
+            false,
+            |baud, reset| {
+                attempts.push((baud, reset));
+                assert_eq!(baud, 460_800);
+                assert!(!reset, "use the normal non-resetting status probe first");
+                Ok(connected_grbl_probe())
+            },
+        )
+        .unwrap();
+        assert_eq!(baud, 460_800);
+        assert_eq!(attempts, [(460_800, false)]);
+    }
+
+    #[test]
     fn grbl_detection_reaches_lower_baud_after_windows_rejects_high_rates() {
         let ctx = ServiceContext::new();
         let mut attempts = Vec::new();

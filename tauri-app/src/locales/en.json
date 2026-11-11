@@ -2562,6 +2562,138 @@
           "acmer_s2_pro_48w": {
             "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
             "advisory": "400 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup."
+          },
+          "atomstack_swift_7w": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "USB: 460800 baud. 300 x 300 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup."
+          },
+          "atomstack_swift_12w": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "USB: 460800 baud. 300 x 300 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup."
+          },
+          "atomstack_a5_10w": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "410 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3)."
+          },
+          "atomstack_a5_15w": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "410 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3)."
+          },
+          "atomstack_a5_20w": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "410 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3)."
+          },
+          "atomstack_a5_30w": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "410 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3)."
+          },
+          "atomstack_a5_pro": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "410 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3)."
+          },
+          "atomstack_a5_pro_plus": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "410 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3)."
+          },
+          "atomstack_a5_m30": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "410 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3)."
+          },
+          "atomstack_a5_m40": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "410 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3)."
+          },
+          "atomstack_a5_m50": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "410 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3)."
+          },
+          "atomstack_a5_m50_pro": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "410 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3)."
+          },
+          "atomstack_a5_pro_v2": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "400 x 365 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup."
+          },
+          "atomstack_a6_pro": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "365 x 305 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup."
+          },
+          "atomstack_a12_pro": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "365 x 305 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup."
+          },
+          "atomstack_a24_pro": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "360 x 280 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup."
+          },
+          "atomstack_x12_pro": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "365 x 305 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup."
+          },
+          "atomstack_a20_pro": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "400 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3)."
+          },
+          "atomstack_a30_pro": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "400 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3)."
+          },
+          "atomstack_a40_pro": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "400 x 400 mm, front-left origin, S1000, M7/M9 air assist. Verify $30, $32=1, limit switches and pump. Automatic homing is off by default. Modified machines need separate setup."
+          },
+          "atomstack_a40_max": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "800 x 400 mm, front-left origin, S1000, M7/M9 air assist. Verify $30, $32=1, limit switches and pump. Automatic homing is off by default. Modified machines need separate setup."
+          },
+          "atomstack_x40_pro": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "400 x 400 mm, front-left origin, S1000, M7/M9 air assist. Verify $30, $32=1, limit switches and pump. Automatic homing is off by default. Modified machines need separate setup."
+          },
+          "atomstack_x40_max": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "800 x 400 mm, front-left origin, S1000, M7/M9 air assist. Verify $30, $32=1, limit switches and pump. Automatic homing is off by default. Modified machines need separate setup."
+          },
+          "atomstack_s40_pro": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "400 x 400 mm, front-left origin, S1000, M7/M9 air assist. Verify $30, $32=1, limit switches and pump. Automatic homing is off by default. Modified machines need separate setup."
+          },
+          "atomstack_s40_max": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "800 x 400 mm, front-left origin, S1000, M7/M9 air assist. Verify $30, $32=1, limit switches and pump. Automatic homing is off by default. Modified machines need separate setup."
+          },
+          "atomstack_a70_pro": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "500 x 400 mm, front-left origin, S1000, M8/M9 air assist. Verify $30, $32=1, limit switches and pump. Automatic homing is off by default. Modified machines need separate setup. Focus using the machine controls before framing. Camera, rotary and conveyor workflows need separate setup."
+          },
+          "atomstack_a70_max": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "850 x 800 mm, front-left origin, S1000, M8/M9 air assist. Verify $30, $32=1, limit switches and pump. Automatic homing is off by default. Modified machines need separate setup. Focus using the machine controls before framing. Camera, rotary and conveyor workflows need separate setup."
+          },
+          "atomstack_x70_max": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "850 x 800 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Focus using the machine controls before framing. Camera, rotary and conveyor workflows need separate setup."
+          },
+          "atomstack_p1_5w": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "USB: 460800 baud. 110 x 110 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup."
+          },
+          "atomstack_kraft_lite_40w": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "USB: 460800 baud. 500 x 320 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Focus using the machine controls before framing. Camera, rotary and conveyor workflows need separate setup."
+          },
+          "atomstack_hurricane_55w": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "USB: 460800 baud. 500 x 300 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Focus using the machine controls before framing. Camera, rotary and conveyor workflows need separate setup."
+          },
+          "atomstack_glacier_90w": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "USB: 460800 baud. 800 x 800 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Focus using the machine controls before framing. Camera, rotary and conveyor workflows need separate setup. Select the power mode in AtomStack Studio and close it before connecting Beam Bench."
+          },
+          "atomstack_glacier_120w": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "USB: 460800 baud. 800 x 800 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Focus using the machine controls before framing. Camera, rotary and conveyor workflows need separate setup. Select the power mode in AtomStack Studio and close it before connecting Beam Bench."
           }
         },
         "report_active_profile": "Save and activate this profile to share its settings with your results.",
