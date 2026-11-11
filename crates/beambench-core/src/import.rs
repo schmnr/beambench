@@ -694,7 +694,6 @@ fn import_svg_impl(
         &mut paint_groups,
     );
     let route_colors = route_colors
-        && paint_groups.len() <= MAX_AUTO_COLOR_LAYERS
         && should_auto_route_import_colors(
             paint_groups
                 .iter()
@@ -797,10 +796,9 @@ fn import_svg_impl(
         &mut created_ids,
     )?;
 
-    // A file with this many distinct paints is color noise (flattened
-    // gradient art), not operation intent. Import it as one object rather
-    // than exploding the object list.
-    if paint_groups.len() > MAX_AUTO_COLOR_LAYERS {
+    // Retain the color-noise fallback, but count routed RGB colors rather
+    // than paint combinations: filled and stroked shapes can share a layer.
+    if !route_colors && paint_groups.len() > MAX_AUTO_COLOR_LAYERS {
         let merged = paint_groups.into_iter().reduce(|mut acc, g| {
             if !acc.path_data.is_empty() && !g.path_data.is_empty() {
                 acc.path_data.push(' ');
@@ -1891,6 +1889,35 @@ mod tests {
                 .all(|id| project.find_object(*id).unwrap().layer_id == requested)
         );
         assert_eq!(project.layers.len(), 1);
+    }
+
+    #[test]
+    fn svg_color_cap_counts_colors_not_fill_stroke_combinations() {
+        let body = (1..=MAX_AUTO_COLOR_LAYERS)
+            .map(|i| {
+                format!(
+                    r##"<rect x="{}" width="5" height="10" fill="#{i:06X}"/>
+                <path d="M{} 20 v10" fill="none" stroke="#{i:06X}"/>"##,
+                    i * 10,
+                    i * 10
+                )
+            })
+            .collect::<String>();
+        let svg = format!(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100">{body}</svg>"#
+        );
+        let mut project = test_project();
+        let requested = first_layer_id(&mut project);
+        let ids = import_svg_with_color_layers(svg.as_bytes(), &mut project, requested).unwrap();
+        assert_eq!(ids.len(), MAX_AUTO_COLOR_LAYERS * 2);
+        assert_eq!(project.layers.len(), MAX_AUTO_COLOR_LAYERS + 1);
+        for pair in ids.chunks_exact(2) {
+            assert_eq!(
+                project.find_object(pair[0]).unwrap().layer_id,
+                project.find_object(pair[1]).unwrap().layer_id
+            );
+            assert_ne!(project.find_object(pair[0]).unwrap().layer_id, requested);
+        }
     }
 
     #[test]
