@@ -29,10 +29,11 @@ jobs:
 
       - name: Install system dependencies
         run: |
-          # Keep the runner's backup mirrors. A single archive endpoint can
-          # fail DNS, while unbounded retries delay switching to a healthy mirror.
+          # Use an independent Ubuntu mirror when ubuntu.com DNS is unavailable,
+          # retaining the runner's mirrors as backups and Ubuntu's signature checks.
+          printf '%s\tpriority:0\n' 'https://mirrors.edge.kernel.org/ubuntu/' | sudo tee -a /etc/apt/apt-mirrors.txt >/dev/null
           apt_options=(-o Acquire::Retries=0 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15)
-          sudo apt-get "${apt_options[@]}" update
+          sudo apt-get "${apt_options[@]}" update -o APT::Update::Error-Mode=any
           sudo apt-get "${apt_options[@]}" install -y \
             libwebkit2gtk-4.1-dev \
             librsvg2-dev \
