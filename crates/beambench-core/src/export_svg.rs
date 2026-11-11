@@ -5,6 +5,7 @@ use beambench_common::Transform2D;
 
 use crate::export_bitmap::processed_bitmap_png_for_object;
 use crate::export_common::exportable_objects;
+use crate::import::normalize_import_color_tag;
 use crate::object::{ObjectData, ObjectId, ProjectObject};
 use crate::project::Project;
 use crate::vector::convert::object_to_world_vecpath;
@@ -36,9 +37,13 @@ pub fn export_svg(
                 // in SVG viewers when alignment anchors are involved.
                 if let Some(path) = object_to_world_vecpath(obj) {
                     let d = path.to_svg_d();
+                    let color = project
+                        .find_layer(obj.layer_id)
+                        .and_then(|layer| normalize_import_color_tag(&layer.color_tag.0))
+                        .unwrap_or_else(|| "#000000".into());
                     svg.push_str(&format!(
-                        r#"  <path d="{}" fill="none" stroke="black"/>"#,
-                        d
+                        r#"  <path d="{}" fill="none" stroke="{}"/>"#,
+                        d, color
                     ));
                     svg.push('\n');
                 }
@@ -127,6 +132,62 @@ mod tests {
         let obj_id = obj.id;
         project.add_object(obj);
         (project, obj_id)
+    }
+
+    #[test]
+    fn svg_export_import_round_trip_preserves_color_layers_and_selection() {
+        use crate::import::import_svg_with_color_layers;
+        use crate::layer::{Layer, OperationType};
+        use beambench_common::ColorTag;
+        let (mut source, red_object_id) = test_project();
+        let red_id = source.find_object(red_object_id).unwrap().layer_id;
+        source.find_layer_mut(red_id).unwrap().color_tag = ColorTag("#ff0000ff".into());
+        let mut blue = Layer::new("Blue", OperationType::Line);
+        blue.color_tag = ColorTag("#0000FF".into());
+        let blue_id = blue.id;
+        source.add_layer(blue);
+        let mut blue_object = source.find_object(red_object_id).unwrap().clone();
+        blue_object.id = ObjectId::new();
+        blue_object.layer_id = blue_id;
+        let blue_object_id = blue_object.id;
+        source.add_object(blue_object);
+        for (selection_only, selected_ids, expected) in [
+            (false, vec![], vec!["#FF0000", "#0000FF"]),
+            (true, vec![blue_object_id], vec!["#0000FF"]),
+        ] {
+            let svg = export_svg(&source, selection_only, &selected_ids).unwrap();
+            let mut target = Project::new("Reimport");
+            let fallback = target.ensure_default_layer();
+            let ids = import_svg_with_color_layers(svg.as_bytes(), &mut target, fallback).unwrap();
+            let colors: Vec<_> = ids
+                .iter()
+                .map(|id| {
+                    let object = target.find_object(*id).unwrap();
+                    target
+                        .find_layer(object.layer_id)
+                        .unwrap()
+                        .color_tag
+                        .0
+                        .as_str()
+                })
+                .collect();
+            assert_eq!(colors, expected);
+            for id in ids {
+                let object = target.find_object(id).unwrap();
+                assert!(
+                    (object.bounds.width()
+                        - source.find_object(red_object_id).unwrap().bounds.width())
+                    .abs()
+                        < 1e-5
+                );
+            }
+        }
+        source.find_layer_mut(red_id).unwrap().color_tag = ColorTag("#12345éx".into());
+        let svg = export_svg(&source, true, &[red_object_id]).unwrap();
+        assert!(
+            svg.contains("stroke=\"#000000\""),
+            "malformed colors safely export as black"
+        );
     }
 
     #[test]

@@ -941,7 +941,8 @@ mod tests {
     fn preview_fills_imported_svg_text_on_fill_layer() {
         let ctx = ServiceContext::with_settings(beambench_core::AppSettings::default());
         let mut project = Project::new("Imported Text Fill");
-        let layer = Layer::new("Fill", OperationType::Fill);
+        let mut layer = Layer::new("Fill", OperationType::Fill);
+        layer.color_tag = beambench_common::ColorTag("#000000".into());
         let layer_id = layer.id;
         project.layers.push(layer);
         *ctx.project.lock().unwrap() = Some(project);
@@ -968,6 +969,7 @@ mod tests {
             !imported.is_empty(),
             "SVG text should import into the fill layer"
         );
+        assert!(imported.iter().all(|object| object.layer_id == layer_id));
 
         let preview = generate_preview(&ctx).unwrap();
         let raster_region_count: usize = preview

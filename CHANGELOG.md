@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Import SVG colors onto matching layers automatically, as with PDF and AI.
+  Preserve existing cut settings and create ordinary Line layers for new colors.
+  Retain label colors, multicolor text and reused text copies. Exclude image
+  and tool operations from color matching and avoid unused fallback layers.
+  Keep layer colors when exporting SVGs so importing them again retains the
+  separation. Honor explicit permission to import onto a selected tool layer.
 - Use Finish Framing to end continuous framing after the current lap and its
   return move. Red Stop still interrupts immediately.
 - Move grouped artwork with its selection box when editing X or Y in the

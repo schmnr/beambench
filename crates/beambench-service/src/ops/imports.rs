@@ -1,5 +1,5 @@
 use std::borrow::Cow;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
@@ -11,14 +11,17 @@ use beambench_common::Point2D;
 use beambench_common::RasterAdjustments;
 use beambench_common::geometry::Transform2D;
 use beambench_common::path::{PathCommand, VecPath};
+use beambench_core::import::{
+    import_svg_with_color_layers, resolve_import_color_layer, should_auto_route_import_colors,
+};
 use beambench_core::trace::trace_image_preview_fast_cancellable;
 use beambench_core::vector::text_to_path::intrinsic_text_bounds;
 use beambench_core::vector::transform::bake_transform;
 use beambench_core::{
     AssetId, LayerId, LbrnCutEntry, LbrnDocument, LbrnShape, ObjectData, ObjectId, ProjectObject,
     ShapeKind, TextAlignment, TextAlignmentV, TextCirclePlacement, TextLayoutMode,
-    TextTransformStyle, TraceConfig, import_image, import_svg, parse_dxf_with_report,
-    parse_eps_paths, parse_lbrn_project, trace_image,
+    TextTransformStyle, TraceConfig, import_image, parse_dxf_with_report, parse_eps_paths,
+    parse_lbrn_project, trace_image,
 };
 use beambench_core::{
     CutEntry, Layer, OperationType, PdfImage, PdfPaintMode, PdfPaintedPath, PdfRgbColor,
@@ -82,6 +85,25 @@ fn first_standard_color() -> &'static str {
         .find(|p| !p.is_tool_layer)
         .map(|p| p.hex)
         .unwrap_or("#000000")
+}
+
+/// Color routing can supersede the initial image/vector fallback. Discard only
+/// a fallback created by this import, never an existing or user-created layer.
+fn remove_unused_import_fallback(
+    project: &mut beambench_core::Project,
+    created: bool,
+    layer_id: LayerId,
+    notices: &mut Vec<RoutingNotice>,
+) {
+    if created
+        && !project
+            .objects
+            .iter()
+            .any(|object| object.layer_id == layer_id)
+    {
+        project.remove_layer(layer_id);
+        notices.retain(|notice| notice.to_layer_id != layer_id);
+    }
 }
 
 fn route_import_with_notice(
@@ -329,8 +351,6 @@ impl ImportedVectorPath {
         }
     }
 }
-
-const MAX_AUTO_COLOR_LAYERS: usize = 16;
 
 fn pdf_rgb_color_tag(color: PdfRgbColor) -> String {
     format!("#{:02X}{:02X}{:02X}", color.r, color.g, color.b)
@@ -1377,6 +1397,7 @@ fn import_pending_guarded(
             // Per-item auto-routing: images must land on an image layer;
             // vectors/SVG must land on a non-image layer. Resolved once
             // per item so a batch can split across multiple layers.
+            let layer_count_before_routing = project.layers.len();
             let effective_layer_id = match &item {
                 PendingImport::Lbrn { .. } => layer_id,
                 PendingImport::Image { .. } => {
@@ -1405,9 +1426,16 @@ fn import_pending_guarded(
                     resolved
                 }
             };
+            let created_fallback = project.layers.len() > layer_count_before_routing;
 
             match item {
                 PendingImport::Svg { bytes } => {
+                    let import_svg = if project.find_layer(effective_layer_id)
+                        .is_some_and(|layer| layer.is_tool_layer) {
+                        beambench_core::import_svg
+                    } else {
+                        import_svg_with_color_layers
+                    };
                     let ids = import_svg(&bytes, project, effective_layer_id)
                         .map_err(|e| ServiceError::invalid_input(format!("SVG import failed: {e}")))?;
 
@@ -1567,6 +1595,9 @@ fn import_pending_guarded(
                     import_warnings.extend(warnings);
                 }
             }
+            remove_unused_import_fallback(
+                project, created_fallback, effective_layer_id, &mut routing_notices,
+            );
         }
 
         if imported_objects.is_empty() && !imports_document {
@@ -1675,81 +1706,23 @@ fn vector_object_name(base_name: &str, index: usize, total: usize) -> String {
     }
 }
 
-/// Normalize exact RGB tags for comparison without snapping arbitrary source
-/// colors to Beam Bench's standard palette. Alpha, when present, does not
-/// participate in layer matching because PDF colors are opaque RGB values.
-fn normalize_import_color_tag(color_tag: &str) -> Option<String> {
-    let color_tag = color_tag.trim();
-    let rgb = match color_tag.len() {
-        7 if color_tag.starts_with('#') => color_tag,
-        9 if color_tag.starts_with('#') => &color_tag[..7],
-        _ => return None,
-    };
-    rgb[1..]
-        .chars()
-        .all(|ch| ch.is_ascii_hexdigit())
-        .then(|| rgb.to_ascii_uppercase())
-}
-
-fn supports_colored_vector_import(layer: &Layer) -> bool {
-    !layer.is_tool_layer && RoutingTarget::NeedsNonImage.layer_matches(layer)
-}
-
-/// Reuse an existing ordinary vector layer with the same exact RGB tag, or
-/// create a safe Line layer. Source colors never imply Cut, Score, or Engrave;
-/// an existing matching layer is the only way to inherit configured behavior.
-fn resolve_import_color_layer(
-    project: &mut beambench_core::Project,
-    color_tag: &str,
-) -> ServiceResult<LayerId> {
-    let normalized = normalize_import_color_tag(color_tag)
-        .ok_or_else(|| ServiceError::invalid_input("Invalid imported vector color"))?;
-
-    if let Some(layer) = project.layers.iter().find(|layer| {
-        supports_colored_vector_import(layer)
-            && normalize_import_color_tag(&layer.color_tag.0).as_deref()
-                == Some(normalized.as_str())
-    }) {
-        return Ok(layer.id);
-    }
-
-    let mut layer = Layer::new(format!("Imported {normalized}"), OperationType::Line);
-    layer.color_tag = ColorTag(normalized);
-    let layer_id = layer.id;
-    project.add_layer(layer);
-    Ok(layer_id)
-}
-
-fn should_auto_route_import_colors(paths: &[ImportedVectorPath]) -> bool {
-    let mut colors = HashSet::new();
-    for path in paths {
-        if let Some(color) = path
-            .color_tag
-            .as_deref()
-            .and_then(normalize_import_color_tag)
-        {
-            colors.insert(color);
-            if colors.len() > MAX_AUTO_COLOR_LAYERS {
-                return false;
-            }
-        }
-    }
-    !colors.is_empty()
-}
-
 fn add_imported_vector_paths(
     project: &mut beambench_core::Project,
     effective_layer_id: LayerId,
     name_prefix: &str,
     paths: Vec<ImportedVectorPath>,
 ) -> ServiceResult<Vec<ProjectObject>> {
-    let route_colors = should_auto_route_import_colors(&paths);
+    let route_colors = !project
+        .find_layer(effective_layer_id)
+        .is_some_and(|layer| layer.is_tool_layer)
+        && should_auto_route_import_colors(paths.iter().map(|path| path.color_tag.as_deref()));
     let total = paths.len();
     let mut imported_objects = Vec::with_capacity(total);
     for (idx, imported_path) in paths.into_iter().enumerate() {
         let destination_layer_id = if route_colors {
             match imported_path.color_tag.as_deref() {
-                Some(color_tag) => resolve_import_color_layer(project, color_tag)?,
+                Some(color_tag) => resolve_import_color_layer(project, color_tag)
+                    .ok_or_else(|| ServiceError::invalid_input("Invalid imported vector color"))?,
                 None => effective_layer_id,
             }
         } else {
@@ -1810,16 +1783,24 @@ fn import_vector_paths(
             .lock()
             .map_err(|e| lock_err("settings", e))?
             .allow_importing_to_tool_layers;
+        let layer_count_before_routing = project.layers.len();
         let (effective_layer_id, notice) = route_import_with_notice(
             project,
             layer_id,
             RoutingTarget::NeedsNonImage,
             allow_tool_imports,
         )?;
-        let routing_notices: Vec<RoutingNotice> = notice.into_iter().collect();
+        let created_fallback = project.layers.len() > layer_count_before_routing;
+        let mut routing_notices: Vec<RoutingNotice> = notice.into_iter().collect();
 
         let imported_objects =
             add_imported_vector_paths(project, effective_layer_id, name_prefix, paths)?;
+        remove_unused_import_fallback(
+            project,
+            created_fallback,
+            effective_layer_id,
+            &mut routing_notices,
+        );
 
         let resolved_layer_ids: Vec<LayerId> = {
             let mut seen: Vec<LayerId> = Vec::new();
@@ -2767,6 +2748,7 @@ pub fn adjust_image_preview(
 mod tests {
     use super::*;
     use beambench_common::{Bounds, ColorTag, Id, Point2D};
+    use beambench_core::import::MAX_AUTO_COLOR_LAYERS;
     use beambench_core::{
         ObjectData, OperationType, Project, ProjectObject, ShapeKind, export_pdf,
     };
@@ -2775,6 +2757,247 @@ mod tests {
 
     fn sample_svg() -> &'static [u8] {
         br#"<svg xmlns="http://www.w3.org/2000/svg" width="20" height="10"><rect x="0" y="0" width="20" height="10"/></svg>"#
+    }
+
+    #[test]
+    fn colored_svg_import_routes_all_entry_points_and_undoes_layers_with_objects() {
+        use base64::Engine;
+        let svg = br##"<svg xmlns="http://www.w3.org/2000/svg" width="100mm" height="60mm" viewBox="0 0 100 60">
+            <g transform="translate(5 3)">
+                <rect width="10" height="20" fill="red"/>
+                <path d="M20 0 L30 20" stroke="blue" fill="none"/>
+            </g>
+        </svg>"##;
+        for entry_point in 0..4 {
+            let (ctx, requested_id, red_id) = colored_pdf_import_context();
+            let before = ctx.project.lock().unwrap().as_ref().unwrap().clone();
+            let red_before = before.find_layer(red_id).unwrap().clone();
+            let mut expected = before.clone();
+            let expected_ids =
+                beambench_core::import_svg(svg, &mut expected, requested_id).unwrap();
+            let mut rx = ctx.events.subscribe();
+            let dir = tempdir().unwrap();
+            let path = dir.path().join("red-blue.svg");
+            std::fs::write(&path, svg).unwrap();
+            let input = ImportSvgInput {
+                file_path: path.to_string_lossy().into_owned(),
+                layer_id: requested_id,
+            };
+            let objects = match entry_point {
+                0 => import_svg_from_path(&ctx, input.clone()),
+                1 => import_files_from_paths(
+                    &ctx,
+                    ImportFilesInput {
+                        create_layer: None,
+                        file_paths: vec![input.file_path.clone()],
+                        layer_id: requested_id,
+                    },
+                ),
+                2 => import_files_from_data(
+                    &ctx,
+                    ImportFilesDataInput {
+                        create_layer: None,
+                        files: vec![ImportFileData {
+                            filename: "red-blue.svg".into(),
+                            data_base64: base64::engine::general_purpose::STANDARD.encode(svg),
+                        }],
+                        layer_id: requested_id,
+                    },
+                ),
+                _ => import_art_library_item(
+                    &ctx,
+                    requested_id,
+                    "Library colors",
+                    "red-blue.svg",
+                    "image/svg+xml",
+                    svg.to_vec(),
+                ),
+            }
+            .unwrap();
+            assert_eq!(objects.len(), 2, "entry point {entry_point}");
+            let after = ctx.project.lock().unwrap().as_ref().unwrap().clone();
+            assert_eq!(
+                after.find_layer(red_id),
+                Some(&red_before),
+                "retain all configured operations and settings"
+            );
+            assert_eq!(objects[0].layer_id, red_id);
+            let blue = after.find_layer(objects[1].layer_id).unwrap();
+            assert_eq!(blue.color_tag.0, "#0000FF");
+            assert_eq!(blue.primary_entry().operation, OperationType::Line);
+            assert!(!blue.is_tool_layer);
+            assert_eq!(after.layers.len(), 3);
+            for (object, expected_id) in objects.iter().zip(expected_ids) {
+                let prior = expected.find_object(expected_id).unwrap();
+                assert_eq!(object.bounds, prior.bounds);
+                assert_eq!(object.data, prior.data);
+                assert_eq!(object.transform, prior.transform);
+            }
+            assert!(ctx.plan_cache.lock().unwrap().is_none());
+            let completed = std::iter::from_fn(|| rx.try_recv().ok())
+                .map(|event| serde_json::from_str::<serde_json::Value>(&event).unwrap())
+                .find(|event| event["type"] == "project.import.completed")
+                .unwrap();
+            let resolved = completed["payload"]["resolved_layer_ids"]
+                .as_array()
+                .unwrap();
+            assert!(resolved.contains(&json!(red_id)));
+            assert!(resolved.contains(&json!(blue.id)));
+
+            let mut expected_undo = before;
+            expected_undo.dirty = true;
+            assert_eq!(
+                super::super::project::undo_project(&ctx).unwrap(),
+                expected_undo
+            );
+            assert!(
+                !ctx.undo_state().unwrap().can_undo,
+                "one import is one undo step"
+            );
+            assert_eq!(super::super::project::redo_project(&ctx).unwrap(), after);
+            let mut reopened: Project =
+                serde_json::from_slice(&serde_json::to_vec(&after).unwrap()).unwrap();
+            reopened.dirty = after.dirty;
+            assert_eq!(reopened.layers, after.layers);
+            assert_eq!(reopened.objects.len(), after.objects.len());
+            for (saved, original) in reopened.objects.iter().zip(&after.objects) {
+                assert_eq!(saved.id, original.id);
+                assert_eq!(saved.layer_id, original.layer_id);
+                assert_eq!(saved.data, original.data);
+                assert!((saved.bounds.max.x - original.bounds.max.x).abs() < 1e-9);
+                assert!((saved.bounds.max.y - original.bounds.max.y).abs() < 1e-9);
+            }
+            let repeated = import_svg_from_path(&ctx, input).unwrap();
+            assert_eq!(repeated[0].layer_id, red_id);
+            assert_eq!(repeated[1].layer_id, blue.id);
+            assert_eq!(
+                ctx.project.lock().unwrap().as_ref().unwrap().layers.len(),
+                3
+            );
+        }
+    }
+
+    #[test]
+    fn colored_svg_pdf_ai_exclude_tool_entries_and_remove_unused_fallback_layers() {
+        let svg = br##"<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100">
+            <rect width="10" height="10" fill="red"/>
+            <path d="M20 0 L30 10" fill="none" stroke="blue"/>
+        </svg>"##;
+        for extension in ["svg", "pdf", "ai"] {
+            let ctx = ServiceContext::new();
+            let mut project = Project::new("Image target with tool operations");
+            let mut image = Layer::new("Image", OperationType::Image);
+            image.color_tag = ColorTag("#00FF00".into());
+            let requested = image.id;
+            project.add_layer(image.clone());
+            // Legacy/project data can contain a Tool entry without the shell flag.
+            let mut tool = Layer::new("Tool entry", OperationType::Tool);
+            tool.color_tag = ColorTag("#FF0000".into());
+            project.add_layer(tool.clone());
+            let tool = project.find_layer(tool.id).unwrap().clone();
+            *ctx.project.lock().unwrap() = Some(project);
+            let dir = tempdir().unwrap();
+            let path = dir.path().join(format!("colors.{extension}"));
+            std::fs::write(
+                &path,
+                if extension == "svg" {
+                    svg.to_vec()
+                } else {
+                    sample_colored_pdf_bytes()
+                },
+            )
+            .unwrap();
+            let file_path = path.to_string_lossy().into_owned();
+            let objects = if extension == "svg" {
+                import_svg_from_path(
+                    &ctx,
+                    ImportSvgInput {
+                        file_path,
+                        layer_id: requested,
+                    },
+                )
+            } else {
+                import_vector_file_from_path(
+                    &ctx,
+                    ImportVectorFileInput {
+                        file_path,
+                        layer_id: requested,
+                        format: if extension == "pdf" {
+                            VectorImportFormat::Pdf
+                        } else {
+                            VectorImportFormat::Ai
+                        },
+                    },
+                )
+            }
+            .unwrap();
+            assert_eq!(objects.len(), 2);
+            let guard = ctx.project.lock().unwrap();
+            let project = guard.as_ref().unwrap();
+            assert_eq!(
+                project.layers.len(),
+                4,
+                "{extension}: no empty fallback layer"
+            );
+            assert_eq!(project.find_layer(requested), Some(&image));
+            assert_eq!(project.find_layer(tool.id), Some(&tool));
+            for (object, color) in objects.iter().zip(["#FF0000", "#0000FF"]) {
+                let layer = project.find_layer(object.layer_id).unwrap();
+                assert_eq!(layer.color_tag.0, color);
+                assert_eq!(layer.primary_entry().operation, OperationType::Line);
+                assert!(!layer.is_tool_layer);
+            }
+        }
+    }
+
+    #[test]
+    fn colored_imports_honor_explicit_permission_to_import_onto_tool_layers() {
+        use base64::Engine;
+        let svg = br##"<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100">
+            <rect width="10" height="10" fill="red"/>
+            <path d="M20 0 L30 10" fill="none" stroke="blue"/>
+        </svg>"##;
+        for extension in ["svg", "pdf", "ai"] {
+            for allow in [false, true] {
+                let ctx = ServiceContext::new();
+                ctx.settings.lock().unwrap().allow_importing_to_tool_layers = allow;
+                let mut project = Project::new("Tool layer import");
+                let mut tool = Layer::new("T1", OperationType::Tool);
+                tool.canonicalize_tool_layer();
+                let target = tool.id;
+                project.add_layer(tool);
+                *ctx.project.lock().unwrap() = Some(project);
+                let bytes = if extension == "svg" {
+                    svg.to_vec()
+                } else {
+                    sample_colored_pdf_bytes()
+                };
+                let objects = import_files_from_data(
+                    &ctx,
+                    ImportFilesDataInput {
+                        create_layer: None,
+                        layer_id: target,
+                        files: vec![ImportFileData {
+                            filename: format!("colors.{extension}"),
+                            data_base64: base64::engine::general_purpose::STANDARD.encode(bytes),
+                        }],
+                    },
+                )
+                .unwrap();
+                assert_eq!(objects.len(), 2);
+                assert!(
+                    objects
+                        .iter()
+                        .all(|object| (object.layer_id == target) == allow)
+                );
+                if allow {
+                    assert_eq!(
+                        ctx.project.lock().unwrap().as_ref().unwrap().layers.len(),
+                        1
+                    );
+                }
+            }
+        }
     }
 
     fn sample_svg_with_embedded_png() -> Vec<u8> {
