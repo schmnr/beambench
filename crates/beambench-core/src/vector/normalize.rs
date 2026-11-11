@@ -7,7 +7,7 @@ use crate::object::ProjectObject;
 use crate::vector::cleanup::{
     dedup_consecutive_points, remove_empty_subpaths, remove_zero_length_segments,
 };
-use crate::vector::convert::{object_to_vecpath, object_to_world_vecpath};
+use crate::vector::convert::{object_to_local_vecpath, object_to_world_vecpath};
 use crate::vector::flatten::{DEFAULT_TOLERANCE_MM, flatten_vecpath};
 
 pub(crate) const VECTOR_PATH_FLATTEN_TOLERANCE_MM: f64 = 0.02;
@@ -79,7 +79,7 @@ pub fn normalize_object_with_tolerance(
     }
 
     // Step 1: Convert to VecPath
-    let mut vec_path = object_to_vecpath(&obj.data)?;
+    let mut vec_path = object_to_local_vecpath(obj)?;
 
     // Step 2: Cleanup (before flattening to remove degenerate commands)
     cleanup_vecpath_for_planner(&mut vec_path, flatten_tolerance);

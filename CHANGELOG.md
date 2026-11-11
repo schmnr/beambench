@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Keep resized rounded and concave rectangle outlines consistent with tab
+  placement, previews and cutting paths, including older projects and clones.
+  Recheck tab hits at click time and remove highlighted markers at their
+  actual positions, avoiding stale-selection and zoom-related failures.
 - Import SVG colors onto matching layers automatically, as with PDF and AI.
   Preserve existing cut settings and create ordinary Line layers for new colors.
   Retain label colors, multicolor text and reused text copies. Exclude image

@@ -18,51 +18,48 @@ export class TabTool implements CanvasTool {
   private tabMarkers: { objectId: string; markers: TabMarkerDto[] } | null = null;
   private hoveredTabIndex: number | null = null;
   private refreshSeq = 0;
+  private refreshing = false;
 
   onMouseDown(e: CanvasMouseEvent, ctx: ToolContext): void {
+    if (e.button !== 0 || ctx.selectedObjectIds.length !== 1 || this.refreshing) return;
     const objectId = ctx.selectedObjectIds[0];
-    if (!objectId) return;
-
+    // Pointer-down may precede the queued pointer-move. Hit-test this click,
+    // including marker ownership, instead of trusting an older hover result.
+    this.onMouseMove(e, ctx);
+    const marker = this.hoveredTabIndex !== null
+      ? this.tabMarkers?.markers[this.hoveredTabIndex]
+      : undefined;
+    const refreshSeq = this.refreshSeq;
     const { placeTab, removeTab } = useProjectStore.getState();
-
-    if (this.hoveredTabIndex !== null && this.tabMarkers) {
-      // Click on existing marker → remove it
-      void (async () => {
-        try {
-          await removeTab(objectId, e.worldX, e.worldY);
-          await this.refreshMarkers(objectId);
-          ctx.requestRender();
-        } catch (err) {
-          useNotificationStore.getState().push(wrapBackendError(String(err)), 'warning');
-        }
-      })();
-    } else {
-      // Click on path edge → place tab
-      void (async () => {
-        try {
+    void (async () => {
+      try {
+        if (marker) {
+          // The screen-space hit area can exceed 5 mm when zoomed out.
+          // Remove the marker we hit, using its resolved path coordinates.
+          await removeTab(objectId, marker.worldX, marker.worldY);
+        } else {
           await placeTab(objectId, e.worldX, e.worldY);
-          await this.refreshMarkers(objectId);
-          ctx.requestRender();
-        } catch (err) {
-          useNotificationStore.getState().push(wrapBackendError(String(err)), 'warning');
         }
-      })();
-    }
+        // A selection change, reset, or newer refresh owns the overlay now.
+        if (refreshSeq === this.refreshSeq) await this.refreshMarkers(objectId);
+        ctx.requestRender();
+      } catch (err) {
+        useNotificationStore.getState().push(wrapBackendError(String(err)), 'warning');
+      }
+    })();
   }
 
   onMouseMove(e: CanvasMouseEvent, ctx: ToolContext): void {
-    if (!this.tabMarkers || this.tabMarkers.markers.length === 0) {
-      this.hoveredTabIndex = null;
-      return;
-    }
-
-    // Hit-test markers: 3mm threshold in world space
+    const markers = ctx.selectedObjectIds.length === 1
+      && this.tabMarkers?.objectId === ctx.selectedObjectIds[0]
+      ? this.tabMarkers.markers
+      : [];
     const thresholdMm = Math.max(3, screenToWorldDist(8, ctx.vp.zoom));
     let closestIdx: number | null = null;
     let closestDist = Infinity;
 
-    for (let i = 0; i < this.tabMarkers.markers.length; i++) {
-      const m = this.tabMarkers.markers[i];
+    for (let i = 0; i < markers.length; i++) {
+      const m = markers[i];
       const dx = e.worldX - m.worldX;
       const dy = e.worldY - m.worldY;
       const d = Math.sqrt(dx * dx + dy * dy);
@@ -103,6 +100,9 @@ export class TabTool implements CanvasTool {
 
   async refreshMarkers(objectId: string): Promise<void> {
     const seq = ++this.refreshSeq;
+    this.refreshing = true;
+    this.tabMarkers = null;
+    this.hoveredTabIndex = null;
     try {
       const markers = await vectorService.resolveTabMarkers(objectId);
       // Discard stale response if a newer refresh was initiated
@@ -112,11 +112,13 @@ export class TabTool implements CanvasTool {
       if (seq !== this.refreshSeq) return;
       this.tabMarkers = null;
     }
+    this.refreshing = false;
     this.hoveredTabIndex = null;
   }
 
   reset(): void {
     this.refreshSeq++;
+    this.refreshing = false;
     this.tabMarkers = null;
     this.hoveredTabIndex = null;
   }

@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::time::{Duration, Instant};
 
 use beambench_common::{Bounds, Point2D, Transform2D};
-use beambench_core::vector::convert::object_to_vecpath;
+use beambench_core::vector::convert::object_to_local_vecpath;
 use beambench_core::vector::flatten::{DEFAULT_TOLERANCE_MM, flatten_vecpath};
 use beambench_core::vector::transform::bake_transform;
 use beambench_core::{ObjectData, ObjectId, Project, ProjectObject};
@@ -614,7 +614,7 @@ fn object_to_rendered_world_vecpath_resolved(
     } else {
         object
     };
-    let path = object_to_vecpath(&effective.data)?;
+    let path = object_to_local_vecpath(effective)?;
     let intrinsic = path.visual_bounds().or_else(|| path.bounds())?;
     let old_w = intrinsic.max.x - intrinsic.min.x;
     let old_h = intrinsic.max.y - intrinsic.min.y;

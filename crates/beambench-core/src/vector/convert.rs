@@ -79,6 +79,25 @@ pub fn object_to_vecpath(data: &ObjectData) -> Option<VecPath> {
     }
 }
 
+/// Local geometry for a placed object. Primitive dimensions follow the
+/// displayed bounds; corner radii remain absolute millimetres, as on canvas.
+/// Older projects and resized clones may still carry the original dimensions.
+pub fn object_to_local_vecpath(obj: &ProjectObject) -> Option<VecPath> {
+    match &obj.data {
+        ObjectData::Shape {
+            kind,
+            corner_radius,
+            ..
+        } => Some(shape_to_vecpath(
+            *kind,
+            obj.bounds.width(),
+            obj.bounds.height(),
+            *corner_radius,
+        )),
+        _ => object_to_vecpath(&obj.data),
+    }
+}
+
 /// Advanced text caches are intrinsic geometry. Unlike straight text frames,
 /// their stored object bounds are user-editable and must scale that geometry.
 pub fn text_uses_mapped_bounds(data: &ObjectData) -> bool {
@@ -138,7 +157,7 @@ pub fn object_to_world_vecpath(obj: &ProjectObject) -> Option<VecPath> {
             translated
         }
     } else {
-        let path = object_to_vecpath(&obj.data)?;
+        let path = object_to_local_vecpath(obj)?;
 
         // Step 1: map local path geometry to object bounds
         let intrinsic = path.visual_bounds().or_else(|| path.bounds())?;
@@ -202,7 +221,7 @@ pub fn vector_local_to_world_transform(obj: &ProjectObject) -> Option<Transform2
     // their origin. Fit those raw coordinates to the existing object bounds.
     let mut path = match &obj.data {
         ObjectData::VectorPath { path_data, .. } => VecPath::parse_svg_d(path_data),
-        _ => object_to_vecpath(&obj.data)?,
+        _ => object_to_local_vecpath(obj)?,
     };
     path.prune_orphan_subpaths();
     let intrinsic = path.visual_bounds().or_else(|| path.bounds())?;
@@ -297,7 +316,7 @@ pub fn object_local_point_to_world(obj: &ProjectObject, local: Point2D) -> Optio
         });
     }
 
-    let path = object_to_vecpath(&obj.data)?;
+    let path = object_to_local_vecpath(obj)?;
     let intrinsic = path.visual_bounds().or_else(|| path.bounds())?;
     let old_w = intrinsic.max.x - intrinsic.min.x;
     let old_h = intrinsic.max.y - intrinsic.min.y;
@@ -951,6 +970,95 @@ fn ellipse_to_vecpath(width: f64, height: f64) -> VecPath {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn placed_primitives_match_visible_edges_with_legacy_dimensions_and_transforms() {
+        use crate::vector::normalize::normalize_object;
+        use crate::vector::tabs::project_point_to_tab_anchor;
+        use crate::vector::trim::project_point_on_polyline_with_dist;
+
+        for (kind, radius) in [
+            (ShapeKind::Rectangle, 0.0_f64),
+            (ShapeKind::Rectangle, 10.0),
+            (ShapeKind::Rectangle, -10.0),
+            (ShapeKind::Ellipse, 0.0),
+        ] {
+            for (w, h) in [(100.0, 80.0), (40.0, 140.0)] {
+                for transform in [
+                    Transform2D::identity(),
+                    Transform2D::rotate(0.6).compose(&Transform2D::translate(3.0, -5.0)),
+                    Transform2D::shear(0.3, -0.2).compose(&Transform2D::scale(1.2, 0.8)),
+                ] {
+                    let bounds = Bounds::new(
+                        Point2D::new(150.0, 100.0),
+                        Point2D::new(150.0 + w, 100.0 + h),
+                    );
+                    let mut object = ProjectObject::new(
+                        "Legacy shape",
+                        crate::LayerId::new(),
+                        bounds,
+                        ObjectData::Shape {
+                            kind,
+                            width: 20.0,
+                            height: 20.0,
+                            corner_radius: radius,
+                        },
+                    );
+                    object.transform = transform;
+                    // Reopening must work without requiring another resize to
+                    // repair the old width/height fields first.
+                    let object: ProjectObject =
+                        serde_json::from_slice(&serde_json::to_vec(&object).unwrap()).unwrap();
+                    let local_edges = if kind == ShapeKind::Ellipse {
+                        vec![
+                            Point2D::new(w, h / 2.0),
+                            Point2D::new(w * 0.75, h * (0.5 - 3.0_f64.sqrt() / 4.0)),
+                        ]
+                    } else {
+                        let corner = if radius > 0.0 {
+                            10.0 * (1.0 - 0.5_f64.sqrt())
+                        } else if radius < 0.0 {
+                            10.0 * 0.5_f64.sqrt()
+                        } else {
+                            0.0
+                        };
+                        vec![Point2D::new(12.0, 0.0), Point2D::new(corner, corner)]
+                    };
+                    let world_path = object_to_world_vecpath(&object).unwrap();
+                    let normalized = normalize_object(&object).unwrap();
+                    let center = Point2D::new(bounds.min.x + w / 2.0, bounds.min.y + h / 2.0);
+                    for local in local_edges {
+                        let displayed_edge = transform.apply_around_center(
+                            &Point2D::new(bounds.min.x + local.x, bounds.min.y + local.y),
+                            &center,
+                        );
+                        let (_, tab_distance) =
+                            project_point_to_tab_anchor(&world_path, displayed_edge).unwrap();
+                        let cut_distance = normalized
+                            .polylines
+                            .iter()
+                            .map(|path| {
+                                project_point_on_polyline_with_dist(
+                                    displayed_edge,
+                                    &path.points,
+                                    path.closed,
+                                )
+                                .0
+                            })
+                            .fold(f64::INFINITY, f64::min);
+                        assert!(
+                            tab_distance < 0.1,
+                            "{kind:?} radius={radius} transform={transform:?}: tab distance {tab_distance}"
+                        );
+                        assert!(
+                            cut_distance < 0.1,
+                            "{kind:?} radius={radius} transform={transform:?}: cut distance {cut_distance}"
+                        );
+                    }
+                }
+            }
+        }
+    }
     use beambench_common::{Bounds, Point2D};
 
     #[test]

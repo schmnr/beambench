@@ -1,5 +1,8 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { TabTool } from './TabTool';
+import { useProjectStore } from '../../stores/projectStore';
+import { vectorService } from '../../services/vectorService';
+import { screenToWorldDist } from '../ViewportTransform';
 import type { CanvasMouseEvent, ToolContext } from './types';
 import type { ViewportParams } from '../ViewportTransform';
 
@@ -54,6 +57,134 @@ describe('TabTool', () => {
   beforeEach(() => {
     tool = new TabTool();
     vi.clearAllMocks();
+  });
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it.each([10, 20, 100, 800])('removes a marker on the first click at %s%% zoom without a prior hover event', async (zoom) => {
+    const markers = [{ subpathIndex: 0, position: 0.5, worldX: 50, worldY: 0 }];
+    vi.spyOn(vectorService, 'resolveTabMarkers').mockResolvedValue(markers);
+    const place = vi.spyOn(useProjectStore.getState(), 'placeTab').mockResolvedValue(undefined);
+    const remove = vi.spyOn(useProjectStore.getState(), 'removeTab').mockResolvedValue(undefined);
+    await tool.refreshMarkers('obj1');
+    tool.onMouseDown(makeMouseEvent({ worldX: 50 + screenToWorldDist(4, zoom), worldY: 0 }),
+      makeToolContext({ selectedObjectIds: ['obj1'], vp: { ...defaultVp, zoom } }));
+    await vi.waitFor(() => expect(remove).toHaveBeenCalledWith('obj1', 50, 0));
+    expect(place).not.toHaveBeenCalled();
+  });
+
+  it.each(['reset', 'selection change'])('does not revive an older action after %s', async (change) => {
+    let finishPlace!: () => void;
+    vi.spyOn(useProjectStore.getState(), 'placeTab').mockImplementation(() => new Promise<void>(resolve => { finishPlace = resolve; }));
+    const resolveMarkers = vi.spyOn(vectorService, 'resolveTabMarkers').mockResolvedValue([
+      { subpathIndex: 0, position: 0.5, worldX: 10, worldY: 0 },
+    ]);
+    const ctx = makeToolContext({ selectedObjectIds: ['obj1'] });
+    tool.onMouseDown(makeMouseEvent({ worldX: 50, worldY: 0 }), ctx);
+    if (change === 'reset') tool.reset();
+    else await tool.refreshMarkers('new-selection');
+    finishPlace();
+    await vi.waitFor(() => expect(ctx.requestRender).toHaveBeenCalled());
+    expect(resolveMarkers.mock.calls.some(([id]) => id === 'obj1')).toBe(false);
+    const overlay = tool.getOverlay();
+    if (change === 'reset') expect(overlay.type).toBe('none');
+    else expect(overlay).toMatchObject({ type: 'tab-markers', objectId: 'new-selection' });
+  });
+
+  it('ignores a stale marker response after a newer refresh', async () => {
+    let finishOld!: (markers: { subpathIndex: number; position: number; worldX: number; worldY: number }[]) => void;
+    vi.spyOn(vectorService, 'resolveTabMarkers')
+      .mockImplementationOnce(() => new Promise(resolve => { finishOld = resolve; }))
+      .mockResolvedValue([{ subpathIndex: 0, position: 0.5, worldX: 10, worldY: 0 }]);
+    const old = tool.refreshMarkers('old-selection');
+    await tool.refreshMarkers('new-selection');
+    finishOld([{ subpathIndex: 0, position: 0.5, worldX: 50, worldY: 0 }]);
+    await old;
+    expect(tool.getOverlay()).toMatchObject({ type: 'tab-markers', objectId: 'new-selection' });
+  });
+
+  it('clears old marker positions while geometry is being refreshed', async () => {
+    let finish!: (markers: []) => void;
+    const resolve = vi.spyOn(vectorService, 'resolveTabMarkers').mockResolvedValue([
+      { subpathIndex: 0, position: 0.5, worldX: 50, worldY: 0 },
+    ]);
+    await tool.refreshMarkers('obj1');
+    resolve.mockImplementationOnce(() => new Promise(done => { finish = done; }));
+    const pending = tool.refreshMarkers('obj1');
+    expect(tool.getOverlay().type).toBe('none');
+    finish([]);
+    await pending;
+  });
+
+  it('waits for current markers before deciding whether a click adds or removes a tab', async () => {
+    let finish!: (markers: { subpathIndex: number; position: number; worldX: number; worldY: number }[]) => void;
+    vi.spyOn(vectorService, 'resolveTabMarkers').mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    const place = vi.spyOn(useProjectStore.getState(), 'placeTab').mockResolvedValue(undefined);
+    const remove = vi.spyOn(useProjectStore.getState(), 'removeTab').mockResolvedValue(undefined);
+    const pending = tool.refreshMarkers('obj1');
+    const ctx = makeToolContext({ selectedObjectIds: ['obj1'] });
+    const click = makeMouseEvent({ worldX: 50, worldY: 0 });
+    tool.onMouseDown(click, ctx);
+    expect(place).not.toHaveBeenCalled();
+    expect(remove).not.toHaveBeenCalled();
+    finish([{ subpathIndex: 0, position: 0.5, worldX: 50, worldY: 0 }]);
+    await pending;
+    tool.onMouseDown(click, ctx);
+    await vi.waitFor(() => expect(remove).toHaveBeenCalledWith('obj1', 50, 0));
+    expect(place).not.toHaveBeenCalled();
+  });
+
+  it.each([{ ids: [] }, { ids: ['first', 'second'] }])('does not edit tabs with an ambiguous selection $ids', ({ ids }) => {
+    const place = vi.spyOn(useProjectStore.getState(), 'placeTab').mockResolvedValue(undefined);
+    const remove = vi.spyOn(useProjectStore.getState(), 'removeTab').mockResolvedValue(undefined);
+    tool.onMouseDown(makeMouseEvent(), makeToolContext({ selectedObjectIds: ids }));
+    expect(place).not.toHaveBeenCalled();
+    expect(remove).not.toHaveBeenCalled();
+  });
+
+  it('does not use cached markers from a previously selected object', async () => {
+    const state = useProjectStore.getState();
+    const place = vi.spyOn(state, 'placeTab').mockResolvedValue(undefined);
+    const remove = vi.spyOn(state, 'removeTab').mockResolvedValue(undefined);
+    // @ts-expect-error accessing private field
+    tool.tabMarkers = { objectId: 'previous', markers: [{ subpathIndex: 0, position: 0.5, worldX: 50, worldY: 0 }] };
+    // @ts-expect-error accessing private field
+    tool.hoveredTabIndex = 0;
+    tool.onMouseDown(makeMouseEvent({ worldX: 50, worldY: 0 }), makeToolContext({ selectedObjectIds: ['current'] }));
+    await new Promise(r => setTimeout(r, 0));
+    expect(remove).not.toHaveBeenCalled();
+    expect(place).toHaveBeenCalledWith('current', 50, 0);
+  });
+
+  it('uses the click position after the pointer has left the previously hovered marker', async () => {
+    const state = useProjectStore.getState();
+    const place = vi.spyOn(state, 'placeTab').mockResolvedValue(undefined);
+    const remove = vi.spyOn(state, 'removeTab').mockResolvedValue(undefined);
+    // @ts-expect-error accessing private field
+    tool.tabMarkers = { objectId: 'obj1', markers: [{ subpathIndex: 0, position: 0.5, worldX: 50, worldY: 0 }] };
+    // @ts-expect-error accessing private field
+    tool.hoveredTabIndex = 0;
+    tool.onMouseDown(makeMouseEvent({ worldX: 0, worldY: 50 }), makeToolContext({ selectedObjectIds: ['obj1'] }));
+    await new Promise(r => setTimeout(r, 0));
+    expect(remove).not.toHaveBeenCalled();
+    expect(place).toHaveBeenCalledWith('obj1', 0, 50);
+  });
+
+  it('removes the highlighted marker at its actual position when zoomed out', async () => {
+    const remove = vi.spyOn(useProjectStore.getState(), 'removeTab').mockResolvedValue(undefined);
+    // @ts-expect-error accessing private field
+    tool.tabMarkers = { objectId: 'obj1', markers: [{ subpathIndex: 0, position: 0.5, worldX: 50, worldY: 0 }] };
+    const ctx = makeToolContext({
+      vp: { ...defaultVp, zoom: 20 }, selectedObjectIds: ['obj1'],
+    });
+    const click = makeMouseEvent({ worldX: 56, worldY: 0 });
+    tool.onMouseMove(click, ctx);
+    expect(tool.getCursor()).toBe('pointer');
+    tool.onMouseDown(click, ctx);
+    await new Promise(r => setTimeout(r, 0));
+    // The highlighted marker is within the 8px hit target. Sending the raw
+    // click instead is 6 mm off the path and the backend rejects removal.
+    expect(remove).toHaveBeenCalledWith('obj1', 50, 0);
   });
 
   it('click with selected object calls place_tab', async () => {
