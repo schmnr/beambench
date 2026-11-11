@@ -1,14 +1,15 @@
 use std::borrow::Cow;
+use std::collections::{HashMap, HashSet};
 
 use encoding_rs::{Encoding, UTF_8, UTF_16BE, UTF_16LE};
 use thiserror::Error;
 use usvg::tiny_skia_path::PathSegment;
 
 use beambench_common::path::{PathCommand, SubPath, VecPath};
-use beambench_common::{Bounds, Point2D, Transform2D};
+use beambench_common::{Bounds, ColorTag, Point2D, Transform2D};
 
 use crate::asset::{Asset, AssetMediaType};
-use crate::layer::LayerId;
+use crate::layer::{Layer, LayerId, OperationType};
 use crate::object::{
     ObjectData, ObjectId, ProjectObject, TextAlignment, TextAlignmentV, TextLayoutMode,
 };
@@ -30,8 +31,58 @@ pub enum ImportError {
     ImageDecodeError(String),
 }
 
+pub const MAX_AUTO_COLOR_LAYERS: usize = 16;
+
+/// Compare exact RGB colors without palette snapping. Ignore a valid alpha
+/// suffix, since operation layers carry RGB colors rather than transparency.
+pub fn normalize_import_color_tag(color_tag: &str) -> Option<String> {
+    let hex = color_tag.trim().strip_prefix('#')?;
+    (matches!(hex.len(), 6 | 8) && hex.bytes().all(|byte| byte.is_ascii_hexdigit()))
+        .then(|| format!("#{}", hex[..6].to_ascii_uppercase()))
+}
+
+/// Reuse configured vector operations, or create an ordinary Line layer.
+/// A source color never implies a cutting or engraving operation.
+pub fn resolve_import_color_layer(project: &mut Project, color_tag: &str) -> Option<LayerId> {
+    let normalized = normalize_import_color_tag(color_tag)?;
+    if let Some(layer) = project.layers.iter().find(|layer| {
+        !layer.is_tool_layer
+            && !layer.entries.is_empty()
+            && layer
+                .entries
+                .iter()
+                .all(|entry| entry.operation != OperationType::Image && !entry.operation.is_tool())
+            && normalize_import_color_tag(&layer.color_tag.0).as_deref() == Some(&normalized)
+    }) {
+        return Some(layer.id);
+    }
+    let mut layer = Layer::new(format!("Imported {normalized}"), OperationType::Line);
+    layer.color_tag = ColorTag(normalized);
+    let id = layer.id;
+    project.add_layer(layer);
+    Some(id)
+}
+
+pub fn should_auto_route_import_colors<'a>(
+    colors: impl IntoIterator<Item = Option<&'a str>>,
+) -> bool {
+    let mut distinct = HashSet::new();
+    for color in colors
+        .into_iter()
+        .flatten()
+        .filter_map(normalize_import_color_tag)
+    {
+        distinct.insert(color);
+        if distinct.len() > MAX_AUTO_COLOR_LAYERS {
+            return false;
+        }
+    }
+    !distinct.is_empty()
+}
+
 /// Metadata extracted from an SVG `<text>` element before usvg flattening.
 struct SvgTextElement {
+    color_tag: String,
     content: String,
     font_family: String,
     font_size_px: f64,
@@ -210,7 +261,10 @@ fn editable_text_transform(text: roxmltree::Node, root_map: &Transform2D) -> Opt
 
 /// Pre-parse SVG XML to extract `<text>` elements with their metadata.
 /// Returns extracted text elements and modified SVG bytes with those `<text>` elements removed.
-fn extract_svg_text_elements(svg_bytes: &[u8]) -> (Vec<SvgTextElement>, Vec<u8>) {
+fn extract_svg_text_elements(
+    svg_bytes: &[u8],
+    text_colors: &HashMap<usize, String>,
+) -> (Vec<SvgTextElement>, Vec<u8>) {
     let svg_str = match std::str::from_utf8(svg_bytes) {
         Ok(s) => s,
         Err(_) => return (vec![], svg_bytes.to_vec()),
@@ -224,13 +278,34 @@ fn extract_svg_text_elements(svg_bytes: &[u8]) -> (Vec<SvgTextElement>, Vec<u8>)
     let mut texts = Vec::new();
     let mut remove_ranges: Vec<std::ops::Range<usize>> = Vec::new();
     let root_map = root_viewbox_transform(doc.root_element());
+    let reused_text: HashSet<_> = doc
+        .descendants()
+        .filter(|node| node.has_tag_name("use"))
+        .flat_map(|node| node.attributes())
+        .filter(|attribute| attribute.name() == "href")
+        .filter_map(|attribute| attribute.value().strip_prefix('#'))
+        .collect();
 
     for node in doc.descendants() {
         if node.tag_name().name() == "text" {
+            // Removing a referenced label would also erase its <use> copies.
+            // Let usvg outline the label and every transformed instance.
+            if node.ancestors().any(|ancestor| {
+                ancestor
+                    .attribute("id")
+                    .is_some_and(|id| reused_text.contains(id))
+            }) {
+                continue;
+            }
             // Editable text keeps a position, size and spacing, but no
             // rotation or skew. Anything else stays in the SVG and imports as
             // exact outlines, as does text that is not drawn directly.
             let Some(user_to_document) = editable_text_transform(node, &root_map) else {
+                continue;
+            };
+            // A single editable label cannot represent several span colors.
+            // Keep those labels in usvg so their outlines retain each paint.
+            let Some(color_tag) = text_colors.get(&node.range().start).cloned() else {
                 continue;
             };
             // Extract text content (direct text children + <tspan> content)
@@ -353,6 +428,7 @@ fn extract_svg_text_elements(svg_bytes: &[u8]) -> (Vec<SvgTextElement>, Vec<u8>)
                 let scale = user_to_document.a;
                 let position = user_to_document.apply(&Point2D::new(x, y));
                 texts.push(SvgTextElement {
+                    color_tag,
                     content,
                     font_family,
                     font_size_px: font_size_px * scale,
@@ -458,12 +534,112 @@ fn decode_svg_xml(bytes: &[u8]) -> Result<Cow<'_, str>, ImportError> {
 /// is available on the system, it creates an editable `ObjectData::Text` object.
 /// Otherwise, usvg handles the text element (flattening to paths).
 ///
-/// All remaining paths in the SVG are flattened into one combined VectorPath
-/// with coordinates transformed to bed-space at true physical size, centered.
+/// Remaining paths are grouped by paint, with coordinates transformed to
+/// bed-space at true physical size, centered, on the requested layer.
 pub fn import_svg(
     svg_bytes: &[u8],
     project: &mut Project,
     layer_id: LayerId,
+) -> Result<Vec<ObjectId>, ImportError> {
+    import_svg_impl(svg_bytes, project, layer_id, false)
+}
+
+/// Desktop imports share PDF/AI color routing. The explicit-layer importer
+/// remains available to design commands and other callers choosing operations.
+pub fn import_svg_with_color_layers(
+    svg_bytes: &[u8],
+    project: &mut Project,
+    layer_id: LayerId,
+) -> Result<Vec<ObjectId>, ImportError> {
+    import_svg_impl(svg_bytes, project, layer_id, true)
+}
+
+/// Let usvg resolve CSS, inherited paints and currentColor for editable text.
+/// Temporary IDs identify anonymous labels without changing the source SVG.
+fn svg_text_colors(svg: &str, options: &mut usvg::Options) -> HashMap<usize, String> {
+    let Ok(doc) = roxmltree::Document::parse(svg) else {
+        return HashMap::new();
+    };
+    let mut prefix = "beambench-import-text-".to_string();
+    while svg.contains(&prefix) {
+        prefix.push('_');
+    }
+    let mut inserts = Vec::new();
+    let mut ids = Vec::new();
+    for node in doc.descendants().filter(|node| node.has_tag_name("text")) {
+        let start = node.range().start;
+        let id = node.attribute("id").map(str::to_string).unwrap_or_else(|| {
+            let id = format!("{prefix}{start}");
+            let tag_end = svg[start..]
+                .find(|ch: char| ch.is_whitespace() || ch == '/' || ch == '>')
+                .unwrap();
+            inserts.push((start + tag_end, format!(" id=\"{id}\"")));
+            id
+        });
+        ids.push((start, id));
+    }
+    if ids.is_empty() {
+        return HashMap::new();
+    }
+    let mut identified = svg.to_string();
+    for (offset, attribute) in inserts.into_iter().rev() {
+        identified.insert_str(offset, &attribute);
+    }
+    options.fontdb_mut().load_system_fonts();
+    ensure_svg_fallback_fonts(options.fontdb_mut());
+    // Assigning an ID can change attribute-selector CSS such as text[id].
+    // Keep those labels as outlines resolved from the untouched source.
+    if doc
+        .descendants()
+        .filter(|node| node.has_tag_name("style"))
+        .any(|node| node.text().is_some_and(|css| css.contains('[')))
+    {
+        return HashMap::new();
+    }
+    let Ok(tree) = usvg::Tree::from_str(&identified, options) else {
+        return HashMap::new();
+    };
+    ids.into_iter()
+        .filter_map(|(offset, id)| {
+            resolved_text_color(tree.node_by_id(&id)?).map(|color| (offset, color))
+        })
+        .collect()
+}
+
+fn resolved_text_color(node: &usvg::Node) -> Option<String> {
+    match node {
+        usvg::Node::Text(text) => {
+            let mut colors = text
+                .chunks()
+                .iter()
+                .flat_map(|chunk| chunk.spans())
+                .map(|span| {
+                    if !span.is_visible() {
+                        return None;
+                    }
+                    [
+                        paint_hex(span.stroke().map(|stroke| stroke.paint())),
+                        paint_hex(span.fill().map(|fill| fill.paint())),
+                    ]
+                    .into_iter()
+                    .flatten()
+                    .find(|color| color.starts_with('#'))
+                });
+            let first = colors.next()??;
+            colors
+                .all(|color| color.as_ref() == Some(&first))
+                .then_some(first)
+        }
+        usvg::Node::Group(group) => group.children().iter().find_map(resolved_text_color),
+        _ => None,
+    }
+}
+
+fn import_svg_impl(
+    svg_bytes: &[u8],
+    project: &mut Project,
+    layer_id: LayerId,
+    route_colors: bool,
 ) -> Result<Vec<ObjectId>, ImportError> {
     let mut created_ids = Vec::new();
 
@@ -476,10 +652,6 @@ pub fn import_svg(
     };
     let svg_text = decode_svg_xml(&svg_bytes)?;
 
-    // Phase 1: Extract editable text elements
-    let (text_elements, remaining_svg) = extract_svg_text_elements(svg_text.as_bytes());
-
-    // Phase 2: Parse remaining SVG with usvg for path extraction
     let mut options = usvg::Options {
         // Only embedded data: an imported SVG must not pull in arbitrary
         // files from this computer through `<image href="/path">`.
@@ -489,12 +661,9 @@ pub fn import_svg(
         },
         ..usvg::Options::default()
     };
-    // Text left in the SVG (fonts Beam Bench cannot edit with, rotated or
-    // clipped text) is drawn as outlines, which needs the system fonts.
-    if remaining_svg.windows(5).any(|window| window == b"<text") {
-        options.fontdb_mut().load_system_fonts();
-        ensure_svg_fallback_fonts(options.fontdb_mut());
-    }
+    let text_colors = svg_text_colors(&svg_text, &mut options);
+    let (text_elements, remaining_svg) =
+        extract_svg_text_elements(svg_text.as_bytes(), &text_colors);
     let tree = usvg::Tree::from_data(&remaining_svg, &options)
         .map_err(|e| ImportError::ParseError(e.to_string()))?;
 
@@ -513,6 +682,28 @@ pub fn import_svg(
     let scale = PX_TO_MM;
     let offset_x = (bed_w - svg_w * scale) / 2.0;
     let offset_y = (bed_h - svg_h * scale) / 2.0;
+
+    let mut paint_groups = Vec::new();
+    collect_paths_by_paint(
+        tree.root(),
+        scale,
+        offset_x,
+        offset_y,
+        usvg::Transform::default(),
+        None,
+        &mut paint_groups,
+    );
+    let route_colors = route_colors
+        && should_auto_route_import_colors(
+            paint_groups
+                .iter()
+                .map(|group| group.display_color.as_deref())
+                .chain(
+                    text_elements
+                        .iter()
+                        .map(|text| Some(text.color_tag.as_str())),
+                ),
+        );
 
     // Create editable Text objects for extracted text elements.
     // `scale` maps SVG px -> mm (96 DPI).
@@ -543,9 +734,14 @@ pub fn import_svg(
 
         let h_spacing_mm = text_el.h_spacing_px * px_to_mm;
 
+        let destination = if route_colors {
+            resolve_import_color_layer(project, &text_el.color_tag).unwrap_or(layer_id)
+        } else {
+            layer_id
+        };
         let obj = ProjectObject::new(
             &format!("Text: {}", text_el.content),
-            layer_id,
+            destination,
             bounds,
             ObjectData::Text {
                 content: text_el.content.clone(),
@@ -585,20 +781,6 @@ pub fn import_svg(
         created_ids.push(id);
     }
 
-    // Collect paths recursively, transformed to bed space and grouped by
-    // paint so differently-colored parts arrive as separate objects (color
-    // is how multi-operation designs mark which parts get which settings;
-    // a single flattened object made parts unselectable — report #13).
-    let mut paint_groups: Vec<PaintGroup> = Vec::new();
-    collect_paths_by_paint(
-        tree.root(),
-        scale,
-        offset_x,
-        offset_y,
-        None,
-        &mut paint_groups,
-    );
-
     // Preserve embedded raster artwork as real project image assets. usvg
     // already resolves data-URI PNG/JPEG/GIF/WebP payloads and computes the
     // complete ancestor/image transform, including preserveAspectRatio.
@@ -614,11 +796,9 @@ pub fn import_svg(
         &mut created_ids,
     )?;
 
-    // A file with this many distinct paints is color noise (flattened
-    // gradient art), not operation intent. Import it as one object rather
-    // than exploding the object list.
-    const MAX_PAINT_GROUPS: usize = 16;
-    if paint_groups.len() > MAX_PAINT_GROUPS {
+    // Retain the color-noise fallback, but count routed RGB colors rather
+    // than paint combinations: filled and stroked shapes can share a layer.
+    if !route_colors && paint_groups.len() > MAX_AUTO_COLOR_LAYERS {
         let merged = paint_groups.into_iter().reduce(|mut acc, g| {
             if !acc.path_data.is_empty() && !g.path_data.is_empty() {
                 acc.path_data.push(' ');
@@ -665,9 +845,18 @@ pub fn import_svg(
             _ => "SVG Import".to_string(),
         };
 
+        let destination = if route_colors {
+            group
+                .display_color
+                .as_deref()
+                .and_then(|color| resolve_import_color_layer(project, color))
+                .unwrap_or(layer_id)
+        } else {
+            layer_id
+        };
         let obj = ProjectObject::new(
             &name,
-            layer_id,
+            destination,
             bounds,
             ObjectData::VectorPath {
                 path_data: group.path_data.trim().to_string(),
@@ -945,7 +1134,7 @@ fn image_to_engraving_grayscale(img: &image::DynamicImage) -> image::GrayImage {
 struct PaintGroup {
     /// Identity key: stroke and fill paints, e.g. `s:#FF0000|f:none`.
     key: String,
-    /// Hex color used in the object name (stroke preferred, else fill).
+    /// Solid color for layer routing and names (stroke preferred, else fill).
     display_color: Option<String>,
     path_data: String,
     has_closed: bool,
@@ -969,6 +1158,7 @@ fn collect_paths_by_paint(
     scale: f64,
     offset_x: f64,
     offset_y: f64,
+    text_transform: usvg::Transform,
     clip: Option<&VecPath>,
     groups: &mut Vec<PaintGroup>,
 ) {
@@ -981,7 +1171,7 @@ fn collect_paths_by_paint(
                 }
                 let mut bed_path = transform_path_to_bed_space(
                     path,
-                    &path.abs_transform(),
+                    &text_transform.pre_concat(path.abs_transform()),
                     scale,
                     offset_x,
                     offset_y,
@@ -1043,9 +1233,9 @@ fn collect_paths_by_paint(
                 entry.max_y = entry.max_y.max(bbox.max.y);
             }
             usvg::Node::Group(g) => {
-                let own_clip = g
-                    .clip_path()
-                    .map(|clip_path| clip_region(g, clip_path, scale, offset_x, offset_y));
+                let own_clip = g.clip_path().map(|clip_path| {
+                    clip_region(g, clip_path, scale, offset_x, offset_y, text_transform)
+                });
                 let combined = match (clip, own_clip) {
                     (Some(outer), Some(inner)) => Some(path_intersection_with_tolerance(
                         outer,
@@ -1054,11 +1244,29 @@ fn collect_paths_by_paint(
                     )),
                     (outer, inner) => inner.or_else(|| outer.cloned()),
                 };
-                collect_paths_by_paint(g, scale, offset_x, offset_y, combined.as_ref(), groups);
+                collect_paths_by_paint(
+                    g,
+                    scale,
+                    offset_x,
+                    offset_y,
+                    text_transform,
+                    combined.as_ref(),
+                    groups,
+                );
             }
             // Text that was not extracted as editable is drawn as outlines.
             usvg::Node::Text(text) => {
-                collect_paths_by_paint(text.flattened(), scale, offset_x, offset_y, clip, groups);
+                // Flattened glyph paths are local to the text. Their parent
+                // transform still positions rotated labels and <use> copies.
+                collect_paths_by_paint(
+                    text.flattened(),
+                    scale,
+                    offset_x,
+                    offset_y,
+                    text_transform.pre_concat(text.abs_transform()),
+                    clip,
+                    groups,
+                );
             }
             usvg::Node::Image(_) => {} // Imported by their dedicated pass.
         }
@@ -1073,6 +1281,7 @@ fn clip_region(
     scale: f64,
     offset_x: f64,
     offset_y: f64,
+    text_transform: usvg::Transform,
 ) -> VecPath {
     fn collect(
         clip_group: &usvg::Group,
@@ -1093,14 +1302,21 @@ fn clip_region(
                     ));
                 }
                 usvg::Node::Group(child) => collect(child, base, scale, offset_x, offset_y, region),
-                usvg::Node::Text(text) => {
-                    collect(text.flattened(), base, scale, offset_x, offset_y, region)
-                }
+                usvg::Node::Text(text) => collect(
+                    text.flattened(),
+                    &base.pre_concat(text.abs_transform()),
+                    scale,
+                    offset_x,
+                    offset_y,
+                    region,
+                ),
                 _ => {}
             }
         }
     }
-    let base = group.abs_transform().pre_concat(clip_path.transform());
+    let base = text_transform
+        .pre_concat(group.abs_transform())
+        .pre_concat(clip_path.transform());
     let mut parts = Vec::new();
     collect(
         clip_path.root(),
@@ -1114,7 +1330,7 @@ fn clip_region(
     if let Some(inner) = clip_path.clip_path() {
         region = path_intersection_with_tolerance(
             &region,
-            &clip_region(group, inner, scale, offset_x, offset_y),
+            &clip_region(group, inner, scale, offset_x, offset_y, text_transform),
             VECTOR_PATH_FLATTEN_TOLERANCE_MM,
         );
     }
@@ -1464,6 +1680,273 @@ mod tests {
 
     fn first_layer_id(project: &mut Project) -> LayerId {
         project.ensure_default_layer()
+    }
+
+    #[test]
+    fn import_color_matching_handles_alpha_and_rejects_malformed_tags() {
+        assert_eq!(
+            normalize_import_color_tag(" #aB12ef80 ").as_deref(),
+            Some("#AB12EF")
+        );
+        for invalid in ["#12345éx", "#123456zz", "#123", "red", "#éabcd"] {
+            assert_eq!(normalize_import_color_tag(invalid), None, "{invalid}");
+        }
+        let mut project = test_project();
+        for operation in [OperationType::Image, OperationType::Tool] {
+            let mut layer = Layer::new("Not a vector operation", operation);
+            layer.color_tag = ColorTag("#123456".into());
+            project.add_layer(layer);
+        }
+        let id = resolve_import_color_layer(&mut project, "#123456").unwrap();
+        let imported = project.find_layer(id).unwrap().clone();
+        assert!(!imported.is_tool_layer);
+        assert_eq!(imported.primary_entry().operation, OperationType::Line);
+        assert_eq!(
+            resolve_import_color_layer(&mut project, "#123456FF"),
+            Some(id)
+        );
+        assert_eq!(project.find_layer(id), Some(&imported));
+    }
+
+    #[test]
+    fn svg_color_layers_preserve_geometry_and_share_colors_across_paint_groups() {
+        let svg = br##"<svg xmlns="http://www.w3.org/2000/svg" width="100mm" height="60mm" viewBox="0 0 100 60">
+            <g transform="translate(5 3)">
+                <rect x="0" y="0" width="10" height="20" fill="red"/>
+                <path d="M20 0 L30 20" fill="none" stroke="rgb(255,0,0)"/>
+                <rect x="40" y="0" width="10" height="20" fill="blue"/>
+                <rect x="60" y="0" width="10" height="20" fill="blue" stroke="red"/>
+            </g>
+        </svg>"##;
+        let mut original = test_project();
+        let requested = first_layer_id(&mut original);
+        let mut routed = original.clone();
+        let expected = import_svg(svg, &mut original, requested).unwrap();
+        let ids = import_svg_with_color_layers(svg, &mut routed, requested).unwrap();
+        assert_eq!(ids.len(), 4);
+        for (id, expected) in ids.iter().zip(expected) {
+            let object = routed.find_object(*id).unwrap();
+            let before = original.find_object(expected).unwrap();
+            assert_eq!(object.bounds, before.bounds);
+            assert_eq!(object.data, before.data);
+            assert_eq!(object.transform, before.transform);
+        }
+        let layers: Vec<_> = ids
+            .iter()
+            .map(|id| routed.find_object(*id).unwrap().layer_id)
+            .collect();
+        assert_eq!(layers[0], layers[1]);
+        assert_eq!(
+            layers[0], layers[3],
+            "outline color takes precedence, as for PDF/AI"
+        );
+        assert_ne!(layers[0], layers[2]);
+        assert_eq!(routed.layers.len(), 3);
+    }
+
+    #[test]
+    fn svg_editable_text_keeps_css_and_inherited_colors() {
+        let svg = br##"<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200">
+            <style>.blue { fill: blue; }</style>
+            <g color="#123456" fill="currentColor">
+                <text x="10" y="40" font-family="sans-serif">Inherited</text>
+            </g>
+            <text id="blue-label" class="blue" x="10" y="80" font-family="sans-serif">CSS</text>
+            <text/>
+            <text x="10" y="120" fill="red" style="fill:blue" font-family="sans-serif">Style</text>
+        </svg>"##;
+        let mut project = test_project();
+        let requested = first_layer_id(&mut project);
+        let ids = import_svg_with_color_layers(svg, &mut project, requested).unwrap();
+        assert_eq!(ids.len(), 3);
+        for (id, color) in ids.iter().zip(["#123456", "#0000FF", "#0000FF"]) {
+            let object = project.find_object(*id).unwrap();
+            assert!(matches!(object.data, ObjectData::Text { .. }));
+            assert_eq!(
+                project.find_layer(object.layer_id).unwrap().color_tag.0,
+                color
+            );
+        }
+        assert_eq!(project.layers.len(), 3);
+    }
+
+    #[test]
+    fn svg_multicolor_text_uses_outlines_and_hidden_labels_do_not_import() {
+        let svg = br##"<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200">
+            <style>.hidden { display:none; }</style>
+            <text x="10" y="50" font-family="sans-serif"><tspan fill="red">Red</tspan><tspan fill="blue">Blue</tspan></text>
+            <text class="hidden" x="10" y="80" fill="green" font-family="sans-serif">Hidden</text>
+        </svg>"##;
+        let mut project = test_project();
+        let requested = first_layer_id(&mut project);
+        let ids = import_svg_with_color_layers(svg, &mut project, requested).unwrap();
+        assert_eq!(ids.len(), 2);
+        for (id, color) in ids.iter().zip(["#FF0000", "#0000FF"]) {
+            let object = project.find_object(*id).unwrap();
+            assert!(matches!(object.data, ObjectData::VectorPath { .. }));
+            assert_eq!(
+                project.find_layer(object.layer_id).unwrap().color_tag.0,
+                color
+            );
+        }
+        assert_eq!(project.layers.len(), 3);
+    }
+
+    #[test]
+    fn svg_reused_text_keeps_every_instance() {
+        let svg = br##"<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100">
+            <text id="label" x="10" y="50" fill="red" font-family="sans-serif">Label</text>
+            <use href="#label" x="100"/>
+        </svg>"##;
+        let text = std::str::from_utf8(svg).unwrap();
+        let group_reference = text
+            .replace("<text id=\"label\"", "<g id=\"label\"><text")
+            .replace("</text>", "</text></g>");
+        for svg in [text, &group_reference] {
+            let mut project = test_project();
+            let requested = first_layer_id(&mut project);
+            let ids =
+                import_svg_with_color_layers(svg.as_bytes(), &mut project, requested).unwrap();
+            assert_eq!(ids.len(), 1);
+            let object = project.find_object(ids[0]).unwrap();
+            assert!(matches!(object.data, ObjectData::VectorPath { .. }));
+            assert!(
+                object.bounds.width() > 100.0 * 25.4 / 96.0,
+                "both copies must be present"
+            );
+            assert_eq!(
+                project.find_layer(object.layer_id).unwrap().color_tag.0,
+                "#FF0000"
+            );
+        }
+    }
+
+    #[test]
+    fn svg_text_attribute_selector_css_keeps_original_colors() {
+        let svg = br##"<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100">
+            <style>text { fill:blue } text[id] { fill:red }</style>
+            <text x="0" y="20" font-family="sans-serif">Anonymous</text>
+            <text id="named" x="0" y="50" font-family="sans-serif">Named</text>
+        </svg>"##;
+        let mut project = test_project();
+        let requested = first_layer_id(&mut project);
+        let ids = import_svg_with_color_layers(svg, &mut project, requested).unwrap();
+        let colors: Vec<_> = ids
+            .iter()
+            .map(|id| {
+                let object = project.find_object(*id).unwrap();
+                project
+                    .find_layer(object.layer_id)
+                    .unwrap()
+                    .color_tag
+                    .0
+                    .as_str()
+            })
+            .collect();
+        assert_eq!(colors, ["#0000FF", "#FF0000"]);
+    }
+
+    #[test]
+    fn svg_outlined_text_keeps_parent_transform_and_clip() {
+        let svg = br##"<svg xmlns="http://www.w3.org/2000/svg" width="100mm" height="100mm" viewBox="0 0 100 100">
+            <defs><clipPath id="clip"><rect width="20" height="30"/></clipPath></defs>
+            <g transform="translate(50 20)" clip-path="url(#clip)">
+                <text x="0" y="20" fill="red" font-family="sans-serif" font-size="20">MMMM</text>
+            </g>
+        </svg>"##;
+        let mut project = test_project();
+        let requested = first_layer_id(&mut project);
+        let ids = import_svg_with_color_layers(svg, &mut project, requested).unwrap();
+        assert_eq!(ids.len(), 1);
+        let object = project.find_object(ids[0]).unwrap();
+        assert!(matches!(object.data, ObjectData::VectorPath { .. }));
+        // A 100 mm SVG is centered at x=150 on the default 400 mm bed.
+        assert!(object.bounds.min.x >= 200.0 - 1e-5, "{:?}", object.bounds);
+        assert!(object.bounds.max.x <= 220.0 + 1e-5, "{:?}", object.bounds);
+        assert!(object.bounds.width() > 1.0);
+    }
+
+    #[test]
+    fn svg_color_cap_includes_editable_labels() {
+        let labels = (0..=MAX_AUTO_COLOR_LAYERS)
+            .map(|i| {
+                format!(
+                    r##"<text x="0" y="{}" fill="#{:06X}" font-family="sans-serif">Label</text>"##,
+                    20 * (i + 1),
+                    i + 1
+                )
+            })
+            .collect::<String>();
+        let svg = format!(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" width="200" height="400">{labels}</svg>"#
+        );
+        let mut project = test_project();
+        let requested = first_layer_id(&mut project);
+        let ids = import_svg_with_color_layers(svg.as_bytes(), &mut project, requested).unwrap();
+        assert_eq!(ids.len(), MAX_AUTO_COLOR_LAYERS + 1);
+        assert!(
+            ids.iter()
+                .all(|id| project.find_object(*id).unwrap().layer_id == requested)
+        );
+        assert_eq!(project.layers.len(), 1);
+    }
+
+    #[test]
+    fn svg_color_cap_counts_colors_not_fill_stroke_combinations() {
+        let body = (1..=MAX_AUTO_COLOR_LAYERS)
+            .map(|i| {
+                format!(
+                    r##"<rect x="{}" width="5" height="10" fill="#{i:06X}"/>
+                <path d="M{} 20 v10" fill="none" stroke="#{i:06X}"/>"##,
+                    i * 10,
+                    i * 10
+                )
+            })
+            .collect::<String>();
+        let svg = format!(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100">{body}</svg>"#
+        );
+        let mut project = test_project();
+        let requested = first_layer_id(&mut project);
+        let ids = import_svg_with_color_layers(svg.as_bytes(), &mut project, requested).unwrap();
+        assert_eq!(ids.len(), MAX_AUTO_COLOR_LAYERS * 2);
+        assert_eq!(project.layers.len(), MAX_AUTO_COLOR_LAYERS + 1);
+        for pair in ids.chunks_exact(2) {
+            assert_eq!(
+                project.find_object(pair[0]).unwrap().layer_id,
+                project.find_object(pair[1]).unwrap().layer_id
+            );
+            assert_ne!(project.find_object(pair[0]).unwrap().layer_id, requested);
+        }
+    }
+
+    #[test]
+    fn svg_gradients_and_color_noise_keep_requested_layer() {
+        let gradient = r##"<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200">
+            <defs><linearGradient id="g"><stop stop-color="red"/><stop offset="1" stop-color="blue"/></linearGradient></defs>
+            <rect width="10" height="10" fill="url(#g)"/>
+        </svg>"##;
+        let body = (0..=MAX_AUTO_COLOR_LAYERS)
+            .map(|i| {
+                format!(
+                    r##"<rect x="{}" width="5" height="10" fill="#{:06X}"/>"##,
+                    i * 10,
+                    i + 1
+                )
+            })
+            .collect::<String>();
+        let noise = format!(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200">{body}</svg>"#
+        );
+        for svg in [gradient, &noise] {
+            let mut project = test_project();
+            let requested = first_layer_id(&mut project);
+            let ids =
+                import_svg_with_color_layers(svg.as_bytes(), &mut project, requested).unwrap();
+            assert_eq!(ids.len(), 1);
+            assert_eq!(project.find_object(ids[0]).unwrap().layer_id, requested);
+            assert_eq!(project.layers.len(), 1);
+        }
     }
 
     #[test]
@@ -2522,7 +3005,15 @@ mod tests {
             );
             let tree = usvg::Tree::from_data(svg.as_bytes(), &options).unwrap();
             let mut groups = Vec::new();
-            collect_paths_by_paint(tree.root(), 1.0, 0.0, 0.0, None, &mut groups);
+            collect_paths_by_paint(
+                tree.root(),
+                1.0,
+                0.0,
+                0.0,
+                usvg::Transform::default(),
+                None,
+                &mut groups,
+            );
             assert!(
                 !groups.is_empty(),
                 "{family} must produce outlines without system fonts"
