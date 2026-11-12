@@ -2410,6 +2410,138 @@
           "acmer_s2_pro_48w": {
             "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
             "advisory": "400 x 400 mm, Ursprung vorne links, S1000. $30 und Lasermodus $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. Andere Firmware und Erweiterungen müssen separat eingerichtet werden."
+          },
+          "atomstack_swift_7w": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "USB: 460800 Baud. 300 x 300 mm, Ursprung vorne links, S1000. $30 und Lasermodus $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. Andere Firmware und Erweiterungen müssen separat eingerichtet werden."
+          },
+          "atomstack_swift_12w": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "USB: 460800 Baud. 300 x 300 mm, Ursprung vorne links, S1000. $30 und Lasermodus $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. Andere Firmware und Erweiterungen müssen separat eingerichtet werden."
+          },
+          "atomstack_a5_10w": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "410 x 400 mm, Ursprung vorne links, S1000. $30 und Lasermodus $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. Andere Firmware und Erweiterungen müssen separat eingerichtet werden. Konstante Leistung (M3)."
+          },
+          "atomstack_a5_15w": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "410 x 400 mm, Ursprung vorne links, S1000. $30 und Lasermodus $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. Andere Firmware und Erweiterungen müssen separat eingerichtet werden. Konstante Leistung (M3)."
+          },
+          "atomstack_a5_20w": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "410 x 400 mm, Ursprung vorne links, S1000. $30 und Lasermodus $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. Andere Firmware und Erweiterungen müssen separat eingerichtet werden. Konstante Leistung (M3)."
+          },
+          "atomstack_a5_30w": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "410 x 400 mm, Ursprung vorne links, S1000. $30 und Lasermodus $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. Andere Firmware und Erweiterungen müssen separat eingerichtet werden. Konstante Leistung (M3)."
+          },
+          "atomstack_a5_pro": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "410 x 400 mm, Ursprung vorne links, S1000. $30 und Lasermodus $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. Andere Firmware und Erweiterungen müssen separat eingerichtet werden. Konstante Leistung (M3)."
+          },
+          "atomstack_a5_pro_plus": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "410 x 400 mm, Ursprung vorne links, S1000. $30 und Lasermodus $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. Andere Firmware und Erweiterungen müssen separat eingerichtet werden. Konstante Leistung (M3)."
+          },
+          "atomstack_a5_m30": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "410 x 400 mm, Ursprung vorne links, S1000. $30 und Lasermodus $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. Andere Firmware und Erweiterungen müssen separat eingerichtet werden. Konstante Leistung (M3)."
+          },
+          "atomstack_a5_m40": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "410 x 400 mm, Ursprung vorne links, S1000. $30 und Lasermodus $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. Andere Firmware und Erweiterungen müssen separat eingerichtet werden. Konstante Leistung (M3)."
+          },
+          "atomstack_a5_m50": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "410 x 400 mm, Ursprung vorne links, S1000. $30 und Lasermodus $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. Andere Firmware und Erweiterungen müssen separat eingerichtet werden. Konstante Leistung (M3)."
+          },
+          "atomstack_a5_m50_pro": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "410 x 400 mm, Ursprung vorne links, S1000. $30 und Lasermodus $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. Andere Firmware und Erweiterungen müssen separat eingerichtet werden. Konstante Leistung (M3)."
+          },
+          "atomstack_a5_pro_v2": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "400 x 365 mm, Ursprung vorne links, S1000. $30 und Lasermodus $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. Andere Firmware und Erweiterungen müssen separat eingerichtet werden."
+          },
+          "atomstack_a6_pro": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "365 x 305 mm, Ursprung vorne links, S1000. $30 und Lasermodus $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. Andere Firmware und Erweiterungen müssen separat eingerichtet werden."
+          },
+          "atomstack_a12_pro": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "365 x 305 mm, Ursprung vorne links, S1000. $30 und Lasermodus $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. Andere Firmware und Erweiterungen müssen separat eingerichtet werden."
+          },
+          "atomstack_a24_pro": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "360 x 280 mm, Ursprung vorne links, S1000. $30 und Lasermodus $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. Andere Firmware und Erweiterungen müssen separat eingerichtet werden."
+          },
+          "atomstack_x12_pro": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "365 x 305 mm, Ursprung vorne links, S1000. $30 und Lasermodus $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. Andere Firmware und Erweiterungen müssen separat eingerichtet werden."
+          },
+          "atomstack_a20_pro": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "400 x 400 mm, Ursprung vorne links, S1000. $30 und Lasermodus $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. Andere Firmware und Erweiterungen müssen separat eingerichtet werden. Konstante Leistung (M3)."
+          },
+          "atomstack_a30_pro": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "400 x 400 mm, Ursprung vorne links, S1000. $30 und Lasermodus $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. Andere Firmware und Erweiterungen müssen separat eingerichtet werden. Konstante Leistung (M3)."
+          },
+          "atomstack_a40_pro": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "400 x 400 mm, Ursprung vorne links, S1000, M7/M9-Luftunterstützung. $30, $32=1, Endschalter und Pumpe prüfen. Automatisches Referenzieren ist standardmäßig aus. Modifizierte Maschinen separat einrichten."
+          },
+          "atomstack_a40_max": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "800 x 400 mm, Ursprung vorne links, S1000, M7/M9-Luftunterstützung. $30, $32=1, Endschalter und Pumpe prüfen. Automatisches Referenzieren ist standardmäßig aus. Modifizierte Maschinen separat einrichten."
+          },
+          "atomstack_x40_pro": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "400 x 400 mm, Ursprung vorne links, S1000, M7/M9-Luftunterstützung. $30, $32=1, Endschalter und Pumpe prüfen. Automatisches Referenzieren ist standardmäßig aus. Modifizierte Maschinen separat einrichten."
+          },
+          "atomstack_x40_max": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "800 x 400 mm, Ursprung vorne links, S1000, M7/M9-Luftunterstützung. $30, $32=1, Endschalter und Pumpe prüfen. Automatisches Referenzieren ist standardmäßig aus. Modifizierte Maschinen separat einrichten."
+          },
+          "atomstack_s40_pro": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "400 x 400 mm, Ursprung vorne links, S1000, M7/M9-Luftunterstützung. $30, $32=1, Endschalter und Pumpe prüfen. Automatisches Referenzieren ist standardmäßig aus. Modifizierte Maschinen separat einrichten."
+          },
+          "atomstack_s40_max": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "800 x 400 mm, Ursprung vorne links, S1000, M7/M9-Luftunterstützung. $30, $32=1, Endschalter und Pumpe prüfen. Automatisches Referenzieren ist standardmäßig aus. Modifizierte Maschinen separat einrichten."
+          },
+          "atomstack_a70_pro": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "500 x 400 mm, Ursprung vorne links, S1000, M8/M9-Luftunterstützung. $30, $32=1, Endschalter und Pumpe prüfen. Automatisches Referenzieren ist standardmäßig aus. Modifizierte Maschinen separat einrichten. Vor dem Rahmenlauf mit den Bedienelementen der Maschine fokussieren. Kamera, Drehvorrichtung und Förderband müssen separat eingerichtet werden."
+          },
+          "atomstack_a70_max": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "850 x 800 mm, Ursprung vorne links, S1000, M8/M9-Luftunterstützung. $30, $32=1, Endschalter und Pumpe prüfen. Automatisches Referenzieren ist standardmäßig aus. Modifizierte Maschinen separat einrichten. Vor dem Rahmenlauf mit den Bedienelementen der Maschine fokussieren. Kamera, Drehvorrichtung und Förderband müssen separat eingerichtet werden."
+          },
+          "atomstack_x70_max": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "850 x 800 mm, Ursprung vorne links, S1000. $30 und Lasermodus $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. Andere Firmware und Erweiterungen müssen separat eingerichtet werden. Vor dem Rahmenlauf mit den Bedienelementen der Maschine fokussieren. Kamera, Drehvorrichtung und Förderband müssen separat eingerichtet werden."
+          },
+          "atomstack_p1_5w": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "USB: 460800 Baud. 110 x 110 mm, Ursprung vorne links, S1000. $30 und Lasermodus $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. Andere Firmware und Erweiterungen müssen separat eingerichtet werden."
+          },
+          "atomstack_kraft_lite_40w": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "USB: 460800 Baud. 500 x 320 mm, Ursprung vorne links, S1000. $30 und Lasermodus $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. Andere Firmware und Erweiterungen müssen separat eingerichtet werden. Vor dem Rahmenlauf mit den Bedienelementen der Maschine fokussieren. Kamera, Drehvorrichtung und Förderband müssen separat eingerichtet werden."
+          },
+          "atomstack_hurricane_55w": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "USB: 460800 Baud. 500 x 300 mm, Ursprung vorne links, S1000. $30 und Lasermodus $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. Andere Firmware und Erweiterungen müssen separat eingerichtet werden. Vor dem Rahmenlauf mit den Bedienelementen der Maschine fokussieren. Kamera, Drehvorrichtung und Förderband müssen separat eingerichtet werden."
+          },
+          "atomstack_glacier_90w": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "USB: 460800 Baud. 800 x 800 mm, Ursprung vorne links, S1000. $30 und Lasermodus $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. Andere Firmware und Erweiterungen müssen separat eingerichtet werden. Vor dem Rahmenlauf mit den Bedienelementen der Maschine fokussieren. Kamera, Drehvorrichtung und Förderband müssen separat eingerichtet werden. Den Leistungsmodus in AtomStack Studio wählen und das Programm schließen, bevor Beam Bench verbunden wird."
+          },
+          "atomstack_glacier_120w": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "USB: 460800 Baud. 800 x 800 mm, Ursprung vorne links, S1000. $30 und Lasermodus $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. Andere Firmware und Erweiterungen müssen separat eingerichtet werden. Vor dem Rahmenlauf mit den Bedienelementen der Maschine fokussieren. Kamera, Drehvorrichtung und Förderband müssen separat eingerichtet werden. Den Leistungsmodus in AtomStack Studio wählen und das Programm schließen, bevor Beam Bench verbunden wird."
           }
         },
         "report_active_profile": "Speichern und aktivieren Sie dieses Profil, um seine Einstellungen mit den Ergebnissen zu teilen.",

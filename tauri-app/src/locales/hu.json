@@ -2410,6 +2410,138 @@
           "acmer_s2_pro_48w": {
             "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
             "advisory": "400 x 400 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek."
+          },
+          "atomstack_swift_7w": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "USB: 460800 baud. 300 x 300 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek."
+          },
+          "atomstack_swift_12w": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "USB: 460800 baud. 300 x 300 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek."
+          },
+          "atomstack_a5_10w": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "410 x 400 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek. Állandó teljesítmény (M3)."
+          },
+          "atomstack_a5_15w": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "410 x 400 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek. Állandó teljesítmény (M3)."
+          },
+          "atomstack_a5_20w": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "410 x 400 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek. Állandó teljesítmény (M3)."
+          },
+          "atomstack_a5_30w": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "410 x 400 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek. Állandó teljesítmény (M3)."
+          },
+          "atomstack_a5_pro": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "410 x 400 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek. Állandó teljesítmény (M3)."
+          },
+          "atomstack_a5_pro_plus": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "410 x 400 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek. Állandó teljesítmény (M3)."
+          },
+          "atomstack_a5_m30": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "410 x 400 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek. Állandó teljesítmény (M3)."
+          },
+          "atomstack_a5_m40": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "410 x 400 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek. Állandó teljesítmény (M3)."
+          },
+          "atomstack_a5_m50": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "410 x 400 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek. Állandó teljesítmény (M3)."
+          },
+          "atomstack_a5_m50_pro": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "410 x 400 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek. Állandó teljesítmény (M3)."
+          },
+          "atomstack_a5_pro_v2": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "400 x 365 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek."
+          },
+          "atomstack_a6_pro": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "365 x 305 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek."
+          },
+          "atomstack_a12_pro": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "365 x 305 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek."
+          },
+          "atomstack_a24_pro": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "360 x 280 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek."
+          },
+          "atomstack_x12_pro": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "365 x 305 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek."
+          },
+          "atomstack_a20_pro": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "400 x 400 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek. Állandó teljesítmény (M3)."
+          },
+          "atomstack_a30_pro": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "400 x 400 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek. Állandó teljesítmény (M3)."
+          },
+          "atomstack_a40_pro": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "400 x 400 mm, bal elülső origó, S1000, M7/M9 levegőrásegítés. Ellenőrizze a $30, $32=1 értékeket, a végálláskapcsolókat és a szivattyút. Az automatikus alaphelyzetbe állás alapértelmezetten ki van kapcsolva. A módosított gépek külön beállítást igényelnek."
+          },
+          "atomstack_a40_max": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "800 x 400 mm, bal elülső origó, S1000, M7/M9 levegőrásegítés. Ellenőrizze a $30, $32=1 értékeket, a végálláskapcsolókat és a szivattyút. Az automatikus alaphelyzetbe állás alapértelmezetten ki van kapcsolva. A módosított gépek külön beállítást igényelnek."
+          },
+          "atomstack_x40_pro": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "400 x 400 mm, bal elülső origó, S1000, M7/M9 levegőrásegítés. Ellenőrizze a $30, $32=1 értékeket, a végálláskapcsolókat és a szivattyút. Az automatikus alaphelyzetbe állás alapértelmezetten ki van kapcsolva. A módosított gépek külön beállítást igényelnek."
+          },
+          "atomstack_x40_max": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "800 x 400 mm, bal elülső origó, S1000, M7/M9 levegőrásegítés. Ellenőrizze a $30, $32=1 értékeket, a végálláskapcsolókat és a szivattyút. Az automatikus alaphelyzetbe állás alapértelmezetten ki van kapcsolva. A módosított gépek külön beállítást igényelnek."
+          },
+          "atomstack_s40_pro": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "400 x 400 mm, bal elülső origó, S1000, M7/M9 levegőrásegítés. Ellenőrizze a $30, $32=1 értékeket, a végálláskapcsolókat és a szivattyút. Az automatikus alaphelyzetbe állás alapértelmezetten ki van kapcsolva. A módosított gépek külön beállítást igényelnek."
+          },
+          "atomstack_s40_max": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "800 x 400 mm, bal elülső origó, S1000, M7/M9 levegőrásegítés. Ellenőrizze a $30, $32=1 értékeket, a végálláskapcsolókat és a szivattyút. Az automatikus alaphelyzetbe állás alapértelmezetten ki van kapcsolva. A módosított gépek külön beállítást igényelnek."
+          },
+          "atomstack_a70_pro": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "500 x 400 mm, bal elülső origó, S1000, M8/M9 levegőrásegítés. Ellenőrizze a $30, $32=1 értékeket, a végálláskapcsolókat és a szivattyút. Az automatikus alaphelyzetbe állás alapértelmezetten ki van kapcsolva. A módosított gépek külön beállítást igényelnek. A keretezés előtt állítsa be a fókuszt a gép kezelőszerveivel. A kamera, a forgató és a szállítószalag külön beállítást igényel."
+          },
+          "atomstack_a70_max": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "850 x 800 mm, bal elülső origó, S1000, M8/M9 levegőrásegítés. Ellenőrizze a $30, $32=1 értékeket, a végálláskapcsolókat és a szivattyút. Az automatikus alaphelyzetbe állás alapértelmezetten ki van kapcsolva. A módosított gépek külön beállítást igényelnek. A keretezés előtt állítsa be a fókuszt a gép kezelőszerveivel. A kamera, a forgató és a szállítószalag külön beállítást igényel."
+          },
+          "atomstack_x70_max": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "850 x 800 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek. A keretezés előtt állítsa be a fókuszt a gép kezelőszerveivel. A kamera, a forgató és a szállítószalag külön beállítást igényel."
+          },
+          "atomstack_p1_5w": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "USB: 460800 baud. 110 x 110 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek."
+          },
+          "atomstack_kraft_lite_40w": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "USB: 460800 baud. 500 x 320 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek. A keretezés előtt állítsa be a fókuszt a gép kezelőszerveivel. A kamera, a forgató és a szállítószalag külön beállítást igényel."
+          },
+          "atomstack_hurricane_55w": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "USB: 460800 baud. 500 x 300 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek. A keretezés előtt állítsa be a fókuszt a gép kezelőszerveivel. A kamera, a forgató és a szállítószalag külön beállítást igényel."
+          },
+          "atomstack_glacier_90w": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "USB: 460800 baud. 800 x 800 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek. A keretezés előtt állítsa be a fókuszt a gép kezelőszerveivel. A kamera, a forgató és a szállítószalag külön beállítást igényel. Válassza ki a teljesítménymódot az AtomStack Studio programban, majd zárja be a Beam Bench csatlakoztatása előtt."
+          },
+          "atomstack_glacier_120w": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "USB: 460800 baud. 800 x 800 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek. A keretezés előtt állítsa be a fókuszt a gép kezelőszerveivel. A kamera, a forgató és a szállítószalag külön beállítást igényel. Válassza ki a teljesítménymódot az AtomStack Studio programban, majd zárja be a Beam Bench csatlakoztatása előtt."
           }
         },
         "report_active_profile": "Mentse és aktiválja ezt a profilt, hogy beállításait az eredményekkel együtt megoszthassa.",

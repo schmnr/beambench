@@ -25,6 +25,7 @@ Shared fixtures:
 - Undo / Redo Expectation: N/A
 - Status: Active
 
+
 ### NL-002 — Warm Launch With Persisted State
 - Source Ref: `FSW-002`, `FSW-024`; `LB 17`
 - Feature / Function: Restore recent files, layout, and persisted shell state
@@ -984,4 +985,17 @@ Shared fixtures:
 - Edge / Negative Cases: Floating panels, nested dialog openings, System-theme changes while a dialog is open, and 200% zoom must not hide controls, trap focus irrecoverably, or produce mixed-theme portal content.
 - Persistence / Reopen Check: N/A
 - Undo / Redo Expectation: Non-mutating.
+- Status: Active
+
+### NL-075 — AtomStack Presets And Remembered USB Baud
+- Source Ref: `FSW-018`; `docs/machines/atomstack-usb-presets.md`
+- Feature / Function: Model-specific profile defaults and saved serial settings
+- Hardware Requirement: None; do not connect a laser for this check
+- Prerequisites: Machine Profiles and Device Settings available
+- Setup / Fixture: A saved serial profile at 115200 with a remembered port, plus a network profile
+- Steps: Select Swift 7W, preview and apply its preset, save, close and reopen Device Settings. Repeat with another 460800 model and an original 115200 model. Inspect the M3 original A5 entries, M7 original 40 Pro/Max entries, M8 A70 entries, and separate Pro V2 workspaces. Check representative guidance in English and one other locale. Preview a preset on the network profile.
+- Expected Result: Swift has a 300 x 300 mm workspace and both default and remembered USB baud become 460800. Reopening retains the port and selected baud. Switching to a 115200 preset updates both rates. The model-specific dimensions, power mode and pump commands match the evidence record. Network host/port remain unchanged. No connection or motion occurs from preset application.
+- Edge / Negative Cases: Canceling the preset preview leaves settings intact; existing owner home-on-connect preference is preserved; Glacier guidance requires power-mode selection in AtomStack Studio before Beam Bench connects.
+- Persistence / Reopen Check: Reopen the saved profile and Device Settings and verify both serial baud settings agree with the applied preset.
+- Undo / Redo Expectation: Profile settings are app-data mutations; preset preview remains available before application.
 - Status: Active

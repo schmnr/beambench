@@ -115,10 +115,11 @@ these presets. Existing crosshair mode, autofocus/Z setup, hardware power-mode
 switching, infrared replacements and recovery of offline jobs need separate
 review. No vendor macros or configuration files are copied or sent.
 
-Original, non-V2 A10/A20/A40 Pro configurations are not represented by these
-IDs. Older manufacturer download links and reused product URLs do not establish
-that their travel and accessories match V2. Keep those revisions under review
-until exact profiles or independently verifiable specifications are available.
+Original, non-V2 configurations are not represented by these V2 IDs. The later
+[AtomStack catalog evidence](atomstack-usb-presets.md) adds separate entries for
+documented original A20/A40 Pro and other revisions. Original A10 Pro remains
+under review. Older download links and reused product URLs alone do not establish
+that travel and accessories match V2.
 
 ## Standard Creality Falcon2
 

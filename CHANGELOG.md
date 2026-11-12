@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Add 33 AtomStack USB presets, including Swift 7W/12W and documented original,
+  Pro, Max, P1, Kraft Lite, Hurricane and Glacier configurations. Retain separate
+  baud rates, workspaces, power modes and air commands by model. Physical
+  testing is pending.
+- Update remembered USB baud when applying a machine preset so reopening Device
+  Settings uses the selected model's connection speed.
 - Keep resized rounded and concave rectangle outlines consistent with tab
   placement, previews and cutting paths, including older projects and clones.
   Recheck tab hits at click time and remove highlighted markers at their

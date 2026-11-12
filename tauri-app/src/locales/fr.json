@@ -2410,6 +2410,138 @@
           "acmer_s2_pro_48w": {
             "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
             "advisory": "400 x 400 mm, origine à l'avant gauche, S1000. Vérifiez $30 et le mode laser $32=1. La prise d'origine et l'assistance d'air automatique sont désactivées. Les autres firmwares et les extensions nécessitent une configuration distincte."
+          },
+          "atomstack_swift_7w": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "USB : 460800 bauds. 300 x 300 mm, origine à l'avant gauche, S1000. Vérifiez $30 et le mode laser $32=1. La prise d'origine et l'assistance d'air automatique sont désactivées. Les autres firmwares et les extensions nécessitent une configuration distincte."
+          },
+          "atomstack_swift_12w": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "USB : 460800 bauds. 300 x 300 mm, origine à l'avant gauche, S1000. Vérifiez $30 et le mode laser $32=1. La prise d'origine et l'assistance d'air automatique sont désactivées. Les autres firmwares et les extensions nécessitent une configuration distincte."
+          },
+          "atomstack_a5_10w": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "410 x 400 mm, origine à l'avant gauche, S1000. Vérifiez $30 et le mode laser $32=1. La prise d'origine et l'assistance d'air automatique sont désactivées. Les autres firmwares et les extensions nécessitent une configuration distincte. Puissance constante (M3)."
+          },
+          "atomstack_a5_15w": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "410 x 400 mm, origine à l'avant gauche, S1000. Vérifiez $30 et le mode laser $32=1. La prise d'origine et l'assistance d'air automatique sont désactivées. Les autres firmwares et les extensions nécessitent une configuration distincte. Puissance constante (M3)."
+          },
+          "atomstack_a5_20w": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "410 x 400 mm, origine à l'avant gauche, S1000. Vérifiez $30 et le mode laser $32=1. La prise d'origine et l'assistance d'air automatique sont désactivées. Les autres firmwares et les extensions nécessitent une configuration distincte. Puissance constante (M3)."
+          },
+          "atomstack_a5_30w": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "410 x 400 mm, origine à l'avant gauche, S1000. Vérifiez $30 et le mode laser $32=1. La prise d'origine et l'assistance d'air automatique sont désactivées. Les autres firmwares et les extensions nécessitent une configuration distincte. Puissance constante (M3)."
+          },
+          "atomstack_a5_pro": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "410 x 400 mm, origine à l'avant gauche, S1000. Vérifiez $30 et le mode laser $32=1. La prise d'origine et l'assistance d'air automatique sont désactivées. Les autres firmwares et les extensions nécessitent une configuration distincte. Puissance constante (M3)."
+          },
+          "atomstack_a5_pro_plus": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "410 x 400 mm, origine à l'avant gauche, S1000. Vérifiez $30 et le mode laser $32=1. La prise d'origine et l'assistance d'air automatique sont désactivées. Les autres firmwares et les extensions nécessitent une configuration distincte. Puissance constante (M3)."
+          },
+          "atomstack_a5_m30": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "410 x 400 mm, origine à l'avant gauche, S1000. Vérifiez $30 et le mode laser $32=1. La prise d'origine et l'assistance d'air automatique sont désactivées. Les autres firmwares et les extensions nécessitent une configuration distincte. Puissance constante (M3)."
+          },
+          "atomstack_a5_m40": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "410 x 400 mm, origine à l'avant gauche, S1000. Vérifiez $30 et le mode laser $32=1. La prise d'origine et l'assistance d'air automatique sont désactivées. Les autres firmwares et les extensions nécessitent une configuration distincte. Puissance constante (M3)."
+          },
+          "atomstack_a5_m50": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "410 x 400 mm, origine à l'avant gauche, S1000. Vérifiez $30 et le mode laser $32=1. La prise d'origine et l'assistance d'air automatique sont désactivées. Les autres firmwares et les extensions nécessitent une configuration distincte. Puissance constante (M3)."
+          },
+          "atomstack_a5_m50_pro": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "410 x 400 mm, origine à l'avant gauche, S1000. Vérifiez $30 et le mode laser $32=1. La prise d'origine et l'assistance d'air automatique sont désactivées. Les autres firmwares et les extensions nécessitent une configuration distincte. Puissance constante (M3)."
+          },
+          "atomstack_a5_pro_v2": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "400 x 365 mm, origine à l'avant gauche, S1000. Vérifiez $30 et le mode laser $32=1. La prise d'origine et l'assistance d'air automatique sont désactivées. Les autres firmwares et les extensions nécessitent une configuration distincte."
+          },
+          "atomstack_a6_pro": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "365 x 305 mm, origine à l'avant gauche, S1000. Vérifiez $30 et le mode laser $32=1. La prise d'origine et l'assistance d'air automatique sont désactivées. Les autres firmwares et les extensions nécessitent une configuration distincte."
+          },
+          "atomstack_a12_pro": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "365 x 305 mm, origine à l'avant gauche, S1000. Vérifiez $30 et le mode laser $32=1. La prise d'origine et l'assistance d'air automatique sont désactivées. Les autres firmwares et les extensions nécessitent une configuration distincte."
+          },
+          "atomstack_a24_pro": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "360 x 280 mm, origine à l'avant gauche, S1000. Vérifiez $30 et le mode laser $32=1. La prise d'origine et l'assistance d'air automatique sont désactivées. Les autres firmwares et les extensions nécessitent une configuration distincte."
+          },
+          "atomstack_x12_pro": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "365 x 305 mm, origine à l'avant gauche, S1000. Vérifiez $30 et le mode laser $32=1. La prise d'origine et l'assistance d'air automatique sont désactivées. Les autres firmwares et les extensions nécessitent une configuration distincte."
+          },
+          "atomstack_a20_pro": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "400 x 400 mm, origine à l'avant gauche, S1000. Vérifiez $30 et le mode laser $32=1. La prise d'origine et l'assistance d'air automatique sont désactivées. Les autres firmwares et les extensions nécessitent une configuration distincte. Puissance constante (M3)."
+          },
+          "atomstack_a30_pro": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "400 x 400 mm, origine à l'avant gauche, S1000. Vérifiez $30 et le mode laser $32=1. La prise d'origine et l'assistance d'air automatique sont désactivées. Les autres firmwares et les extensions nécessitent une configuration distincte. Puissance constante (M3)."
+          },
+          "atomstack_a40_pro": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "400 x 400 mm, origine avant gauche, S1000, assistance air M7/M9. Vérifiez $30, $32=1, les fins de course et la pompe. Le référencement automatique est désactivé par défaut. Les machines modifiées nécessitent une configuration distincte."
+          },
+          "atomstack_a40_max": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "800 x 400 mm, origine avant gauche, S1000, assistance air M7/M9. Vérifiez $30, $32=1, les fins de course et la pompe. Le référencement automatique est désactivé par défaut. Les machines modifiées nécessitent une configuration distincte."
+          },
+          "atomstack_x40_pro": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "400 x 400 mm, origine avant gauche, S1000, assistance air M7/M9. Vérifiez $30, $32=1, les fins de course et la pompe. Le référencement automatique est désactivé par défaut. Les machines modifiées nécessitent une configuration distincte."
+          },
+          "atomstack_x40_max": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "800 x 400 mm, origine avant gauche, S1000, assistance air M7/M9. Vérifiez $30, $32=1, les fins de course et la pompe. Le référencement automatique est désactivé par défaut. Les machines modifiées nécessitent une configuration distincte."
+          },
+          "atomstack_s40_pro": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "400 x 400 mm, origine avant gauche, S1000, assistance air M7/M9. Vérifiez $30, $32=1, les fins de course et la pompe. Le référencement automatique est désactivé par défaut. Les machines modifiées nécessitent une configuration distincte."
+          },
+          "atomstack_s40_max": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "800 x 400 mm, origine avant gauche, S1000, assistance air M7/M9. Vérifiez $30, $32=1, les fins de course et la pompe. Le référencement automatique est désactivé par défaut. Les machines modifiées nécessitent une configuration distincte."
+          },
+          "atomstack_a70_pro": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "500 x 400 mm, origine avant gauche, S1000, assistance air M8/M9. Vérifiez $30, $32=1, les fins de course et la pompe. Le référencement automatique est désactivé par défaut. Les machines modifiées nécessitent une configuration distincte. Réglez la mise au point avec les commandes de la machine avant le cadrage. La caméra, le module rotatif et le convoyeur nécessitent une configuration distincte."
+          },
+          "atomstack_a70_max": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "850 x 800 mm, origine avant gauche, S1000, assistance air M8/M9. Vérifiez $30, $32=1, les fins de course et la pompe. Le référencement automatique est désactivé par défaut. Les machines modifiées nécessitent une configuration distincte. Réglez la mise au point avec les commandes de la machine avant le cadrage. La caméra, le module rotatif et le convoyeur nécessitent une configuration distincte."
+          },
+          "atomstack_x70_max": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "850 x 800 mm, origine à l'avant gauche, S1000. Vérifiez $30 et le mode laser $32=1. La prise d'origine et l'assistance d'air automatique sont désactivées. Les autres firmwares et les extensions nécessitent une configuration distincte. Réglez la mise au point avec les commandes de la machine avant le cadrage. La caméra, le module rotatif et le convoyeur nécessitent une configuration distincte."
+          },
+          "atomstack_p1_5w": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "USB : 460800 bauds. 110 x 110 mm, origine à l'avant gauche, S1000. Vérifiez $30 et le mode laser $32=1. La prise d'origine et l'assistance d'air automatique sont désactivées. Les autres firmwares et les extensions nécessitent une configuration distincte."
+          },
+          "atomstack_kraft_lite_40w": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "USB : 460800 bauds. 500 x 320 mm, origine à l'avant gauche, S1000. Vérifiez $30 et le mode laser $32=1. La prise d'origine et l'assistance d'air automatique sont désactivées. Les autres firmwares et les extensions nécessitent une configuration distincte. Réglez la mise au point avec les commandes de la machine avant le cadrage. La caméra, le module rotatif et le convoyeur nécessitent une configuration distincte."
+          },
+          "atomstack_hurricane_55w": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "USB : 460800 bauds. 500 x 300 mm, origine à l'avant gauche, S1000. Vérifiez $30 et le mode laser $32=1. La prise d'origine et l'assistance d'air automatique sont désactivées. Les autres firmwares et les extensions nécessitent une configuration distincte. Réglez la mise au point avec les commandes de la machine avant le cadrage. La caméra, le module rotatif et le convoyeur nécessitent une configuration distincte."
+          },
+          "atomstack_glacier_90w": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "USB : 460800 bauds. 800 x 800 mm, origine à l'avant gauche, S1000. Vérifiez $30 et le mode laser $32=1. La prise d'origine et l'assistance d'air automatique sont désactivées. Les autres firmwares et les extensions nécessitent une configuration distincte. Réglez la mise au point avec les commandes de la machine avant le cadrage. La caméra, le module rotatif et le convoyeur nécessitent une configuration distincte. Sélectionnez le mode de puissance dans AtomStack Studio, puis fermez ce logiciel avant de connecter Beam Bench."
+          },
+          "atomstack_glacier_120w": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "USB : 460800 bauds. 800 x 800 mm, origine à l'avant gauche, S1000. Vérifiez $30 et le mode laser $32=1. La prise d'origine et l'assistance d'air automatique sont désactivées. Les autres firmwares et les extensions nécessitent une configuration distincte. Réglez la mise au point avec les commandes de la machine avant le cadrage. La caméra, le module rotatif et le convoyeur nécessitent une configuration distincte. Sélectionnez le mode de puissance dans AtomStack Studio, puis fermez ce logiciel avant de connecter Beam Bench."
           }
         },
         "report_active_profile": "Enregistrez et activez ce profil pour joindre ses réglages à vos résultats.",

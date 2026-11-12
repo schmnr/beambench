@@ -2410,6 +2410,138 @@
           "acmer_s2_pro_48w": {
             "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
             "advisory": "400 x 400 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení."
+          },
+          "atomstack_swift_7w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "USB: 460800 baudů. 300 x 300 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení."
+          },
+          "atomstack_swift_12w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "USB: 460800 baudů. 300 x 300 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení."
+          },
+          "atomstack_a5_10w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "410 x 400 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení. Konstantní výkon (M3)."
+          },
+          "atomstack_a5_15w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "410 x 400 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení. Konstantní výkon (M3)."
+          },
+          "atomstack_a5_20w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "410 x 400 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení. Konstantní výkon (M3)."
+          },
+          "atomstack_a5_30w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "410 x 400 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení. Konstantní výkon (M3)."
+          },
+          "atomstack_a5_pro": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "410 x 400 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení. Konstantní výkon (M3)."
+          },
+          "atomstack_a5_pro_plus": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "410 x 400 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení. Konstantní výkon (M3)."
+          },
+          "atomstack_a5_m30": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "410 x 400 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení. Konstantní výkon (M3)."
+          },
+          "atomstack_a5_m40": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "410 x 400 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení. Konstantní výkon (M3)."
+          },
+          "atomstack_a5_m50": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "410 x 400 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení. Konstantní výkon (M3)."
+          },
+          "atomstack_a5_m50_pro": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "410 x 400 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení. Konstantní výkon (M3)."
+          },
+          "atomstack_a5_pro_v2": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "400 x 365 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení."
+          },
+          "atomstack_a6_pro": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "365 x 305 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení."
+          },
+          "atomstack_a12_pro": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "365 x 305 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení."
+          },
+          "atomstack_a24_pro": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "360 x 280 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení."
+          },
+          "atomstack_x12_pro": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "365 x 305 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení."
+          },
+          "atomstack_a20_pro": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "400 x 400 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení. Konstantní výkon (M3)."
+          },
+          "atomstack_a30_pro": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "400 x 400 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení. Konstantní výkon (M3)."
+          },
+          "atomstack_a40_pro": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "400 x 400 mm, počátek vpředu vlevo, S1000, ofuk M7/M9. Ověřte $30, $32=1, koncové spínače a čerpadlo. Automatické najetí do výchozí polohy je ve výchozím nastavení vypnuté. Upravené stroje vyžadují samostatné nastavení."
+          },
+          "atomstack_a40_max": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "800 x 400 mm, počátek vpředu vlevo, S1000, ofuk M7/M9. Ověřte $30, $32=1, koncové spínače a čerpadlo. Automatické najetí do výchozí polohy je ve výchozím nastavení vypnuté. Upravené stroje vyžadují samostatné nastavení."
+          },
+          "atomstack_x40_pro": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "400 x 400 mm, počátek vpředu vlevo, S1000, ofuk M7/M9. Ověřte $30, $32=1, koncové spínače a čerpadlo. Automatické najetí do výchozí polohy je ve výchozím nastavení vypnuté. Upravené stroje vyžadují samostatné nastavení."
+          },
+          "atomstack_x40_max": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "800 x 400 mm, počátek vpředu vlevo, S1000, ofuk M7/M9. Ověřte $30, $32=1, koncové spínače a čerpadlo. Automatické najetí do výchozí polohy je ve výchozím nastavení vypnuté. Upravené stroje vyžadují samostatné nastavení."
+          },
+          "atomstack_s40_pro": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "400 x 400 mm, počátek vpředu vlevo, S1000, ofuk M7/M9. Ověřte $30, $32=1, koncové spínače a čerpadlo. Automatické najetí do výchozí polohy je ve výchozím nastavení vypnuté. Upravené stroje vyžadují samostatné nastavení."
+          },
+          "atomstack_s40_max": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "800 x 400 mm, počátek vpředu vlevo, S1000, ofuk M7/M9. Ověřte $30, $32=1, koncové spínače a čerpadlo. Automatické najetí do výchozí polohy je ve výchozím nastavení vypnuté. Upravené stroje vyžadují samostatné nastavení."
+          },
+          "atomstack_a70_pro": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "500 x 400 mm, počátek vpředu vlevo, S1000, ofuk M8/M9. Ověřte $30, $32=1, koncové spínače a čerpadlo. Automatické najetí do výchozí polohy je ve výchozím nastavení vypnuté. Upravené stroje vyžadují samostatné nastavení. Před obkreslením rámečku zaostřete pomocí ovládání stroje. Kamera, rotační zařízení a dopravník vyžadují samostatné nastavení."
+          },
+          "atomstack_a70_max": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "850 x 800 mm, počátek vpředu vlevo, S1000, ofuk M8/M9. Ověřte $30, $32=1, koncové spínače a čerpadlo. Automatické najetí do výchozí polohy je ve výchozím nastavení vypnuté. Upravené stroje vyžadují samostatné nastavení. Před obkreslením rámečku zaostřete pomocí ovládání stroje. Kamera, rotační zařízení a dopravník vyžadují samostatné nastavení."
+          },
+          "atomstack_x70_max": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "850 x 800 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení. Před obkreslením rámečku zaostřete pomocí ovládání stroje. Kamera, rotační zařízení a dopravník vyžadují samostatné nastavení."
+          },
+          "atomstack_p1_5w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "USB: 460800 baudů. 110 x 110 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení."
+          },
+          "atomstack_kraft_lite_40w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "USB: 460800 baudů. 500 x 320 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení. Před obkreslením rámečku zaostřete pomocí ovládání stroje. Kamera, rotační zařízení a dopravník vyžadují samostatné nastavení."
+          },
+          "atomstack_hurricane_55w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "USB: 460800 baudů. 500 x 300 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení. Před obkreslením rámečku zaostřete pomocí ovládání stroje. Kamera, rotační zařízení a dopravník vyžadují samostatné nastavení."
+          },
+          "atomstack_glacier_90w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "USB: 460800 baudů. 800 x 800 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení. Před obkreslením rámečku zaostřete pomocí ovládání stroje. Kamera, rotační zařízení a dopravník vyžadují samostatné nastavení. Vyberte režim výkonu v AtomStack Studio a před připojením Beam Bench tento program zavřete."
+          },
+          "atomstack_glacier_120w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "USB: 460800 baudů. 800 x 800 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení. Před obkreslením rámečku zaostřete pomocí ovládání stroje. Kamera, rotační zařízení a dopravník vyžadují samostatné nastavení. Vyberte režim výkonu v AtomStack Studio a před připojením Beam Bench tento program zavřete."
           }
         },
         "report_active_profile": "Uložte a aktivujte tento profil, chcete-li sdílet jeho nastavení s výsledky.",

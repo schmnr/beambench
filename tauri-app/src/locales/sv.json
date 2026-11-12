@@ -2410,6 +2410,138 @@
           "acmer_s2_pro_48w": {
             "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
             "advisory": "400 x 400 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning."
+          },
+          "atomstack_swift_7w": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "USB: 460800 baud. 300 x 300 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning."
+          },
+          "atomstack_swift_12w": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "USB: 460800 baud. 300 x 300 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning."
+          },
+          "atomstack_a5_10w": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "410 x 400 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning. Konstant effekt (M3)."
+          },
+          "atomstack_a5_15w": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "410 x 400 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning. Konstant effekt (M3)."
+          },
+          "atomstack_a5_20w": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "410 x 400 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning. Konstant effekt (M3)."
+          },
+          "atomstack_a5_30w": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "410 x 400 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning. Konstant effekt (M3)."
+          },
+          "atomstack_a5_pro": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "410 x 400 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning. Konstant effekt (M3)."
+          },
+          "atomstack_a5_pro_plus": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "410 x 400 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning. Konstant effekt (M3)."
+          },
+          "atomstack_a5_m30": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "410 x 400 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning. Konstant effekt (M3)."
+          },
+          "atomstack_a5_m40": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "410 x 400 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning. Konstant effekt (M3)."
+          },
+          "atomstack_a5_m50": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "410 x 400 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning. Konstant effekt (M3)."
+          },
+          "atomstack_a5_m50_pro": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "410 x 400 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning. Konstant effekt (M3)."
+          },
+          "atomstack_a5_pro_v2": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "400 x 365 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning."
+          },
+          "atomstack_a6_pro": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "365 x 305 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning."
+          },
+          "atomstack_a12_pro": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "365 x 305 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning."
+          },
+          "atomstack_a24_pro": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "360 x 280 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning."
+          },
+          "atomstack_x12_pro": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "365 x 305 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning."
+          },
+          "atomstack_a20_pro": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "400 x 400 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning. Konstant effekt (M3)."
+          },
+          "atomstack_a30_pro": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "400 x 400 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning. Konstant effekt (M3)."
+          },
+          "atomstack_a40_pro": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "400 x 400 mm, origo fram till vänster, S1000, luftassistans M7/M9. Kontrollera $30, $32=1, gränslägesbrytare och pump. Automatisk hemkörning är av som standard. Modifierade maskiner kräver separat inställning."
+          },
+          "atomstack_a40_max": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "800 x 400 mm, origo fram till vänster, S1000, luftassistans M7/M9. Kontrollera $30, $32=1, gränslägesbrytare och pump. Automatisk hemkörning är av som standard. Modifierade maskiner kräver separat inställning."
+          },
+          "atomstack_x40_pro": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "400 x 400 mm, origo fram till vänster, S1000, luftassistans M7/M9. Kontrollera $30, $32=1, gränslägesbrytare och pump. Automatisk hemkörning är av som standard. Modifierade maskiner kräver separat inställning."
+          },
+          "atomstack_x40_max": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "800 x 400 mm, origo fram till vänster, S1000, luftassistans M7/M9. Kontrollera $30, $32=1, gränslägesbrytare och pump. Automatisk hemkörning är av som standard. Modifierade maskiner kräver separat inställning."
+          },
+          "atomstack_s40_pro": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "400 x 400 mm, origo fram till vänster, S1000, luftassistans M7/M9. Kontrollera $30, $32=1, gränslägesbrytare och pump. Automatisk hemkörning är av som standard. Modifierade maskiner kräver separat inställning."
+          },
+          "atomstack_s40_max": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "800 x 400 mm, origo fram till vänster, S1000, luftassistans M7/M9. Kontrollera $30, $32=1, gränslägesbrytare och pump. Automatisk hemkörning är av som standard. Modifierade maskiner kräver separat inställning."
+          },
+          "atomstack_a70_pro": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "500 x 400 mm, origo fram till vänster, S1000, luftassistans M8/M9. Kontrollera $30, $32=1, gränslägesbrytare och pump. Automatisk hemkörning är av som standard. Modifierade maskiner kräver separat inställning. Ställ in fokus med maskinens reglage före inramning. Kamera, rotationsenhet och transportband måste ställas in separat."
+          },
+          "atomstack_a70_max": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "850 x 800 mm, origo fram till vänster, S1000, luftassistans M8/M9. Kontrollera $30, $32=1, gränslägesbrytare och pump. Automatisk hemkörning är av som standard. Modifierade maskiner kräver separat inställning. Ställ in fokus med maskinens reglage före inramning. Kamera, rotationsenhet och transportband måste ställas in separat."
+          },
+          "atomstack_x70_max": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "850 x 800 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning. Ställ in fokus med maskinens reglage före inramning. Kamera, rotationsenhet och transportband måste ställas in separat."
+          },
+          "atomstack_p1_5w": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "USB: 460800 baud. 110 x 110 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning."
+          },
+          "atomstack_kraft_lite_40w": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "USB: 460800 baud. 500 x 320 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning. Ställ in fokus med maskinens reglage före inramning. Kamera, rotationsenhet och transportband måste ställas in separat."
+          },
+          "atomstack_hurricane_55w": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "USB: 460800 baud. 500 x 300 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning. Ställ in fokus med maskinens reglage före inramning. Kamera, rotationsenhet och transportband måste ställas in separat."
+          },
+          "atomstack_glacier_90w": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "USB: 460800 baud. 800 x 800 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning. Ställ in fokus med maskinens reglage före inramning. Kamera, rotationsenhet och transportband måste ställas in separat. Välj effektläge i AtomStack Studio och stäng programmet innan du ansluter Beam Bench."
+          },
+          "atomstack_glacier_120w": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "USB: 460800 baud. 800 x 800 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning. Ställ in fokus med maskinens reglage före inramning. Kamera, rotationsenhet och transportband måste ställas in separat. Välj effektläge i AtomStack Studio och stäng programmet innan du ansluter Beam Bench."
           }
         },
         "report_active_profile": "Spara och aktivera profilen för att dela dess inställningar med resultaten.",

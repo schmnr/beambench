@@ -24,7 +24,7 @@ Reviewed product inventories:
 
 Manual case inventory in this suite:
 
-- `NL-001` through `NL-074`: software-only executable cases
+- `NL-001` through `NL-075`: software-only executable cases
 - `HW-001` through `HW-036`: connected-machine executable cases
 - `CAM-001` through `CAM-007`: camera executable cases
 - `DSP-001` through `DSP-006`: DSP-family executable cases
@@ -36,7 +36,7 @@ Manual case inventory in this suite:
 
 | Suite | Hardware Requirement | Count | Primary Document |
 | --- | --- | ---: | --- |
-| `NL` | `None` | 74 | [manual-test-cases-no-laser.md](manual-test-cases-no-laser.md) |
+| `NL` | `None` | 75 | [manual-test-cases-no-laser.md](manual-test-cases-no-laser.md) |
 | `HW` | `Laser` | 36 | [manual-test-cases-with-laser.md](manual-test-cases-with-laser.md) |
 | `CAM` | `Laser+Camera` | 7 | [manual-test-cases-with-laser.md](manual-test-cases-with-laser.md) |
 | `DSP` | `DSP` | 6 | [manual-test-cases-with-laser.md](manual-test-cases-with-laser.md) |
@@ -60,6 +60,7 @@ Manual case inventory in this suite:
 | Raster/image workflows | `NL-060` to `NL-061` | `None` |
 | Import/export/preview | `NL-062` to `NL-064` | `None` |
 | Libraries, macros, settings, diagnostics, shortcuts, accessibility | `NL-065` to `NL-074` | `None` |
+| AtomStack preset application and remembered USB baud | `NL-075` | `None` |
 | Profiles, discovery, connection, console, jog, positioning, job runtime | `HW-001` to `HW-036` | `Laser` |
 | Camera capture, overlay, calibration, alignment | `CAM-001` to `CAM-007` | `Laser+Camera` |
 | DSP capability/runtime verification | `DSP-001` to `DSP-006` | `DSP` |
@@ -86,7 +87,7 @@ Manual case inventory in this suite:
 | `FSW-015` | Planning/preview/output | `NL-063`, `NL-064`, `HW-025`, `HW-026` | Mapped |
 | `FSW-016` | Materials library | `NL-065`, `NL-066` | Mapped |
 | `FSW-017` | Macros and console | `NL-069`, `NL-070`, `HW-013`, `HW-014` | Mapped |
-| `FSW-018` | Device settings and profiles | `HW-001`, `HW-002`, `DSP-004`, `DSP-005`, `GAL-004` | Mapped |
+| `FSW-018` | Device settings and profiles | `NL-075`, `HW-001`, `HW-002`, `DSP-004`, `DSP-005`, `GAL-004` | Mapped |
 | `FSW-019` | Machine session and jobs | `HW-003`, `HW-007` to `HW-035`, `DSP-005`, `DSP-006` | Mapped |
 | `FSW-020` | Discovery and profile bootstrap | `HW-005`, `HW-006`, `DSP-002`, `GAL-002` | Mapped |
 | `FSW-021` | DSP/Galvo runtime support | `DSP-001` to `DSP-006`, `GAL-001` to `GAL-004` | Mapped |

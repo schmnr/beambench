@@ -7,6 +7,7 @@ import { useAppStore } from '../../../stores/appStore';
 import { useRemoteHostStore } from '../../../stores/remoteHostStore';
 import type { MachineProfile } from '../../../types/machine';
 import { xtoolM1DefaultHost } from '../../../utils/controllerConnection';
+import { atomstackPresetCases } from '../../../test-utils/atomstackPresets';
 
 const mockInvoke = vi.fn().mockResolvedValue(null);
 const mockOpen = vi.fn().mockResolvedValue(null);
@@ -1056,6 +1057,41 @@ describe('DeviceSettingsDialog', () => {
     fireEvent.click(disconnectButton);
     expect(disconnect).toHaveBeenCalledOnce();
   });
+
+  it.each(atomstackPresetCases.filter((preset) => preset.baud === 460800))(
+    'restores $presetId and connects at its documented USB rate',
+    async ({ presetId, name, baud, width, height }) => {
+      const connect = vi.fn();
+      const profile = makeProfile({
+        name,
+        preset_id: presetId,
+        preset_version: 1,
+        firmware_type: 'grbl',
+        default_baud_rate: baud,
+        bed_width_mm: width,
+        bed_height_mm: height,
+        connection_preference: {
+          type: 'serial', port_name: 'COM3', baud_rate: baud,
+          controller_selection: { mode: 'known_driver', driver: 'grbl' },
+        },
+      });
+      useMachineStore.setState({
+        profiles: [profile], activeProfileId: profile.id,
+        sessionState: 'disconnected', connectedPort: null,
+        availablePorts: [{ port_name: 'COM3', description: '', manufacturer: '', vid: null, pid: null }],
+        controllerConnectionChallenge: null, loading: false,
+        connect, refreshPorts: vi.fn().mockResolvedValue(undefined),
+      });
+      const first = render(<DeviceSettingsDialog onClose={vi.fn()} />);
+      await waitFor(() => expect((screen.getByLabelText('Baud Rate') as HTMLSelectElement).value).toBe('460800'));
+      first.unmount();
+      render(<DeviceSettingsDialog onClose={vi.fn()} />);
+      await waitFor(() => expect((screen.getByLabelText('Port') as HTMLSelectElement).value).toBe('COM3'));
+      expect((screen.getByLabelText('Baud Rate') as HTMLSelectElement).value).toBe('460800');
+      fireEvent.click(screen.getByRole('button', { name: 'Connect' }));
+      expect(connect).toHaveBeenCalledExactlyOnceWith('COM3', 460800);
+    },
+  );
 
   it('allows retrying connection from transient states', async () => {
     const connect = vi.fn();

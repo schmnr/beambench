@@ -507,6 +507,337 @@ pub fn profile_presets() -> Vec<MachineProfilePreset> {
             390.0,
             "390 x 390 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
         ),
+        // Exact AtomStack revisions and control sources: docs/machines/atomstack-usb-presets.md.
+        MachineProfilePreset {
+            default_baud_rate: 460_800,
+            ..documented_grbl_usb_preset(
+                "atomstack_swift_7w",
+                "AtomStack Swift 7W",
+                300.0,
+                300.0,
+                "USB: 460800 baud. 300 x 300 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+            )
+        },
+        MachineProfilePreset {
+            default_baud_rate: 460_800,
+            ..documented_grbl_usb_preset(
+                "atomstack_swift_12w",
+                "AtomStack Swift 12W",
+                300.0,
+                300.0,
+                "USB: 460800 baud. 300 x 300 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+            )
+        },
+        MachineProfilePreset {
+            use_constant_power: true,
+            max_speed_mm_min: 3000.0,
+            ..documented_grbl_usb_preset(
+                "atomstack_a5_10w",
+                "AtomStack A5 10W (original, input rating)",
+                410.0,
+                400.0,
+                "410 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3).",
+            )
+        },
+        MachineProfilePreset {
+            use_constant_power: true,
+            max_speed_mm_min: 3000.0,
+            ..documented_grbl_usb_preset(
+                "atomstack_a5_15w",
+                "AtomStack A5 15W (original, input rating)",
+                410.0,
+                400.0,
+                "410 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3).",
+            )
+        },
+        MachineProfilePreset {
+            use_constant_power: true,
+            max_speed_mm_min: 3000.0,
+            ..documented_grbl_usb_preset(
+                "atomstack_a5_20w",
+                "AtomStack A5 20W (original, input rating)",
+                410.0,
+                400.0,
+                "410 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3).",
+            )
+        },
+        MachineProfilePreset {
+            use_constant_power: true,
+            max_speed_mm_min: 3000.0,
+            ..documented_grbl_usb_preset(
+                "atomstack_a5_30w",
+                "AtomStack A5 30W (original, input rating)",
+                410.0,
+                400.0,
+                "410 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3).",
+            )
+        },
+        MachineProfilePreset {
+            use_constant_power: true,
+            max_speed_mm_min: 3000.0,
+            ..documented_grbl_usb_preset(
+                "atomstack_a5_pro",
+                "AtomStack A5 Pro (original)",
+                410.0,
+                400.0,
+                "410 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3).",
+            )
+        },
+        MachineProfilePreset {
+            use_constant_power: true,
+            max_speed_mm_min: 3000.0,
+            ..documented_grbl_usb_preset(
+                "atomstack_a5_pro_plus",
+                "AtomStack A5 Pro+",
+                410.0,
+                400.0,
+                "410 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3).",
+            )
+        },
+        MachineProfilePreset {
+            use_constant_power: true,
+            max_speed_mm_min: 3000.0,
+            ..documented_grbl_usb_preset(
+                "atomstack_a5_m30",
+                "AtomStack A5 M30",
+                410.0,
+                400.0,
+                "410 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3).",
+            )
+        },
+        MachineProfilePreset {
+            use_constant_power: true,
+            max_speed_mm_min: 3000.0,
+            ..documented_grbl_usb_preset(
+                "atomstack_a5_m40",
+                "AtomStack A5 M40",
+                410.0,
+                400.0,
+                "410 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3).",
+            )
+        },
+        MachineProfilePreset {
+            use_constant_power: true,
+            max_speed_mm_min: 3000.0,
+            ..documented_grbl_usb_preset(
+                "atomstack_a5_m50",
+                "AtomStack A5 M50",
+                410.0,
+                400.0,
+                "410 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3).",
+            )
+        },
+        MachineProfilePreset {
+            use_constant_power: true,
+            max_speed_mm_min: 3000.0,
+            ..documented_grbl_usb_preset(
+                "atomstack_a5_m50_pro",
+                "AtomStack A5 M50 Pro",
+                410.0,
+                400.0,
+                "410 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3).",
+            )
+        },
+        documented_grbl_usb_preset(
+            "atomstack_a5_pro_v2",
+            "AtomStack A5 Pro V2",
+            400.0,
+            365.0,
+            "400 x 365 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+        ),
+        documented_grbl_usb_preset(
+            "atomstack_a6_pro",
+            "AtomStack A6 Pro",
+            365.0,
+            305.0,
+            "365 x 305 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+        ),
+        documented_grbl_usb_preset(
+            "atomstack_a12_pro",
+            "AtomStack A12 Pro",
+            365.0,
+            305.0,
+            "365 x 305 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+        ),
+        documented_grbl_usb_preset(
+            "atomstack_a24_pro",
+            "AtomStack A24 Pro",
+            360.0,
+            280.0,
+            "360 x 280 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+        ),
+        documented_grbl_usb_preset(
+            "atomstack_x12_pro",
+            "AtomStack X12 Pro",
+            365.0,
+            305.0,
+            "365 x 305 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+        ),
+        MachineProfilePreset {
+            use_constant_power: true,
+            ..documented_grbl_usb_preset(
+                "atomstack_a20_pro",
+                "AtomStack A20 Pro (original)",
+                400.0,
+                400.0,
+                "400 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3).",
+            )
+        },
+        MachineProfilePreset {
+            use_constant_power: true,
+            ..documented_grbl_usb_preset(
+                "atomstack_a30_pro",
+                "AtomStack A30 Pro",
+                400.0,
+                400.0,
+                "400 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3).",
+            )
+        },
+        MachineProfilePreset {
+            air_assist_on_gcode: "M7",
+            air_assist_off_gcode: "M9",
+            ..documented_grbl_usb_preset(
+                "atomstack_a40_pro",
+                "AtomStack A40 Pro (original)",
+                400.0,
+                400.0,
+                "400 x 400 mm, front-left origin, S1000, M7/M9 air assist. Verify $30, $32=1, limit switches and pump. Automatic homing is off by default. Modified machines need separate setup.",
+            )
+        },
+        MachineProfilePreset {
+            air_assist_on_gcode: "M7",
+            air_assist_off_gcode: "M9",
+            ..documented_grbl_usb_preset(
+                "atomstack_a40_max",
+                "AtomStack A40 Max",
+                800.0,
+                400.0,
+                "800 x 400 mm, front-left origin, S1000, M7/M9 air assist. Verify $30, $32=1, limit switches and pump. Automatic homing is off by default. Modified machines need separate setup.",
+            )
+        },
+        MachineProfilePreset {
+            air_assist_on_gcode: "M7",
+            air_assist_off_gcode: "M9",
+            ..documented_grbl_usb_preset(
+                "atomstack_x40_pro",
+                "AtomStack X40 Pro (original)",
+                400.0,
+                400.0,
+                "400 x 400 mm, front-left origin, S1000, M7/M9 air assist. Verify $30, $32=1, limit switches and pump. Automatic homing is off by default. Modified machines need separate setup.",
+            )
+        },
+        MachineProfilePreset {
+            air_assist_on_gcode: "M7",
+            air_assist_off_gcode: "M9",
+            ..documented_grbl_usb_preset(
+                "atomstack_x40_max",
+                "AtomStack X40 Max",
+                800.0,
+                400.0,
+                "800 x 400 mm, front-left origin, S1000, M7/M9 air assist. Verify $30, $32=1, limit switches and pump. Automatic homing is off by default. Modified machines need separate setup.",
+            )
+        },
+        MachineProfilePreset {
+            air_assist_on_gcode: "M7",
+            air_assist_off_gcode: "M9",
+            ..documented_grbl_usb_preset(
+                "atomstack_s40_pro",
+                "AtomStack S40 Pro (original)",
+                400.0,
+                400.0,
+                "400 x 400 mm, front-left origin, S1000, M7/M9 air assist. Verify $30, $32=1, limit switches and pump. Automatic homing is off by default. Modified machines need separate setup.",
+            )
+        },
+        MachineProfilePreset {
+            air_assist_on_gcode: "M7",
+            air_assist_off_gcode: "M9",
+            ..documented_grbl_usb_preset(
+                "atomstack_s40_max",
+                "AtomStack S40 Max",
+                800.0,
+                400.0,
+                "800 x 400 mm, front-left origin, S1000, M7/M9 air assist. Verify $30, $32=1, limit switches and pump. Automatic homing is off by default. Modified machines need separate setup.",
+            )
+        },
+        MachineProfilePreset {
+            air_assist_on_gcode: "M8",
+            air_assist_off_gcode: "M9",
+            ..documented_grbl_usb_preset(
+                "atomstack_a70_pro",
+                "AtomStack A70 Pro",
+                500.0,
+                400.0,
+                "500 x 400 mm, front-left origin, S1000, M8/M9 air assist. Verify $30, $32=1, limit switches and pump. Automatic homing is off by default. Modified machines need separate setup. Focus using the machine controls before framing. Camera, rotary and conveyor workflows need separate setup.",
+            )
+        },
+        MachineProfilePreset {
+            air_assist_on_gcode: "M8",
+            air_assist_off_gcode: "M9",
+            ..documented_grbl_usb_preset(
+                "atomstack_a70_max",
+                "AtomStack A70 Max",
+                850.0,
+                800.0,
+                "850 x 800 mm, front-left origin, S1000, M8/M9 air assist. Verify $30, $32=1, limit switches and pump. Automatic homing is off by default. Modified machines need separate setup. Focus using the machine controls before framing. Camera, rotary and conveyor workflows need separate setup.",
+            )
+        },
+        documented_grbl_usb_preset(
+            "atomstack_x70_max",
+            "AtomStack X70 Max",
+            850.0,
+            800.0,
+            "850 x 800 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Focus using the machine controls before framing. Camera, rotary and conveyor workflows need separate setup.",
+        ),
+        MachineProfilePreset {
+            default_baud_rate: 460_800,
+            ..documented_grbl_usb_preset(
+                "atomstack_p1_5w",
+                "AtomStack P1 5W diode",
+                110.0,
+                110.0,
+                "USB: 460800 baud. 110 x 110 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+            )
+        },
+        MachineProfilePreset {
+            default_baud_rate: 460_800,
+            ..documented_grbl_usb_preset(
+                "atomstack_kraft_lite_40w",
+                "AtomStack Kraft Lite 40W",
+                500.0,
+                320.0,
+                "USB: 460800 baud. 500 x 320 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Focus using the machine controls before framing. Camera, rotary and conveyor workflows need separate setup.",
+            )
+        },
+        MachineProfilePreset {
+            default_baud_rate: 460_800,
+            ..documented_grbl_usb_preset(
+                "atomstack_hurricane_55w",
+                "AtomStack Hurricane 55W CO2",
+                500.0,
+                300.0,
+                "USB: 460800 baud. 500 x 300 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Focus using the machine controls before framing. Camera, rotary and conveyor workflows need separate setup.",
+            )
+        },
+        MachineProfilePreset {
+            default_baud_rate: 460_800,
+            ..documented_grbl_usb_preset(
+                "atomstack_glacier_90w",
+                "AtomStack Glacier 90W",
+                800.0,
+                800.0,
+                "USB: 460800 baud. 800 x 800 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Focus using the machine controls before framing. Camera, rotary and conveyor workflows need separate setup. Select the power mode in AtomStack Studio and close it before connecting Beam Bench. Select the power mode in AtomStack Studio and close it before connecting Beam Bench.",
+            )
+        },
+        MachineProfilePreset {
+            default_baud_rate: 460_800,
+            ..documented_grbl_usb_preset(
+                "atomstack_glacier_120w",
+                "AtomStack Glacier 120W",
+                800.0,
+                800.0,
+                "USB: 460800 baud. 800 x 800 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Focus using the machine controls before framing. Camera, rotary and conveyor workflows need separate setup. Select the power mode in AtomStack Studio and close it before connecting Beam Bench. Select the power mode in AtomStack Studio and close it before connecting Beam Bench.",
+            )
+        },
         documented_grbl_usb_preset(
             "atomstack_a10_pro_v2",
             "AtomStack A10 Pro V2",
@@ -1739,6 +2070,16 @@ fn diff_for_profile(
         &profile.default_baud_rate,
         &preset.default_baud_rate,
     );
+    if let Some(MachineConnectionPreference::Serial { baud_rate, .. }) =
+        &profile.connection_preference
+    {
+        push_diff(
+            &mut diff,
+            "connection_preference.baud_rate",
+            baud_rate,
+            &preset.default_baud_rate,
+        );
+    }
     push_diff(&mut diff, "origin", &profile.origin, &preset.origin);
     push_diff(
         &mut diff,
@@ -1853,6 +2194,13 @@ fn apply_preset_fields(profile: &mut MachineProfile, preset: &MachineProfilePres
     profile.s_value_max = preset.s_value_max;
     profile.homing_enabled = preset.homing_enabled;
     profile.default_baud_rate = preset.default_baud_rate;
+    // Connection settings restore this saved rate when the dialog reopens.
+    // Keep the selected port and controller while applying the reviewed baud change.
+    if let Some(MachineConnectionPreference::Serial { baud_rate, .. }) =
+        &mut profile.connection_preference
+    {
+        *baud_rate = preset.default_baud_rate;
+    }
     profile.origin = preset.origin;
     profile.firmware_type = preset.firmware_type.to_string();
     profile.use_constant_power = preset.use_constant_power;
@@ -2248,6 +2596,207 @@ mod tests {
     use uuid::Uuid;
 
     use crate::test_support::PersistTestGuard;
+
+    // Independent manufacturer facts for the catalog and real output checks.
+    // See docs/machines/atomstack-usb-presets.md for revisions and source pages.
+    const ATOMSTACK_PRESET_CASES: &[(&str, u32, f64, f64, f64, &str, bool)] = &[
+        (
+            "atomstack_swift_7w",
+            460800,
+            300.0,
+            300.0,
+            6000.0,
+            "",
+            false,
+        ),
+        (
+            "atomstack_swift_12w",
+            460800,
+            300.0,
+            300.0,
+            6000.0,
+            "",
+            false,
+        ),
+        ("atomstack_a5_10w", 115200, 410.0, 400.0, 3000.0, "", true),
+        ("atomstack_a5_15w", 115200, 410.0, 400.0, 3000.0, "", true),
+        ("atomstack_a5_20w", 115200, 410.0, 400.0, 3000.0, "", true),
+        ("atomstack_a5_30w", 115200, 410.0, 400.0, 3000.0, "", true),
+        ("atomstack_a5_pro", 115200, 410.0, 400.0, 3000.0, "", true),
+        (
+            "atomstack_a5_pro_plus",
+            115200,
+            410.0,
+            400.0,
+            3000.0,
+            "",
+            true,
+        ),
+        ("atomstack_a5_m30", 115200, 410.0, 400.0, 3000.0, "", true),
+        ("atomstack_a5_m40", 115200, 410.0, 400.0, 3000.0, "", true),
+        ("atomstack_a5_m50", 115200, 410.0, 400.0, 3000.0, "", true),
+        (
+            "atomstack_a5_m50_pro",
+            115200,
+            410.0,
+            400.0,
+            3000.0,
+            "",
+            true,
+        ),
+        (
+            "atomstack_a5_pro_v2",
+            115200,
+            400.0,
+            365.0,
+            6000.0,
+            "",
+            false,
+        ),
+        ("atomstack_a6_pro", 115200, 365.0, 305.0, 6000.0, "", false),
+        ("atomstack_a12_pro", 115200, 365.0, 305.0, 6000.0, "", false),
+        ("atomstack_a24_pro", 115200, 360.0, 280.0, 6000.0, "", false),
+        ("atomstack_x12_pro", 115200, 365.0, 305.0, 6000.0, "", false),
+        ("atomstack_a20_pro", 115200, 400.0, 400.0, 6000.0, "", true),
+        ("atomstack_a30_pro", 115200, 400.0, 400.0, 6000.0, "", true),
+        (
+            "atomstack_a40_pro",
+            115200,
+            400.0,
+            400.0,
+            6000.0,
+            "M7",
+            false,
+        ),
+        (
+            "atomstack_a40_max",
+            115200,
+            800.0,
+            400.0,
+            6000.0,
+            "M7",
+            false,
+        ),
+        (
+            "atomstack_x40_pro",
+            115200,
+            400.0,
+            400.0,
+            6000.0,
+            "M7",
+            false,
+        ),
+        (
+            "atomstack_x40_max",
+            115200,
+            800.0,
+            400.0,
+            6000.0,
+            "M7",
+            false,
+        ),
+        (
+            "atomstack_s40_pro",
+            115200,
+            400.0,
+            400.0,
+            6000.0,
+            "M7",
+            false,
+        ),
+        (
+            "atomstack_s40_max",
+            115200,
+            800.0,
+            400.0,
+            6000.0,
+            "M7",
+            false,
+        ),
+        (
+            "atomstack_a70_pro",
+            115200,
+            500.0,
+            400.0,
+            6000.0,
+            "M8",
+            false,
+        ),
+        (
+            "atomstack_a70_max",
+            115200,
+            850.0,
+            800.0,
+            6000.0,
+            "M8",
+            false,
+        ),
+        ("atomstack_x70_max", 115200, 850.0, 800.0, 6000.0, "", false),
+        ("atomstack_p1_5w", 460800, 110.0, 110.0, 6000.0, "", false),
+        (
+            "atomstack_kraft_lite_40w",
+            460800,
+            500.0,
+            320.0,
+            6000.0,
+            "",
+            false,
+        ),
+        (
+            "atomstack_hurricane_55w",
+            460800,
+            500.0,
+            300.0,
+            6000.0,
+            "",
+            false,
+        ),
+        (
+            "atomstack_glacier_90w",
+            460800,
+            800.0,
+            800.0,
+            6000.0,
+            "",
+            false,
+        ),
+        (
+            "atomstack_glacier_120w",
+            460800,
+            800.0,
+            800.0,
+            6000.0,
+            "",
+            false,
+        ),
+        (
+            "atomstack_a10_pro_v2",
+            115200,
+            400.0,
+            365.0,
+            6000.0,
+            "",
+            false,
+        ),
+        (
+            "atomstack_a20_pro_v2",
+            115200,
+            400.0,
+            365.0,
+            6000.0,
+            "",
+            false,
+        ),
+        (
+            "atomstack_a40_pro_v2",
+            115200,
+            385.0,
+            400.0,
+            6000.0,
+            "",
+            false,
+        ),
+    ];
 
     fn install_grbl_session_with_info(ctx: &ServiceContext, lines: &[&str]) {
         let mut transport = MockSerialTransport::new("mock");
@@ -2648,6 +3197,287 @@ mod tests {
     }
 
     #[test]
+    fn atomstack_swift_preset_updates_saved_serial_baud_and_previews_it() {
+        let _guard = PersistTestGuard::new();
+        let ctx = ServiceContext::with_settings(AppSettings::default());
+        let mut input = sample_input();
+        input.connection_preference = Some(MachineConnectionPreference::Serial {
+            port_name: "COM3".to_string(),
+            baud_rate: 115_200,
+            controller_selection: beambench_common::ControllerSelection::KnownDriver {
+                driver: beambench_common::ControllerDriverId::Grbl,
+            },
+        });
+        let created = save_profile(&ctx, input).unwrap();
+        let preview = profile_preset_diff(&ctx, created.id, "atomstack_swift_7w").unwrap();
+        let result = apply_profile_preset(&ctx, created.id, "atomstack_swift_7w").unwrap();
+        assert_eq!(result.diff, preview);
+        let saved = get_profile(&ctx, ProfileLookup::Id(created.id)).unwrap();
+        assert_eq!(saved.default_baud_rate, 460_800);
+        let Some(MachineConnectionPreference::Serial {
+            port_name,
+            baud_rate,
+            controller_selection,
+        }) = saved.connection_preference
+        else {
+            panic!("the saved serial port should be preserved");
+        };
+        assert_eq!(port_name, "COM3");
+        assert_eq!(
+            baud_rate, 460_800,
+            "reopening must use the preset's baud rate"
+        );
+        assert_eq!(
+            controller_selection,
+            beambench_common::ControllerSelection::KnownDriver {
+                driver: beambench_common::ControllerDriverId::Grbl,
+            }
+        );
+        assert!(preview.iter().any(|change| {
+            change.field == "connection_preference.baud_rate"
+                && change.old == 115_200
+                && change.new == 460_800
+        }));
+        assert!(
+            profile_preset_diff(&ctx, created.id, "atomstack_swift_7w")
+                .unwrap()
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn atomstack_presets_apply_stock_settings_and_generate_vector_and_raster_output() {
+        use beambench_common::RasterMode;
+        use beambench_core::layer::{Layer, OperationType};
+        use beambench_core::object::{ObjectData, ProjectObject, ShapeKind};
+        use beambench_core::{Asset, AssetMediaType};
+        use beambench_grbl::generate_gcode;
+        use beambench_planner::{PlanSegment, build_plan};
+
+        let _guard = PersistTestGuard::new();
+        let mut png = std::io::Cursor::new(Vec::new());
+        image::DynamicImage::ImageLuma8(
+            image::GrayImage::from_raw(2, 2, vec![0, 128, 255, 0]).unwrap(),
+        )
+        .write_to(&mut png, image::ImageFormat::Png)
+        .unwrap();
+        let png = png.into_inner();
+        assert_eq!(
+            profile_presets()
+                .iter()
+                .filter(|preset| preset.id.starts_with("atomstack_"))
+                .count(),
+            ATOMSTACK_PRESET_CASES.len()
+        );
+
+        for &(id, baud, width, height, speed, air_on, constant_power) in ATOMSTACK_PRESET_CASES {
+            let ctx = ServiceContext::with_settings(AppSettings::default());
+            let created = save_profile(&ctx, sample_input()).unwrap();
+            set_active_profile(&ctx, Some(created.id)).unwrap();
+            let mut project = Project::new("AtomStack preset workflow");
+            project.machine_profile_id = Some(created.id);
+            let mut layer = Layer::new("Vector", OperationType::Line);
+            layer.primary_entry_mut().power_percent = 25.0;
+            layer.primary_entry_mut().speed_mm_min = 1000.0;
+            layer.primary_entry_mut().air_assist = true;
+            let layer_id = layer.id;
+            project.add_layer(layer);
+            project.add_object(ProjectObject::new(
+                "Rectangle",
+                layer_id,
+                Bounds::new(
+                    Point2D::new(10.0, height - 20.0),
+                    Point2D::new(20.0, height - 10.0),
+                ),
+                ObjectData::Shape {
+                    kind: ShapeKind::Rectangle,
+                    width: 10.0,
+                    height: 10.0,
+                    corner_radius: 0.0,
+                },
+            ));
+            *ctx.project.lock().unwrap() = Some(project);
+            let preview = profile_preset_diff(&ctx, created.id, id).unwrap();
+            let applied = apply_profile_preset(&ctx, created.id, id).unwrap();
+            assert_eq!(applied.diff, preview, "{id}");
+            let profile = get_profile(&ctx, ProfileLookup::Id(created.id)).unwrap();
+            assert_eq!(profile.default_baud_rate, baud, "{id}");
+            assert_eq!(
+                (profile.bed_width_mm, profile.bed_height_mm),
+                (width, height),
+                "{id}"
+            );
+            assert_eq!(profile.max_speed_mm_min, speed, "{id}");
+            assert_eq!(profile.s_value_max, 1000, "{id}");
+            assert_eq!(profile.firmware_type, "grbl", "{id}");
+            assert_eq!(profile.origin, WorkspaceOrigin::BottomLeft, "{id}");
+            assert_eq!(profile.use_constant_power, constant_power, "{id}");
+            assert_eq!(profile.air_assist_on_gcode, air_on, "{id}");
+            assert!(
+                !profile.homing_enabled && !profile.home_on_connect && !profile.supports_z_moves,
+                "{id}"
+            );
+            assert!(
+                !profile.emit_s_every_g1 && !profile.use_g0_for_overscan,
+                "{id}"
+            );
+            assert_eq!(profile.transfer_mode, TransferMode::Buffered, "{id}");
+            assert!(
+                profile.job_header_gcode.is_empty() && profile.job_footer_gcode.is_empty(),
+                "{id}"
+            );
+            assert!(
+                profile_preset_diff(&ctx, created.id, id)
+                    .unwrap()
+                    .is_empty(),
+                "{id}"
+            );
+
+            let mut project = ctx.project.lock().unwrap().as_ref().unwrap().clone();
+            assert_eq!(
+                (
+                    project.workspace.bed_width_mm,
+                    project.workspace.bed_height_mm
+                ),
+                (width, height),
+                "{id}"
+            );
+            for raster in [false, true] {
+                if raster {
+                    project.objects.clear();
+                    project.layers.clear();
+                    let mut layer = Layer::new("Raster", OperationType::Image);
+                    layer.primary_entry_mut().power_percent = 25.0;
+                    layer.primary_entry_mut().speed_mm_min = 1000.0;
+                    layer.primary_entry_mut().air_assist = true;
+                    let settings = layer.primary_entry_mut().raster_settings.as_mut().unwrap();
+                    settings.dpi = 254;
+                    settings.mode = RasterMode::Grayscale;
+                    let layer_id = layer.id;
+                    project.add_layer(layer);
+                    let asset = Asset::new(
+                        "test.png",
+                        AssetMediaType::Png,
+                        png.len() as u64,
+                        Some(2),
+                        Some(2),
+                    );
+                    let asset_key = asset.id.to_string();
+                    project.add_asset(asset, png.clone());
+                    project.add_object(ProjectObject::new(
+                        "Image",
+                        layer_id,
+                        Bounds::new(
+                            Point2D::new(10.0, height - 11.0),
+                            Point2D::new(11.0, height - 10.0),
+                        ),
+                        ObjectData::RasterImage {
+                            asset_key,
+                            original_width_px: 2,
+                            original_height_px: 2,
+                            adjustments: None,
+                            masks: Vec::new(),
+                        },
+                    ));
+                }
+                let plan = build_plan(&project).unwrap();
+                assert!(
+                    plan.segments.iter().any(|segment| if raster {
+                        matches!(segment, PlanSegment::Raster { .. })
+                    } else {
+                        matches!(segment, PlanSegment::Vector { .. })
+                    }),
+                    "{id}: expected actual engraving segments"
+                );
+                let mut config =
+                    super::super::output::build_gcode_config(&project.optimization, &profile);
+                super::super::output::apply_project_gcode_metadata(&mut config, &project);
+                let gcode = generate_gcode(&plan, &config).unwrap();
+                let mode = if constant_power { "M3 " } else { "M4 " };
+                assert!(
+                    gcode.iter().any(|line| line.starts_with(mode)),
+                    "{id}: {gcode:?}"
+                );
+                assert!(
+                    gcode
+                        .iter()
+                        .any(|line| line.split_whitespace().any(|word| word == "S250")),
+                    "{id}: {gcode:?}"
+                );
+                assert!(gcode.iter().any(|line| line == "M5"), "{id}");
+                if !raster {
+                    for coordinate in ["Y10.000", "Y20.000"] {
+                        assert!(
+                            gcode.iter().any(|line| line.contains(coordinate)),
+                            "{id}: {gcode:?}"
+                        );
+                    }
+                }
+                for command in ["M7", "M8"] {
+                    assert_eq!(
+                        gcode.iter().any(|line| line == command),
+                        command == air_on,
+                        "{id}"
+                    );
+                }
+                assert_eq!(
+                    gcode.iter().any(|line| line == "M9"),
+                    !air_on.is_empty(),
+                    "{id}"
+                );
+                assert!(
+                    gcode
+                        .iter()
+                        .all(|line| line != "$H" && !line.starts_with("[ESP")),
+                    "{id}"
+                );
+                project.layers[0].primary_entry_mut().air_assist = false;
+                super::super::output::apply_project_gcode_metadata(&mut config, &project);
+                let without_air = generate_gcode(&plan, &config).unwrap();
+                assert!(
+                    without_air
+                        .iter()
+                        .all(|line| !matches!(line.as_str(), "M7" | "M8" | "M9")),
+                    "{id}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn preset_application_keeps_network_endpoints_and_new_profile_connections_unchanged() {
+        let preset = find_preset("atomstack_swift_7w").unwrap();
+        for preference in [
+            None,
+            Some(MachineConnectionPreference::Network {
+                host: "192.0.2.10".to_string(),
+                port: 8080,
+                controller_selection: beambench_common::ControllerSelection::KnownDriver {
+                    driver: beambench_common::ControllerDriverId::Grbl,
+                },
+            }),
+        ] {
+            let mut profile = MachineProfile {
+                connection_preference: preference.clone(),
+                home_on_connect: true,
+                ..Default::default()
+            };
+            let preview = diff_for_profile(&profile, &preset);
+            assert!(
+                preview
+                    .iter()
+                    .all(|change| change.field != "connection_preference.baud_rate")
+            );
+            apply_preset_fields(&mut profile, &preset);
+            assert_eq!(profile.connection_preference, preference);
+            assert!(
+                profile.home_on_connect,
+                "preserve the owner's explicit preference"
+            );
+        }
+    }
+
+    #[test]
     fn preset_diff_and_apply_records_audit_metadata() {
         let ctx = ServiceContext::with_settings(AppSettings::default());
         let created = save_profile(&ctx, sample_input()).unwrap();
@@ -2796,7 +3626,10 @@ mod tests {
             "longer_b1_30w",
             "longer_b1_40w",
             "twotrees_tt_5_5s",
-        ] {
+        ]
+        .into_iter()
+        .chain(ATOMSTACK_PRESET_CASES.iter().map(|case| case.0))
+        {
             let diff = profile_preset_diff(&ctx, active.id, preset_id).unwrap();
             let power_change = diff.iter().find(|change| change.field == "s_value_max");
             if let Some(change) = power_change {
