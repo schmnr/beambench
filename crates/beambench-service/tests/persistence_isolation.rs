@@ -24,6 +24,28 @@ fn integration_process_never_uses_real_preferences() {
 
 #[test]
 fn inherited_custom_app_directories_are_preserved() {
+    assert_inherited_directories_preserved(&std::env::current_exe().unwrap());
+}
+
+#[test]
+fn cargo_1_100_build_unit_layout_keeps_inherited_directories_isolated() {
+    let sandbox = tempfile::tempdir().unwrap();
+    let hash = "0123456789abcdef";
+    let output = sandbox
+        .path()
+        .join("custom-build/debug/build/beambench-service")
+        .join(hash)
+        .join("out");
+    std::fs::create_dir_all(&output).unwrap();
+    let executable = output.join(format!(
+        "persistence_isolation-{hash}{}",
+        std::env::consts::EXE_SUFFIX
+    ));
+    std::fs::copy(std::env::current_exe().unwrap(), &executable).unwrap();
+    assert_inherited_directories_preserved(&executable);
+}
+
+fn assert_inherited_directories_preserved(executable: &std::path::Path) {
     let sandbox = tempfile::tempdir().unwrap();
     let config = sandbox.path().join("custom-preferences");
     let data = sandbox.path().join("custom-data");
@@ -31,7 +53,7 @@ fn inherited_custom_app_directories_are_preserved() {
     std::fs::create_dir_all(&data).unwrap();
     std::fs::write(config.join("settings.json"), "custom-settings-marker").unwrap();
     std::fs::write(data.join("library-marker"), "custom-data-marker").unwrap();
-    let output = std::process::Command::new(std::env::current_exe().unwrap())
+    let output = std::process::Command::new(executable)
         .args([
             "--exact",
             "integration_process_never_uses_real_preferences",
@@ -39,6 +61,7 @@ fn inherited_custom_app_directories_are_preserved() {
         ])
         .env("BEAMBENCH_CONFIG_DIR", &config)
         .env("BEAMBENCH_DATA_DIR", &data)
+        .env_remove("NEXTEST_EXECUTION_MODE")
         .output()
         .unwrap();
     assert!(

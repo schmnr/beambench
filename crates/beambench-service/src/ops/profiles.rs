@@ -507,6 +507,175 @@ pub fn profile_presets() -> Vec<MachineProfilePreset> {
             390.0,
             "390 x 390 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
         ),
+        // Exact modules, axis ordering and control sources: docs/machines/artilume-usb-presets.md.
+        MachineProfilePreset {
+            homing_enabled: true,
+            ..documented_grbl_usb_preset(
+                "artilume_t1_2_5w",
+                "Artilume T1 2.5W",
+                150.0,
+                200.0,
+                "USB: 115200 baud. X 150 x Y 200 mm, front-left origin, S1000. Verify $30 and $32=1. Secure the unfolded machine and remove limit-switch shipping tape. Home only after checking the switches and $22=1. Automatic air assist is off. Wi-Fi and accessories need separate setup.",
+            )
+        },
+        MachineProfilePreset {
+            homing_enabled: true,
+            ..documented_grbl_usb_preset(
+                "artilume_t1_3w",
+                "Artilume T1 3W",
+                150.0,
+                200.0,
+                "USB: 115200 baud. X 150 x Y 200 mm, front-left origin, S1000. Verify $30 and $32=1. Secure the unfolded machine and remove limit-switch shipping tape. Home only after checking the switches and $22=1. Automatic air assist is off. Wi-Fi and accessories need separate setup.",
+            )
+        },
+        MachineProfilePreset {
+            homing_enabled: true,
+            ..documented_grbl_usb_preset(
+                "artilume_t1_6w",
+                "Artilume T1 6W",
+                150.0,
+                200.0,
+                "USB: 115200 baud. X 150 x Y 200 mm, front-left origin, S1000. Verify $30 and $32=1. Secure the unfolded machine and remove limit-switch shipping tape. Home only after checking the switches and $22=1. Automatic air assist is off. Wi-Fi and accessories need separate setup.",
+            )
+        },
+        MachineProfilePreset {
+            homing_enabled: true,
+            ..documented_grbl_usb_preset(
+                "artilume_t1_7w",
+                "Artilume T1 7W",
+                150.0,
+                200.0,
+                "USB: 115200 baud. X 150 x Y 200 mm, front-left origin, S1000. Verify $30 and $32=1. Secure the unfolded machine and remove limit-switch shipping tape. Home only after checking the switches and $22=1. Automatic air assist is off. Wi-Fi and accessories need separate setup.",
+            )
+        },
+        MachineProfilePreset {
+            homing_enabled: true,
+            ..documented_grbl_usb_preset(
+                "artilume_t1_10w",
+                "Artilume T1 10W",
+                150.0,
+                200.0,
+                "USB: 115200 baud. X 150 x Y 200 mm, front-left origin, S1000. Verify $30 and $32=1. Secure the unfolded machine and remove limit-switch shipping tape. Home only after checking the switches and $22=1. Automatic air assist is off. Wi-Fi and accessories need separate setup.",
+            )
+        },
+        MachineProfilePreset {
+            homing_enabled: true,
+            ..documented_grbl_usb_preset(
+                "artilume_t1_12w",
+                "Artilume T1 12W",
+                150.0,
+                200.0,
+                "USB: 115200 baud. X 150 x Y 200 mm, front-left origin, S1000. Verify $30 and $32=1. Secure the unfolded machine and remove limit-switch shipping tape. Home only after checking the switches and $22=1. Automatic air assist is off. Wi-Fi and accessories need separate setup.",
+            )
+        },
+        MachineProfilePreset {
+            homing_enabled: true,
+            ..documented_grbl_usb_preset(
+                "artilume_t1_ir_1w",
+                "Artilume T1 1W IR (1064nm)",
+                150.0,
+                200.0,
+                "USB: 115200 baud. X 150 x Y 200 mm, front-left origin, S1000. Verify $30 and $32=1. Secure the unfolded machine and remove limit-switch shipping tape. Home only after checking the switches and $22=1. Automatic air assist is off. Wi-Fi and accessories need separate setup.",
+            )
+        },
+        MachineProfilePreset {
+            homing_enabled: true,
+            ..documented_grbl_usb_preset(
+                "artilume_t1_p_3w",
+                "Artilume T1-P 3W",
+                150.0,
+                200.0,
+                "USB: 115200 baud. X 150 x Y 200 mm, front-left origin, S1000. Verify $30 and $32=1. Secure the unfolded machine and remove limit-switch shipping tape. Home only after checking the switches and $22=1. Automatic air assist is off. Wi-Fi and accessories need separate setup.",
+            )
+        },
+        MachineProfilePreset {
+            homing_enabled: true,
+            ..documented_grbl_usb_preset(
+                "artilume_t1_p_7w",
+                "Artilume T1-P 7W",
+                150.0,
+                200.0,
+                "USB: 115200 baud. X 150 x Y 200 mm, front-left origin, S1000. Verify $30 and $32=1. Secure the unfolded machine and remove limit-switch shipping tape. Home only after checking the switches and $22=1. Automatic air assist is off. Wi-Fi and accessories need separate setup.",
+            )
+        },
+        MachineProfilePreset {
+            homing_enabled: true,
+            ..documented_grbl_usb_preset(
+                "artilume_t1_p_12w",
+                "Artilume T1-P 12W",
+                150.0,
+                200.0,
+                "USB: 115200 baud. X 150 x Y 200 mm, front-left origin, S1000. Verify $30 and $32=1. Secure the unfolded machine and remove limit-switch shipping tape. Home only after checking the switches and $22=1. Automatic air assist is off. Wi-Fi and accessories need separate setup.",
+            )
+        },
+        MachineProfilePreset {
+            homing_enabled: true,
+            ..documented_grbl_usb_preset(
+                "artilume_t1_p_ir_1w",
+                "Artilume T1-P 1W IR (1064nm)",
+                150.0,
+                200.0,
+                "USB: 115200 baud. X 150 x Y 200 mm, front-left origin, S1000. Verify $30 and $32=1. Secure the unfolded machine and remove limit-switch shipping tape. Home only after checking the switches and $22=1. Automatic air assist is off. Wi-Fi and accessories need separate setup.",
+            )
+        },
+        documented_grbl_usb_preset(
+            "artilume_u1_3w",
+            "Artilume U1 3W",
+            200.0,
+            150.0,
+            "USB: 115200 baud. X 200 x Y 150 mm, front-left origin, S1000. Verify $30 and $32=1. Homing and automatic air assist are off. Wi-Fi and accessories need separate setup.",
+        ),
+        documented_grbl_usb_preset(
+            "artilume_u1_7w",
+            "Artilume U1 7W",
+            200.0,
+            150.0,
+            "USB: 115200 baud. X 200 x Y 150 mm, front-left origin, S1000. Verify $30 and $32=1. Homing and automatic air assist are off. Wi-Fi and accessories need separate setup.",
+        ),
+        documented_grbl_usb_preset(
+            "artilume_u1_12w",
+            "Artilume U1 12W",
+            200.0,
+            150.0,
+            "USB: 115200 baud. X 200 x Y 150 mm, front-left origin, S1000. Verify $30 and $32=1. Homing and automatic air assist are off. Wi-Fi and accessories need separate setup.",
+        ),
+        documented_grbl_usb_preset(
+            "artilume_u1_ir_1w",
+            "Artilume U1 1W IR (1064nm)",
+            200.0,
+            150.0,
+            "USB: 115200 baud. X 200 x Y 150 mm, front-left origin, S1000. Verify $30 and $32=1. Homing and automatic air assist are off. Wi-Fi and accessories need separate setup.",
+        ),
+        MachineProfilePreset {
+            homing_enabled: true,
+            ..documented_grbl_usb_preset(
+                "artilume_a4_7w",
+                "Artilume A4 7W",
+                400.0,
+                400.0,
+                "USB: 115200 baud. X 400 x Y 400 mm, front-left origin, S1000. Verify $30 and $32=1. Home only after checking the switches and $22=1. Automatic air assist is off. Wi-Fi and accessories need separate setup.",
+            )
+        },
+        MachineProfilePreset {
+            homing_enabled: true,
+            ..documented_grbl_usb_preset(
+                "artilume_a4_12w",
+                "Artilume A4 12W",
+                400.0,
+                400.0,
+                "USB: 115200 baud. X 400 x Y 400 mm, front-left origin, S1000. Verify $30 and $32=1. Home only after checking the switches and $22=1. Automatic air assist is off. Wi-Fi and accessories need separate setup.",
+            )
+        },
+        MachineProfilePreset {
+            homing_enabled: true,
+            ..documented_grbl_usb_preset(
+                "artilume_a4_22w",
+                "Artilume A4 22W",
+                400.0,
+                400.0,
+                "USB: 115200 baud. X 400 x Y 400 mm, front-left origin, S1000. Verify $30 and $32=1. Home only after checking the switches and $22=1. Automatic air assist is off. Wi-Fi and accessories need separate setup.",
+            )
+        },
         // Exact AtomStack revisions and control sources: docs/machines/atomstack-usb-presets.md.
         MachineProfilePreset {
             default_baud_rate: 460_800,
@@ -2597,6 +2766,29 @@ mod tests {
 
     use crate::test_support::PersistTestGuard;
 
+    // Manufacturer manuals and U1 setup videos establish different X/Y travel.
+    // See docs/machines/artilume-usb-presets.md.
+    const ARTILUME_PRESET_CASES: &[(&str, f64, f64, bool)] = &[
+        ("artilume_t1_2_5w", 150.0, 200.0, true),
+        ("artilume_t1_3w", 150.0, 200.0, true),
+        ("artilume_t1_6w", 150.0, 200.0, true),
+        ("artilume_t1_7w", 150.0, 200.0, true),
+        ("artilume_t1_10w", 150.0, 200.0, true),
+        ("artilume_t1_12w", 150.0, 200.0, true),
+        ("artilume_t1_ir_1w", 150.0, 200.0, true),
+        ("artilume_t1_p_3w", 150.0, 200.0, true),
+        ("artilume_t1_p_7w", 150.0, 200.0, true),
+        ("artilume_t1_p_12w", 150.0, 200.0, true),
+        ("artilume_t1_p_ir_1w", 150.0, 200.0, true),
+        ("artilume_u1_3w", 200.0, 150.0, false),
+        ("artilume_u1_7w", 200.0, 150.0, false),
+        ("artilume_u1_12w", 200.0, 150.0, false),
+        ("artilume_u1_ir_1w", 200.0, 150.0, false),
+        ("artilume_a4_7w", 400.0, 400.0, true),
+        ("artilume_a4_12w", 400.0, 400.0, true),
+        ("artilume_a4_22w", 400.0, 400.0, true),
+    ];
+
     // Independent manufacturer facts for the catalog and real output checks.
     // See docs/machines/atomstack-usb-presets.md for revisions and source pages.
     const ATOMSTACK_PRESET_CASES: &[(&str, u32, f64, f64, f64, &str, bool)] = &[
@@ -3246,7 +3438,7 @@ mod tests {
     }
 
     #[test]
-    fn atomstack_presets_apply_stock_settings_and_generate_vector_and_raster_output() {
+    fn documented_presets_apply_stock_settings_and_generate_vector_and_raster_output() {
         use beambench_common::RasterMode;
         use beambench_core::layer::{Layer, OperationType};
         use beambench_core::object::{ObjectData, ProjectObject, ShapeKind};
@@ -3270,11 +3462,41 @@ mod tests {
             ATOMSTACK_PRESET_CASES.len()
         );
 
-        for &(id, baud, width, height, speed, air_on, constant_power) in ATOMSTACK_PRESET_CASES {
+        assert_eq!(
+            profile_presets()
+                .iter()
+                .filter(|preset| preset.id.starts_with("artilume_"))
+                .count(),
+            ARTILUME_PRESET_CASES.len()
+        );
+        let cases = ATOMSTACK_PRESET_CASES
+            .iter()
+            .map(
+                |&(id, baud, width, height, speed, air_on, constant_power)| {
+                    (
+                        id,
+                        baud,
+                        width,
+                        height,
+                        speed,
+                        air_on,
+                        constant_power,
+                        false,
+                    )
+                },
+            )
+            .chain(
+                ARTILUME_PRESET_CASES
+                    .iter()
+                    .map(|&(id, width, height, homing)| {
+                        (id, 115200, width, height, 6000.0, "", false, homing)
+                    }),
+            );
+        for (id, baud, width, height, speed, air_on, constant_power, homing) in cases {
             let ctx = ServiceContext::with_settings(AppSettings::default());
             let created = save_profile(&ctx, sample_input()).unwrap();
             set_active_profile(&ctx, Some(created.id)).unwrap();
-            let mut project = Project::new("AtomStack preset workflow");
+            let mut project = Project::new("Documented preset workflow");
             project.machine_profile_id = Some(created.id);
             let mut layer = Layer::new("Vector", OperationType::Line);
             layer.primary_entry_mut().power_percent = 25.0;
@@ -3286,8 +3508,8 @@ mod tests {
                 "Rectangle",
                 layer_id,
                 Bounds::new(
-                    Point2D::new(10.0, height - 20.0),
-                    Point2D::new(20.0, height - 10.0),
+                    Point2D::new(width - 20.0, height - 20.0),
+                    Point2D::new(width - 10.0, height - 10.0),
                 ),
                 ObjectData::Shape {
                     kind: ShapeKind::Rectangle,
@@ -3301,6 +3523,12 @@ mod tests {
             let applied = apply_profile_preset(&ctx, created.id, id).unwrap();
             assert_eq!(applied.diff, preview, "{id}");
             let profile = get_profile(&ctx, ProfileLookup::Id(created.id)).unwrap();
+            let reopened = crate::persist::load_settings()
+                .machine_profiles
+                .into_iter()
+                .find(|saved| saved.id == created.id)
+                .unwrap();
+            assert_eq!(reopened, profile, "{id}: persisted profile differs");
             assert_eq!(profile.default_baud_rate, baud, "{id}");
             assert_eq!(
                 (profile.bed_width_mm, profile.bed_height_mm),
@@ -3314,7 +3542,9 @@ mod tests {
             assert_eq!(profile.use_constant_power, constant_power, "{id}");
             assert_eq!(profile.air_assist_on_gcode, air_on, "{id}");
             assert!(
-                !profile.homing_enabled && !profile.home_on_connect && !profile.supports_z_moves,
+                profile.homing_enabled == homing
+                    && !profile.home_on_connect
+                    && !profile.supports_z_moves,
                 "{id}"
             );
             assert!(
@@ -3342,6 +3572,8 @@ mod tests {
                 (width, height),
                 "{id}"
             );
+            let preview = super::super::planning::generate_preview(&ctx).unwrap();
+            assert!(!preview.layers.is_empty(), "{id}: empty preview");
             for raster in [false, true] {
                 if raster {
                     project.objects.clear();
@@ -3368,8 +3600,8 @@ mod tests {
                         "Image",
                         layer_id,
                         Bounds::new(
-                            Point2D::new(10.0, height - 11.0),
-                            Point2D::new(11.0, height - 10.0),
+                            Point2D::new(width - 11.0, height - 11.0),
+                            Point2D::new(width - 10.0, height - 10.0),
                         ),
                         ObjectData::RasterImage {
                             asset_key,
@@ -3406,9 +3638,14 @@ mod tests {
                 );
                 assert!(gcode.iter().any(|line| line == "M5"), "{id}");
                 if !raster {
-                    for coordinate in ["Y10.000", "Y20.000"] {
+                    for coordinate in [
+                        "Y10.000".to_string(),
+                        "Y20.000".to_string(),
+                        format!("X{:.3}", width - 20.0),
+                        format!("X{:.3}", width - 10.0),
+                    ] {
                         assert!(
-                            gcode.iter().any(|line| line.contains(coordinate)),
+                            gcode.iter().any(|line| line.contains(&coordinate)),
                             "{id}: {gcode:?}"
                         );
                     }
@@ -3629,6 +3866,7 @@ mod tests {
         ]
         .into_iter()
         .chain(ATOMSTACK_PRESET_CASES.iter().map(|case| case.0))
+        .chain(ARTILUME_PRESET_CASES.iter().map(|case| case.0))
         {
             let diff = profile_preset_diff(&ctx, active.id, preset_id).unwrap();
             let power_change = diff.iter().find(|change| change.field == "s_value_max");

@@ -8,6 +8,7 @@ import type { MachineProfile } from '../../../types/machine';
 import { MachinePresetPanel } from '../MachinePresetPanel';
 import { FEEDBACK_REPORT_OPEN_EVENT } from '../../../feedbackEvents';
 import { atomstackPresetCases } from '../../../test-utils/atomstackPresets';
+import { artilumePresetCases } from '../../../test-utils/artilumePresets';
 
 const mockInvoke = vi.fn().mockResolvedValue([]);
 const mockOpen = vi.fn().mockResolvedValue(null);
@@ -587,6 +588,7 @@ describe('MachineProfileDialog', () => {
     { presetId: 'aufero_laser_1', name: 'Aufero Laser 1 (LU2-2 / LU2-4)', airOn: '', width: 180, height: 180, homing: false, constantPower: false, usbEvidence: true },
     { presetId: 'aufero_laser_2', name: 'Aufero Laser 2 (LU2-2 / LU2-4)', airOn: '', width: 390, height: 390, homing: false, constantPower: false, usbEvidence: true },
     ...atomstackPresetCases,
+    ...artilumePresetCases,
     { presetId: 'creality_cr_laser_falcon_5w', name: 'Creality CR-Laser Falcon 5W', airOn: '', width: 400, height: 415, homing: false, constantPower: false, usbEvidence: true },
     { presetId: 'creality_cr_laser_falcon_7_5w', name: 'Creality CR-Laser Falcon 7.5W', airOn: '', width: 400, height: 415, homing: false, constantPower: false, usbEvidence: true },
     { presetId: 'creality_cr_laser_falcon_10w', name: 'Creality CR-Laser Falcon 10W', airOn: '', width: 400, height: 415, homing: false, constantPower: false, usbEvidence: true },
@@ -708,9 +710,16 @@ describe('MachineProfileDialog', () => {
     }
     if (usbEvidence) {
       expect(screen.getByText(/Documentation-based GRBL 1.1 USB preset/)).toBeDefined();
-      expect(screen.getByText(airOn !== ''
-        ? /Automatic homing is off by default/
-        : /Homing and automatic air assist are off/)).toBeDefined();
+      if (presetId.startsWith('artilume_')) {
+        expect(screen.getByText(/USB: 115200 baud/)).toBeDefined();
+        expect(screen.getByText(homing
+          ? /Home only after checking the switches and \$22=1/
+          : /Homing and automatic air assist are off/)).toBeDefined();
+      } else {
+        expect(screen.getByText(airOn !== ''
+          ? /Automatic homing is off by default/
+          : /Homing and automatic air assist are off/)).toBeDefined();
+      }
       if (constantPower) {
         expect(screen.getByText(/\. Constant Power \(M3\)\./)).toBeDefined();
       }

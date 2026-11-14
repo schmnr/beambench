@@ -2542,6 +2542,78 @@
           "atomstack_glacier_120w": {
             "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
             "advisory": "USB: 460800 bodów. 800 x 800 mm, początek z przodu po lewej, S1000. Sprawdź $30 i tryb lasera $32=1. Bazowanie i automatyczny nadmuch są wyłączone. Inne oprogramowanie układowe i rozszerzenia wymagają osobnej konfiguracji. Przed obrysowaniem ustaw ostrość za pomocą elementów sterujących maszyny. Kamera, przystawka obrotowa i podajnik wymagają osobnej konfiguracji. Wybierz tryb mocy w AtomStack Studio i zamknij ten program przed połączeniem Beam Bench."
+          },
+          "artilume_t1_2_5w": {
+            "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
+            "advisory": "USB: 115200 bodów. X 150 x Y 200 mm, początek z przodu po lewej, S1000. Sprawdź $30 i $32=1. Zabezpiecz rozłożoną maszynę i usuń taśmę transportową z krańcówek. Bazuj dopiero po sprawdzeniu krańcówek i $22=1. Automatyczny nadmuch jest wyłączony. Wi-Fi i akcesoria wymagają osobnej konfiguracji."
+          },
+          "artilume_t1_3w": {
+            "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
+            "advisory": "USB: 115200 bodów. X 150 x Y 200 mm, początek z przodu po lewej, S1000. Sprawdź $30 i $32=1. Zabezpiecz rozłożoną maszynę i usuń taśmę transportową z krańcówek. Bazuj dopiero po sprawdzeniu krańcówek i $22=1. Automatyczny nadmuch jest wyłączony. Wi-Fi i akcesoria wymagają osobnej konfiguracji."
+          },
+          "artilume_t1_6w": {
+            "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
+            "advisory": "USB: 115200 bodów. X 150 x Y 200 mm, początek z przodu po lewej, S1000. Sprawdź $30 i $32=1. Zabezpiecz rozłożoną maszynę i usuń taśmę transportową z krańcówek. Bazuj dopiero po sprawdzeniu krańcówek i $22=1. Automatyczny nadmuch jest wyłączony. Wi-Fi i akcesoria wymagają osobnej konfiguracji."
+          },
+          "artilume_t1_7w": {
+            "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
+            "advisory": "USB: 115200 bodów. X 150 x Y 200 mm, początek z przodu po lewej, S1000. Sprawdź $30 i $32=1. Zabezpiecz rozłożoną maszynę i usuń taśmę transportową z krańcówek. Bazuj dopiero po sprawdzeniu krańcówek i $22=1. Automatyczny nadmuch jest wyłączony. Wi-Fi i akcesoria wymagają osobnej konfiguracji."
+          },
+          "artilume_t1_10w": {
+            "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
+            "advisory": "USB: 115200 bodów. X 150 x Y 200 mm, początek z przodu po lewej, S1000. Sprawdź $30 i $32=1. Zabezpiecz rozłożoną maszynę i usuń taśmę transportową z krańcówek. Bazuj dopiero po sprawdzeniu krańcówek i $22=1. Automatyczny nadmuch jest wyłączony. Wi-Fi i akcesoria wymagają osobnej konfiguracji."
+          },
+          "artilume_t1_12w": {
+            "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
+            "advisory": "USB: 115200 bodów. X 150 x Y 200 mm, początek z przodu po lewej, S1000. Sprawdź $30 i $32=1. Zabezpiecz rozłożoną maszynę i usuń taśmę transportową z krańcówek. Bazuj dopiero po sprawdzeniu krańcówek i $22=1. Automatyczny nadmuch jest wyłączony. Wi-Fi i akcesoria wymagają osobnej konfiguracji."
+          },
+          "artilume_t1_ir_1w": {
+            "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
+            "advisory": "USB: 115200 bodów. X 150 x Y 200 mm, początek z przodu po lewej, S1000. Sprawdź $30 i $32=1. Zabezpiecz rozłożoną maszynę i usuń taśmę transportową z krańcówek. Bazuj dopiero po sprawdzeniu krańcówek i $22=1. Automatyczny nadmuch jest wyłączony. Wi-Fi i akcesoria wymagają osobnej konfiguracji."
+          },
+          "artilume_t1_p_3w": {
+            "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
+            "advisory": "USB: 115200 bodów. X 150 x Y 200 mm, początek z przodu po lewej, S1000. Sprawdź $30 i $32=1. Zabezpiecz rozłożoną maszynę i usuń taśmę transportową z krańcówek. Bazuj dopiero po sprawdzeniu krańcówek i $22=1. Automatyczny nadmuch jest wyłączony. Wi-Fi i akcesoria wymagają osobnej konfiguracji."
+          },
+          "artilume_t1_p_7w": {
+            "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
+            "advisory": "USB: 115200 bodów. X 150 x Y 200 mm, początek z przodu po lewej, S1000. Sprawdź $30 i $32=1. Zabezpiecz rozłożoną maszynę i usuń taśmę transportową z krańcówek. Bazuj dopiero po sprawdzeniu krańcówek i $22=1. Automatyczny nadmuch jest wyłączony. Wi-Fi i akcesoria wymagają osobnej konfiguracji."
+          },
+          "artilume_t1_p_12w": {
+            "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
+            "advisory": "USB: 115200 bodów. X 150 x Y 200 mm, początek z przodu po lewej, S1000. Sprawdź $30 i $32=1. Zabezpiecz rozłożoną maszynę i usuń taśmę transportową z krańcówek. Bazuj dopiero po sprawdzeniu krańcówek i $22=1. Automatyczny nadmuch jest wyłączony. Wi-Fi i akcesoria wymagają osobnej konfiguracji."
+          },
+          "artilume_t1_p_ir_1w": {
+            "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
+            "advisory": "USB: 115200 bodów. X 150 x Y 200 mm, początek z przodu po lewej, S1000. Sprawdź $30 i $32=1. Zabezpiecz rozłożoną maszynę i usuń taśmę transportową z krańcówek. Bazuj dopiero po sprawdzeniu krańcówek i $22=1. Automatyczny nadmuch jest wyłączony. Wi-Fi i akcesoria wymagają osobnej konfiguracji."
+          },
+          "artilume_u1_3w": {
+            "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
+            "advisory": "USB: 115200 bodów. X 200 x Y 150 mm, początek z przodu po lewej, S1000. Sprawdź $30 i $32=1. Bazowanie i automatyczny nadmuch są wyłączone. Wi-Fi i akcesoria wymagają osobnej konfiguracji."
+          },
+          "artilume_u1_7w": {
+            "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
+            "advisory": "USB: 115200 bodów. X 200 x Y 150 mm, początek z przodu po lewej, S1000. Sprawdź $30 i $32=1. Bazowanie i automatyczny nadmuch są wyłączone. Wi-Fi i akcesoria wymagają osobnej konfiguracji."
+          },
+          "artilume_u1_12w": {
+            "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
+            "advisory": "USB: 115200 bodów. X 200 x Y 150 mm, początek z przodu po lewej, S1000. Sprawdź $30 i $32=1. Bazowanie i automatyczny nadmuch są wyłączone. Wi-Fi i akcesoria wymagają osobnej konfiguracji."
+          },
+          "artilume_u1_ir_1w": {
+            "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
+            "advisory": "USB: 115200 bodów. X 200 x Y 150 mm, początek z przodu po lewej, S1000. Sprawdź $30 i $32=1. Bazowanie i automatyczny nadmuch są wyłączone. Wi-Fi i akcesoria wymagają osobnej konfiguracji."
+          },
+          "artilume_a4_7w": {
+            "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
+            "advisory": "USB: 115200 bodów. X 400 x Y 400 mm, początek z przodu po lewej, S1000. Sprawdź $30 i $32=1. Bazuj dopiero po sprawdzeniu krańcówek i $22=1. Automatyczny nadmuch jest wyłączony. Wi-Fi i akcesoria wymagają osobnej konfiguracji."
+          },
+          "artilume_a4_12w": {
+            "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
+            "advisory": "USB: 115200 bodów. X 400 x Y 400 mm, początek z przodu po lewej, S1000. Sprawdź $30 i $32=1. Bazuj dopiero po sprawdzeniu krańcówek i $22=1. Automatyczny nadmuch jest wyłączony. Wi-Fi i akcesoria wymagają osobnej konfiguracji."
+          },
+          "artilume_a4_22w": {
+            "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
+            "advisory": "USB: 115200 bodów. X 400 x Y 400 mm, początek z przodu po lewej, S1000. Sprawdź $30 i $32=1. Bazuj dopiero po sprawdzeniu krańcówek i $22=1. Automatyczny nadmuch jest wyłączony. Wi-Fi i akcesoria wymagają osobnej konfiguracji."
           }
         },
         "report_active_profile": "Zapisz i aktywuj ten profil, aby udostępnić jego ustawienia wraz z wynikami.",

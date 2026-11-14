@@ -137,6 +137,9 @@ own specifications support an entry. Do not copy the S9 defaults across a brand.
 
 ## Evidence records
 
+- [Artilume USB catalog, 18 presets at version 1](machines/artilume-usb-presets.md):
+  T1, T1-P, U1 and A4 with documented diode and IR modules. T1 and U1 retain
+  their different X/Y travel. Documentation-based, physical testing pending.
 - [Creality CR-Laser Falcon USB presets, version 1](machines/creality-cr-laser-falcon.md)
   for the original 5W, 7.5W and 10W models. Includes the Creality catalog audit.
 - [Creality Falcon A1 10W, preset version 1](machines/creality-falcon-a1-10w.md):

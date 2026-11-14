@@ -2542,6 +2542,78 @@
           "atomstack_glacier_120w": {
             "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
             "advisory": "USB: 460800 baud. 800 x 800 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning. Indstil fokus med maskinens betjening før indramning. Kamera, rotationsenhed og transportbånd kræver separat opsætning. Vælg effekttilstanden i AtomStack Studio, og luk programmet, før du forbinder Beam Bench."
+          },
+          "artilume_t1_2_5w": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og $32=1. Fastgør den udfoldede maskine, og fjern transporttapen fra endestopkontakterne. Kør først hjem efter kontrol af kontakterne og $22=1. Automatisk luftassistance er slået fra. Wi-Fi og tilbehør indstilles separat."
+          },
+          "artilume_t1_3w": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og $32=1. Fastgør den udfoldede maskine, og fjern transporttapen fra endestopkontakterne. Kør først hjem efter kontrol af kontakterne og $22=1. Automatisk luftassistance er slået fra. Wi-Fi og tilbehør indstilles separat."
+          },
+          "artilume_t1_6w": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og $32=1. Fastgør den udfoldede maskine, og fjern transporttapen fra endestopkontakterne. Kør først hjem efter kontrol af kontakterne og $22=1. Automatisk luftassistance er slået fra. Wi-Fi og tilbehør indstilles separat."
+          },
+          "artilume_t1_7w": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og $32=1. Fastgør den udfoldede maskine, og fjern transporttapen fra endestopkontakterne. Kør først hjem efter kontrol af kontakterne og $22=1. Automatisk luftassistance er slået fra. Wi-Fi og tilbehør indstilles separat."
+          },
+          "artilume_t1_10w": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og $32=1. Fastgør den udfoldede maskine, og fjern transporttapen fra endestopkontakterne. Kør først hjem efter kontrol af kontakterne og $22=1. Automatisk luftassistance er slået fra. Wi-Fi og tilbehør indstilles separat."
+          },
+          "artilume_t1_12w": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og $32=1. Fastgør den udfoldede maskine, og fjern transporttapen fra endestopkontakterne. Kør først hjem efter kontrol af kontakterne og $22=1. Automatisk luftassistance er slået fra. Wi-Fi og tilbehør indstilles separat."
+          },
+          "artilume_t1_ir_1w": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og $32=1. Fastgør den udfoldede maskine, og fjern transporttapen fra endestopkontakterne. Kør først hjem efter kontrol af kontakterne og $22=1. Automatisk luftassistance er slået fra. Wi-Fi og tilbehør indstilles separat."
+          },
+          "artilume_t1_p_3w": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og $32=1. Fastgør den udfoldede maskine, og fjern transporttapen fra endestopkontakterne. Kør først hjem efter kontrol af kontakterne og $22=1. Automatisk luftassistance er slået fra. Wi-Fi og tilbehør indstilles separat."
+          },
+          "artilume_t1_p_7w": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og $32=1. Fastgør den udfoldede maskine, og fjern transporttapen fra endestopkontakterne. Kør først hjem efter kontrol af kontakterne og $22=1. Automatisk luftassistance er slået fra. Wi-Fi og tilbehør indstilles separat."
+          },
+          "artilume_t1_p_12w": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og $32=1. Fastgør den udfoldede maskine, og fjern transporttapen fra endestopkontakterne. Kør først hjem efter kontrol af kontakterne og $22=1. Automatisk luftassistance er slået fra. Wi-Fi og tilbehør indstilles separat."
+          },
+          "artilume_t1_p_ir_1w": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og $32=1. Fastgør den udfoldede maskine, og fjern transporttapen fra endestopkontakterne. Kør først hjem efter kontrol af kontakterne og $22=1. Automatisk luftassistance er slået fra. Wi-Fi og tilbehør indstilles separat."
+          },
+          "artilume_u1_3w": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "USB: 115200 baud. X 200 x Y 150 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og $32=1. Hjemkørsel og automatisk luftassistance er slået fra. Wi-Fi og tilbehør indstilles separat."
+          },
+          "artilume_u1_7w": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "USB: 115200 baud. X 200 x Y 150 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og $32=1. Hjemkørsel og automatisk luftassistance er slået fra. Wi-Fi og tilbehør indstilles separat."
+          },
+          "artilume_u1_12w": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "USB: 115200 baud. X 200 x Y 150 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og $32=1. Hjemkørsel og automatisk luftassistance er slået fra. Wi-Fi og tilbehør indstilles separat."
+          },
+          "artilume_u1_ir_1w": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "USB: 115200 baud. X 200 x Y 150 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og $32=1. Hjemkørsel og automatisk luftassistance er slået fra. Wi-Fi og tilbehør indstilles separat."
+          },
+          "artilume_a4_7w": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "USB: 115200 baud. X 400 x Y 400 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og $32=1. Kør først hjem efter kontrol af kontakterne og $22=1. Automatisk luftassistance er slået fra. Wi-Fi og tilbehør indstilles separat."
+          },
+          "artilume_a4_12w": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "USB: 115200 baud. X 400 x Y 400 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og $32=1. Kør først hjem efter kontrol af kontakterne og $22=1. Automatisk luftassistance er slået fra. Wi-Fi og tilbehør indstilles separat."
+          },
+          "artilume_a4_22w": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "USB: 115200 baud. X 400 x Y 400 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og $32=1. Kør først hjem efter kontrol af kontakterne og $22=1. Automatisk luftassistance er slået fra. Wi-Fi og tilbehør indstilles separat."
           }
         },
         "report_active_profile": "Gem og aktivér denne profil for at dele dens indstillinger med resultaterne.",

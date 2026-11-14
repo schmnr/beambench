@@ -2694,6 +2694,78 @@
           "atomstack_glacier_120w": {
             "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
             "advisory": "USB: 460800 baud. 800 x 800 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Focus using the machine controls before framing. Camera, rotary and conveyor workflows need separate setup. Select the power mode in AtomStack Studio and close it before connecting Beam Bench."
+          },
+          "artilume_t1_2_5w": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, front-left origin, S1000. Verify $30 and $32=1. Secure the unfolded machine and remove limit-switch shipping tape. Home only after checking the switches and $22=1. Automatic air assist is off. Wi-Fi and accessories need separate setup."
+          },
+          "artilume_t1_3w": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, front-left origin, S1000. Verify $30 and $32=1. Secure the unfolded machine and remove limit-switch shipping tape. Home only after checking the switches and $22=1. Automatic air assist is off. Wi-Fi and accessories need separate setup."
+          },
+          "artilume_t1_6w": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, front-left origin, S1000. Verify $30 and $32=1. Secure the unfolded machine and remove limit-switch shipping tape. Home only after checking the switches and $22=1. Automatic air assist is off. Wi-Fi and accessories need separate setup."
+          },
+          "artilume_t1_7w": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, front-left origin, S1000. Verify $30 and $32=1. Secure the unfolded machine and remove limit-switch shipping tape. Home only after checking the switches and $22=1. Automatic air assist is off. Wi-Fi and accessories need separate setup."
+          },
+          "artilume_t1_10w": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, front-left origin, S1000. Verify $30 and $32=1. Secure the unfolded machine and remove limit-switch shipping tape. Home only after checking the switches and $22=1. Automatic air assist is off. Wi-Fi and accessories need separate setup."
+          },
+          "artilume_t1_12w": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, front-left origin, S1000. Verify $30 and $32=1. Secure the unfolded machine and remove limit-switch shipping tape. Home only after checking the switches and $22=1. Automatic air assist is off. Wi-Fi and accessories need separate setup."
+          },
+          "artilume_t1_ir_1w": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, front-left origin, S1000. Verify $30 and $32=1. Secure the unfolded machine and remove limit-switch shipping tape. Home only after checking the switches and $22=1. Automatic air assist is off. Wi-Fi and accessories need separate setup."
+          },
+          "artilume_t1_p_3w": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, front-left origin, S1000. Verify $30 and $32=1. Secure the unfolded machine and remove limit-switch shipping tape. Home only after checking the switches and $22=1. Automatic air assist is off. Wi-Fi and accessories need separate setup."
+          },
+          "artilume_t1_p_7w": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, front-left origin, S1000. Verify $30 and $32=1. Secure the unfolded machine and remove limit-switch shipping tape. Home only after checking the switches and $22=1. Automatic air assist is off. Wi-Fi and accessories need separate setup."
+          },
+          "artilume_t1_p_12w": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, front-left origin, S1000. Verify $30 and $32=1. Secure the unfolded machine and remove limit-switch shipping tape. Home only after checking the switches and $22=1. Automatic air assist is off. Wi-Fi and accessories need separate setup."
+          },
+          "artilume_t1_p_ir_1w": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, front-left origin, S1000. Verify $30 and $32=1. Secure the unfolded machine and remove limit-switch shipping tape. Home only after checking the switches and $22=1. Automatic air assist is off. Wi-Fi and accessories need separate setup."
+          },
+          "artilume_u1_3w": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "USB: 115200 baud. X 200 x Y 150 mm, front-left origin, S1000. Verify $30 and $32=1. Homing and automatic air assist are off. Wi-Fi and accessories need separate setup."
+          },
+          "artilume_u1_7w": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "USB: 115200 baud. X 200 x Y 150 mm, front-left origin, S1000. Verify $30 and $32=1. Homing and automatic air assist are off. Wi-Fi and accessories need separate setup."
+          },
+          "artilume_u1_12w": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "USB: 115200 baud. X 200 x Y 150 mm, front-left origin, S1000. Verify $30 and $32=1. Homing and automatic air assist are off. Wi-Fi and accessories need separate setup."
+          },
+          "artilume_u1_ir_1w": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "USB: 115200 baud. X 200 x Y 150 mm, front-left origin, S1000. Verify $30 and $32=1. Homing and automatic air assist are off. Wi-Fi and accessories need separate setup."
+          },
+          "artilume_a4_7w": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "USB: 115200 baud. X 400 x Y 400 mm, front-left origin, S1000. Verify $30 and $32=1. Home only after checking the switches and $22=1. Automatic air assist is off. Wi-Fi and accessories need separate setup."
+          },
+          "artilume_a4_12w": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "USB: 115200 baud. X 400 x Y 400 mm, front-left origin, S1000. Verify $30 and $32=1. Home only after checking the switches and $22=1. Automatic air assist is off. Wi-Fi and accessories need separate setup."
+          },
+          "artilume_a4_22w": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "USB: 115200 baud. X 400 x Y 400 mm, front-left origin, S1000. Verify $30 and $32=1. Home only after checking the switches and $22=1. Automatic air assist is off. Wi-Fi and accessories need separate setup."
           }
         },
         "report_active_profile": "Save and activate this profile to share its settings with your results.",

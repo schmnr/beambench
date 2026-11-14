@@ -2542,6 +2542,78 @@
           "atomstack_glacier_120w": {
             "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
             "advisory": "USB: 460800 baud. 800 x 800 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek. A keretezés előtt állítsa be a fókuszt a gép kezelőszerveivel. A kamera, a forgató és a szállítószalag külön beállítást igényel. Válassza ki a teljesítménymódot az AtomStack Studio programban, majd zárja be a Beam Bench csatlakoztatása előtt."
+          },
+          "artilume_t1_2_5w": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, bal elülső origó, S1000. Ellenőrizze a $30 és $32=1 értékét. Rögzítse a szétnyitott gépet, és távolítsa el a végálláskapcsolók szállítási szalagját. Csak a kapcsolók és a $22=1 ellenőrzése után végezzen alaphelyzetbe állítást. Az automatikus légsegéd ki van kapcsolva. A Wi-Fi és a tartozékok külön beállítást igényelnek."
+          },
+          "artilume_t1_3w": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, bal elülső origó, S1000. Ellenőrizze a $30 és $32=1 értékét. Rögzítse a szétnyitott gépet, és távolítsa el a végálláskapcsolók szállítási szalagját. Csak a kapcsolók és a $22=1 ellenőrzése után végezzen alaphelyzetbe állítást. Az automatikus légsegéd ki van kapcsolva. A Wi-Fi és a tartozékok külön beállítást igényelnek."
+          },
+          "artilume_t1_6w": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, bal elülső origó, S1000. Ellenőrizze a $30 és $32=1 értékét. Rögzítse a szétnyitott gépet, és távolítsa el a végálláskapcsolók szállítási szalagját. Csak a kapcsolók és a $22=1 ellenőrzése után végezzen alaphelyzetbe állítást. Az automatikus légsegéd ki van kapcsolva. A Wi-Fi és a tartozékok külön beállítást igényelnek."
+          },
+          "artilume_t1_7w": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, bal elülső origó, S1000. Ellenőrizze a $30 és $32=1 értékét. Rögzítse a szétnyitott gépet, és távolítsa el a végálláskapcsolók szállítási szalagját. Csak a kapcsolók és a $22=1 ellenőrzése után végezzen alaphelyzetbe állítást. Az automatikus légsegéd ki van kapcsolva. A Wi-Fi és a tartozékok külön beállítást igényelnek."
+          },
+          "artilume_t1_10w": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, bal elülső origó, S1000. Ellenőrizze a $30 és $32=1 értékét. Rögzítse a szétnyitott gépet, és távolítsa el a végálláskapcsolók szállítási szalagját. Csak a kapcsolók és a $22=1 ellenőrzése után végezzen alaphelyzetbe állítást. Az automatikus légsegéd ki van kapcsolva. A Wi-Fi és a tartozékok külön beállítást igényelnek."
+          },
+          "artilume_t1_12w": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, bal elülső origó, S1000. Ellenőrizze a $30 és $32=1 értékét. Rögzítse a szétnyitott gépet, és távolítsa el a végálláskapcsolók szállítási szalagját. Csak a kapcsolók és a $22=1 ellenőrzése után végezzen alaphelyzetbe állítást. Az automatikus légsegéd ki van kapcsolva. A Wi-Fi és a tartozékok külön beállítást igényelnek."
+          },
+          "artilume_t1_ir_1w": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, bal elülső origó, S1000. Ellenőrizze a $30 és $32=1 értékét. Rögzítse a szétnyitott gépet, és távolítsa el a végálláskapcsolók szállítási szalagját. Csak a kapcsolók és a $22=1 ellenőrzése után végezzen alaphelyzetbe állítást. Az automatikus légsegéd ki van kapcsolva. A Wi-Fi és a tartozékok külön beállítást igényelnek."
+          },
+          "artilume_t1_p_3w": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, bal elülső origó, S1000. Ellenőrizze a $30 és $32=1 értékét. Rögzítse a szétnyitott gépet, és távolítsa el a végálláskapcsolók szállítási szalagját. Csak a kapcsolók és a $22=1 ellenőrzése után végezzen alaphelyzetbe állítást. Az automatikus légsegéd ki van kapcsolva. A Wi-Fi és a tartozékok külön beállítást igényelnek."
+          },
+          "artilume_t1_p_7w": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, bal elülső origó, S1000. Ellenőrizze a $30 és $32=1 értékét. Rögzítse a szétnyitott gépet, és távolítsa el a végálláskapcsolók szállítási szalagját. Csak a kapcsolók és a $22=1 ellenőrzése után végezzen alaphelyzetbe állítást. Az automatikus légsegéd ki van kapcsolva. A Wi-Fi és a tartozékok külön beállítást igényelnek."
+          },
+          "artilume_t1_p_12w": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, bal elülső origó, S1000. Ellenőrizze a $30 és $32=1 értékét. Rögzítse a szétnyitott gépet, és távolítsa el a végálláskapcsolók szállítási szalagját. Csak a kapcsolók és a $22=1 ellenőrzése után végezzen alaphelyzetbe állítást. Az automatikus légsegéd ki van kapcsolva. A Wi-Fi és a tartozékok külön beállítást igényelnek."
+          },
+          "artilume_t1_p_ir_1w": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, bal elülső origó, S1000. Ellenőrizze a $30 és $32=1 értékét. Rögzítse a szétnyitott gépet, és távolítsa el a végálláskapcsolók szállítási szalagját. Csak a kapcsolók és a $22=1 ellenőrzése után végezzen alaphelyzetbe állítást. Az automatikus légsegéd ki van kapcsolva. A Wi-Fi és a tartozékok külön beállítást igényelnek."
+          },
+          "artilume_u1_3w": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "USB: 115200 baud. X 200 x Y 150 mm, bal elülső origó, S1000. Ellenőrizze a $30 és $32=1 értékét. Az alaphelyzetbe állítás és az automatikus légsegéd ki van kapcsolva. A Wi-Fi és a tartozékok külön beállítást igényelnek."
+          },
+          "artilume_u1_7w": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "USB: 115200 baud. X 200 x Y 150 mm, bal elülső origó, S1000. Ellenőrizze a $30 és $32=1 értékét. Az alaphelyzetbe állítás és az automatikus légsegéd ki van kapcsolva. A Wi-Fi és a tartozékok külön beállítást igényelnek."
+          },
+          "artilume_u1_12w": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "USB: 115200 baud. X 200 x Y 150 mm, bal elülső origó, S1000. Ellenőrizze a $30 és $32=1 értékét. Az alaphelyzetbe állítás és az automatikus légsegéd ki van kapcsolva. A Wi-Fi és a tartozékok külön beállítást igényelnek."
+          },
+          "artilume_u1_ir_1w": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "USB: 115200 baud. X 200 x Y 150 mm, bal elülső origó, S1000. Ellenőrizze a $30 és $32=1 értékét. Az alaphelyzetbe állítás és az automatikus légsegéd ki van kapcsolva. A Wi-Fi és a tartozékok külön beállítást igényelnek."
+          },
+          "artilume_a4_7w": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "USB: 115200 baud. X 400 x Y 400 mm, bal elülső origó, S1000. Ellenőrizze a $30 és $32=1 értékét. Csak a kapcsolók és a $22=1 ellenőrzése után végezzen alaphelyzetbe állítást. Az automatikus légsegéd ki van kapcsolva. A Wi-Fi és a tartozékok külön beállítást igényelnek."
+          },
+          "artilume_a4_12w": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "USB: 115200 baud. X 400 x Y 400 mm, bal elülső origó, S1000. Ellenőrizze a $30 és $32=1 értékét. Csak a kapcsolók és a $22=1 ellenőrzése után végezzen alaphelyzetbe állítást. Az automatikus légsegéd ki van kapcsolva. A Wi-Fi és a tartozékok külön beállítást igényelnek."
+          },
+          "artilume_a4_22w": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "USB: 115200 baud. X 400 x Y 400 mm, bal elülső origó, S1000. Ellenőrizze a $30 és $32=1 értékét. Csak a kapcsolók és a $22=1 ellenőrzése után végezzen alaphelyzetbe állítást. Az automatikus légsegéd ki van kapcsolva. A Wi-Fi és a tartozékok külön beállítást igényelnek."
           }
         },
         "report_active_profile": "Mentse és aktiválja ezt a profilt, hogy beállításait az eredményekkel együtt megoszthassa.",
