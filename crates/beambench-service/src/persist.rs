@@ -45,19 +45,44 @@ pub fn persist_export(file: tempfile::NamedTempFile, target: &Path) -> std::io::
     file.persist(target).map(|_| ()).map_err(|e| e.error)
 }
 
+fn cargo_test_executable(exe: &Path) -> bool {
+    let Some((_, hash)) = exe
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .and_then(|stem| stem.rsplit_once('-'))
+    else {
+        return false;
+    };
+    if hash.len() != 16 || !hash.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return false;
+    }
+    let Some(output) = exe.parent() else {
+        return false;
+    };
+    // Cargo <=1.99 uses deps/<test>-<hash>. Cargo 1.100 uses
+    // build/<package>/<hash>/out/<test>-<hash>. Keep the hash and folder checks
+    // so normal application binaries continue to use their configured paths.
+    output.file_name().is_some_and(|name| name == "deps")
+        || (output.file_name().is_some_and(|name| name == "out")
+            && output
+                .parent()
+                .and_then(Path::file_name)
+                .is_some_and(|name| name == hash)
+            && output
+                .ancestors()
+                .nth(3)
+                .and_then(Path::file_name)
+                .is_some_and(|name| name == "build"))
+}
+
 /// Cargo integration tests compile this crate without cfg(test). Detect their
-/// hashed executable in target/.../deps so those binaries also get isolated
+/// hashed executable in either Cargo layout so those binaries also get isolated
 /// persistence. The directory lives until process exit, including async tasks.
 fn test_process_root() -> Option<&'static Path> {
     static ROOT: OnceLock<Option<tempfile::TempDir>> = OnceLock::new();
     ROOT.get_or_init(|| {
         let exe = std::env::current_exe().ok()?;
-        let stem = exe.file_stem()?.to_str()?;
-        let hash = stem.rsplit_once('-').map(|(_, hash)| hash);
-        let cargo_test = exe.parent()?.file_name()? == "deps"
-            && hash.is_some_and(|hash| {
-                hash.len() == 16 && hash.bytes().all(|b| b.is_ascii_hexdigit())
-            });
+        let cargo_test = cargo_test_executable(&exe);
         let nextest = std::env::var_os("NEXTEST_EXECUTION_MODE").is_some();
         if cargo_test || nextest {
             Some(
@@ -755,6 +780,34 @@ pub fn load_art_libraries() -> ArtLibraryLoadState {
 mod tests {
     use super::*;
     use beambench_core::DisplayUnit;
+
+    #[test]
+    fn cargo_test_detection_accepts_both_build_layouts() {
+        for path in [
+            "target/debug/deps/persistence_isolation-0123456789abcdef",
+            "target/debug/deps/persistence_isolation-0123456789abcdef.exe",
+            "custom-build/debug/build/beambench-service/0123456789abcdef/out/persistence_isolation-0123456789abcdef",
+            "custom-build/x86_64-pc-windows-msvc/release/build/beambench-service/0123456789abcdef/out/persistence_isolation-0123456789abcdef.exe",
+        ] {
+            assert!(cargo_test_executable(Path::new(path)), "{path}");
+        }
+    }
+
+    #[test]
+    fn cargo_test_detection_rejects_application_paths_and_near_misses() {
+        for path in [
+            "Beam Bench/beambench-tauri.exe",
+            "target/debug/beambench-cli",
+            "target/release/beambench-tauri-0123456789abcdef.exe",
+            "target/debug/deps/persistence_isolation-short.exe",
+            "target/debug/deps/persistence_isolation-0123456789abcdeg.exe",
+            "target/debug/build/beambench-service/0123456789abcdef/out/beambench-cli.exe",
+            "target/debug/build/beambench-service/ffffffffffffffff/out/persistence_isolation-0123456789abcdef.exe",
+            "target/debug/other/beambench-service/0123456789abcdef/out/persistence_isolation-0123456789abcdef.exe",
+        ] {
+            assert!(!cargo_test_executable(Path::new(path)), "{path}");
+        }
+    }
 
     #[test]
     fn startup_diagnostics_preserve_the_latest_previous_launch() {
