@@ -404,6 +404,109 @@ fn documented_grbl_usb_preset(
 
 pub fn profile_presets() -> Vec<MachineProfilePreset> {
     vec![
+        // Exact models and control sources: docs/machines/acmer-usb-presets.md.
+        documented_grbl_usb_preset(
+            "acmer_p1_s_pro_6w",
+            "ACMER P1 S Pro 6W",
+            380.0,
+            370.0,
+            "380 x 370 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+        ),
+        documented_grbl_usb_preset(
+            "acmer_p1_s_pro_10w",
+            "ACMER P1 S Pro 10W",
+            380.0,
+            370.0,
+            "380 x 370 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+        ),
+        documented_grbl_usb_preset(
+            "acmer_p2_10w",
+            "ACMER P2 10W",
+            420.0,
+            400.0,
+            "420 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+        ),
+        documented_grbl_usb_preset(
+            "acmer_p2_20w",
+            "ACMER P2 20W",
+            420.0,
+            400.0,
+            "420 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+        ),
+        documented_grbl_usb_preset(
+            "acmer_p2_33w",
+            "ACMER P2 33W",
+            420.0,
+            400.0,
+            "420 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+        ),
+        documented_grbl_usb_preset(
+            "acmer_s2_pro_36w",
+            "ACMER S2 Pro 36W",
+            400.0,
+            400.0,
+            "400 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+        ),
+        documented_grbl_usb_preset(
+            "acmer_s2_pro_48w",
+            "ACMER S2 Pro 48W",
+            400.0,
+            400.0,
+            "400 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+        ),
+        // Documentation-based model entries: docs/machines/common-grbl-usb-presets.md.
+        documented_grbl_usb_preset(
+            "ortur_lm2_pro_s2",
+            "Ortur Laser Master 2 Pro S2 (LU2-2 / LU2-4)",
+            400.0,
+            400.0,
+            "400 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+        ),
+        documented_grbl_usb_preset(
+            "ortur_lm3_10w",
+            "Ortur Laser Master 3 10W (LU2-10A)",
+            400.0,
+            400.0,
+            "400 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+        ),
+        documented_grbl_usb_preset(
+            "ortur_lm3_20w",
+            "Ortur Laser Master 3 20W (LU3-20A)",
+            400.0,
+            380.0,
+            "400 x 380 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+        ),
+        documented_grbl_usb_preset(
+            "ortur_lm3_40w",
+            "Ortur Laser Master 3 40W (LU3-40A)",
+            400.0,
+            380.0,
+            "400 x 380 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+        ),
+        documented_grbl_usb_preset(
+            "ortur_lm3_le_10w",
+            "Ortur Laser Master 3 LE 10W (LU2-10A)",
+            400.0,
+            400.0,
+            "400 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+        ),
+        MachineProfilePreset {
+            max_speed_mm_min: 3000.0,
+            ..documented_grbl_usb_preset(
+                "aufero_laser_1",
+                "Aufero Laser 1 (LU2-2 / LU2-4)",
+                180.0,
+                180.0,
+                "180 x 180 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+            )
+        },
+        documented_grbl_usb_preset(
+            "aufero_laser_2",
+            "Aufero Laser 2 (LU2-2 / LU2-4)",
+            390.0,
+            390.0,
+            "390 x 390 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+        ),
         // Exact modules, axis ordering and control sources: docs/machines/artilume-usb-presets.md.
         MachineProfilePreset {
             homing_enabled: true,
@@ -573,109 +676,6 @@ pub fn profile_presets() -> Vec<MachineProfilePreset> {
                 "USB: 115200 baud. X 400 x Y 400 mm, front-left origin, S1000. Verify $30 and $32=1. Home only after checking the switches and $22=1. Automatic air assist is off. Wi-Fi and accessories need separate setup.",
             )
         },
-        // Exact models and control sources: docs/machines/acmer-usb-presets.md.
-        documented_grbl_usb_preset(
-            "acmer_p1_s_pro_6w",
-            "ACMER P1 S Pro 6W",
-            380.0,
-            370.0,
-            "380 x 370 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
-        ),
-        documented_grbl_usb_preset(
-            "acmer_p1_s_pro_10w",
-            "ACMER P1 S Pro 10W",
-            380.0,
-            370.0,
-            "380 x 370 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
-        ),
-        documented_grbl_usb_preset(
-            "acmer_p2_10w",
-            "ACMER P2 10W",
-            420.0,
-            400.0,
-            "420 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
-        ),
-        documented_grbl_usb_preset(
-            "acmer_p2_20w",
-            "ACMER P2 20W",
-            420.0,
-            400.0,
-            "420 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
-        ),
-        documented_grbl_usb_preset(
-            "acmer_p2_33w",
-            "ACMER P2 33W",
-            420.0,
-            400.0,
-            "420 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
-        ),
-        documented_grbl_usb_preset(
-            "acmer_s2_pro_36w",
-            "ACMER S2 Pro 36W",
-            400.0,
-            400.0,
-            "400 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
-        ),
-        documented_grbl_usb_preset(
-            "acmer_s2_pro_48w",
-            "ACMER S2 Pro 48W",
-            400.0,
-            400.0,
-            "400 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
-        ),
-        // Documentation-based model entries: docs/machines/common-grbl-usb-presets.md.
-        documented_grbl_usb_preset(
-            "ortur_lm2_pro_s2",
-            "Ortur Laser Master 2 Pro S2 (LU2-2 / LU2-4)",
-            400.0,
-            400.0,
-            "400 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
-        ),
-        documented_grbl_usb_preset(
-            "ortur_lm3_10w",
-            "Ortur Laser Master 3 10W (LU2-10A)",
-            400.0,
-            400.0,
-            "400 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
-        ),
-        documented_grbl_usb_preset(
-            "ortur_lm3_20w",
-            "Ortur Laser Master 3 20W (LU3-20A)",
-            400.0,
-            380.0,
-            "400 x 380 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
-        ),
-        documented_grbl_usb_preset(
-            "ortur_lm3_40w",
-            "Ortur Laser Master 3 40W (LU3-40A)",
-            400.0,
-            380.0,
-            "400 x 380 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
-        ),
-        documented_grbl_usb_preset(
-            "ortur_lm3_le_10w",
-            "Ortur Laser Master 3 LE 10W (LU2-10A)",
-            400.0,
-            400.0,
-            "400 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
-        ),
-        MachineProfilePreset {
-            max_speed_mm_min: 3000.0,
-            ..documented_grbl_usb_preset(
-                "aufero_laser_1",
-                "Aufero Laser 1 (LU2-2 / LU2-4)",
-                180.0,
-                180.0,
-                "180 x 180 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
-            )
-        },
-        documented_grbl_usb_preset(
-            "aufero_laser_2",
-            "Aufero Laser 2 (LU2-2 / LU2-4)",
-            390.0,
-            390.0,
-            "390 x 390 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
-        ),
         // Exact AtomStack revisions and control sources: docs/machines/atomstack-usb-presets.md.
         MachineProfilePreset {
             default_baud_rate: 460_800,
