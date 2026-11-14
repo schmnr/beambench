@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.2.45
+
 - Add 18 Artilume USB presets for documented T1, T1-P, U1 and A4 modules,
   including 1064 nm IR options. Preserve each model's X/Y travel and homing
   setup. Physical testing is pending.
