@@ -2542,6 +2542,78 @@
           "atomstack_glacier_120w": {
             "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
             "advisory": "USB: 460800 baudov. 800 x 800 mm, izhodišče spredaj levo, S1000. Preverite $30 in laserski način $32=1. Iskanje izhodišča in samodejni vpih zraka sta izklopljena. Druga strojna programska oprema in razširitve zahtevajo ločeno nastavitev. Pred obrisovanjem nastavite ostrenje s krmilniki stroja. Kamera, rotacijska naprava in tekoči trak zahtevajo ločeno nastavitev. Izberite način moči v programu AtomStack Studio in ga zaprite, preden povežete Beam Bench."
+          },
+          "artilume_t1_2_5w": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "USB: 115200 baudov. X 150 x Y 200 mm, izhodišče spredaj levo, S1000. Preverite $30 in $32=1. Pritrdite razprti stroj in odstranite transportni trak s končnih stikal. Referenciranje izvedite šele po preverjanju stikal in $22=1. Samodejna zračna pomoč je izklopljena. Wi-Fi in dodatke nastavite posebej."
+          },
+          "artilume_t1_3w": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "USB: 115200 baudov. X 150 x Y 200 mm, izhodišče spredaj levo, S1000. Preverite $30 in $32=1. Pritrdite razprti stroj in odstranite transportni trak s končnih stikal. Referenciranje izvedite šele po preverjanju stikal in $22=1. Samodejna zračna pomoč je izklopljena. Wi-Fi in dodatke nastavite posebej."
+          },
+          "artilume_t1_6w": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "USB: 115200 baudov. X 150 x Y 200 mm, izhodišče spredaj levo, S1000. Preverite $30 in $32=1. Pritrdite razprti stroj in odstranite transportni trak s končnih stikal. Referenciranje izvedite šele po preverjanju stikal in $22=1. Samodejna zračna pomoč je izklopljena. Wi-Fi in dodatke nastavite posebej."
+          },
+          "artilume_t1_7w": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "USB: 115200 baudov. X 150 x Y 200 mm, izhodišče spredaj levo, S1000. Preverite $30 in $32=1. Pritrdite razprti stroj in odstranite transportni trak s končnih stikal. Referenciranje izvedite šele po preverjanju stikal in $22=1. Samodejna zračna pomoč je izklopljena. Wi-Fi in dodatke nastavite posebej."
+          },
+          "artilume_t1_10w": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "USB: 115200 baudov. X 150 x Y 200 mm, izhodišče spredaj levo, S1000. Preverite $30 in $32=1. Pritrdite razprti stroj in odstranite transportni trak s končnih stikal. Referenciranje izvedite šele po preverjanju stikal in $22=1. Samodejna zračna pomoč je izklopljena. Wi-Fi in dodatke nastavite posebej."
+          },
+          "artilume_t1_12w": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "USB: 115200 baudov. X 150 x Y 200 mm, izhodišče spredaj levo, S1000. Preverite $30 in $32=1. Pritrdite razprti stroj in odstranite transportni trak s končnih stikal. Referenciranje izvedite šele po preverjanju stikal in $22=1. Samodejna zračna pomoč je izklopljena. Wi-Fi in dodatke nastavite posebej."
+          },
+          "artilume_t1_ir_1w": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "USB: 115200 baudov. X 150 x Y 200 mm, izhodišče spredaj levo, S1000. Preverite $30 in $32=1. Pritrdite razprti stroj in odstranite transportni trak s končnih stikal. Referenciranje izvedite šele po preverjanju stikal in $22=1. Samodejna zračna pomoč je izklopljena. Wi-Fi in dodatke nastavite posebej."
+          },
+          "artilume_t1_p_3w": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "USB: 115200 baudov. X 150 x Y 200 mm, izhodišče spredaj levo, S1000. Preverite $30 in $32=1. Pritrdite razprti stroj in odstranite transportni trak s končnih stikal. Referenciranje izvedite šele po preverjanju stikal in $22=1. Samodejna zračna pomoč je izklopljena. Wi-Fi in dodatke nastavite posebej."
+          },
+          "artilume_t1_p_7w": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "USB: 115200 baudov. X 150 x Y 200 mm, izhodišče spredaj levo, S1000. Preverite $30 in $32=1. Pritrdite razprti stroj in odstranite transportni trak s končnih stikal. Referenciranje izvedite šele po preverjanju stikal in $22=1. Samodejna zračna pomoč je izklopljena. Wi-Fi in dodatke nastavite posebej."
+          },
+          "artilume_t1_p_12w": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "USB: 115200 baudov. X 150 x Y 200 mm, izhodišče spredaj levo, S1000. Preverite $30 in $32=1. Pritrdite razprti stroj in odstranite transportni trak s končnih stikal. Referenciranje izvedite šele po preverjanju stikal in $22=1. Samodejna zračna pomoč je izklopljena. Wi-Fi in dodatke nastavite posebej."
+          },
+          "artilume_t1_p_ir_1w": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "USB: 115200 baudov. X 150 x Y 200 mm, izhodišče spredaj levo, S1000. Preverite $30 in $32=1. Pritrdite razprti stroj in odstranite transportni trak s končnih stikal. Referenciranje izvedite šele po preverjanju stikal in $22=1. Samodejna zračna pomoč je izklopljena. Wi-Fi in dodatke nastavite posebej."
+          },
+          "artilume_u1_3w": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "USB: 115200 baudov. X 200 x Y 150 mm, izhodišče spredaj levo, S1000. Preverite $30 in $32=1. Referenciranje in samodejna zračna pomoč sta izklopljena. Wi-Fi in dodatke nastavite posebej."
+          },
+          "artilume_u1_7w": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "USB: 115200 baudov. X 200 x Y 150 mm, izhodišče spredaj levo, S1000. Preverite $30 in $32=1. Referenciranje in samodejna zračna pomoč sta izklopljena. Wi-Fi in dodatke nastavite posebej."
+          },
+          "artilume_u1_12w": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "USB: 115200 baudov. X 200 x Y 150 mm, izhodišče spredaj levo, S1000. Preverite $30 in $32=1. Referenciranje in samodejna zračna pomoč sta izklopljena. Wi-Fi in dodatke nastavite posebej."
+          },
+          "artilume_u1_ir_1w": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "USB: 115200 baudov. X 200 x Y 150 mm, izhodišče spredaj levo, S1000. Preverite $30 in $32=1. Referenciranje in samodejna zračna pomoč sta izklopljena. Wi-Fi in dodatke nastavite posebej."
+          },
+          "artilume_a4_7w": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "USB: 115200 baudov. X 400 x Y 400 mm, izhodišče spredaj levo, S1000. Preverite $30 in $32=1. Referenciranje izvedite šele po preverjanju stikal in $22=1. Samodejna zračna pomoč je izklopljena. Wi-Fi in dodatke nastavite posebej."
+          },
+          "artilume_a4_12w": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "USB: 115200 baudov. X 400 x Y 400 mm, izhodišče spredaj levo, S1000. Preverite $30 in $32=1. Referenciranje izvedite šele po preverjanju stikal in $22=1. Samodejna zračna pomoč je izklopljena. Wi-Fi in dodatke nastavite posebej."
+          },
+          "artilume_a4_22w": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "USB: 115200 baudov. X 400 x Y 400 mm, izhodišče spredaj levo, S1000. Preverite $30 in $32=1. Referenciranje izvedite šele po preverjanju stikal in $22=1. Samodejna zračna pomoč je izklopljena. Wi-Fi in dodatke nastavite posebej."
           }
         },
         "report_active_profile": "Shranite in aktivirajte ta profil, da njegove nastavitve delite z rezultati.",

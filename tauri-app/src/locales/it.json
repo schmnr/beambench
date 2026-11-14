@@ -2542,6 +2542,78 @@
           "atomstack_glacier_120w": {
             "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
             "advisory": "USB: 460800 baud. 800 x 800 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata. Regolare la messa a fuoco dai comandi della macchina prima del tracciamento del riquadro. Fotocamera, dispositivo rotante e nastro trasportatore richiedono una configurazione separata. Selezionare la modalità di potenza in AtomStack Studio e chiuderlo prima di collegare Beam Bench."
+          },
+          "artilume_t1_2_5w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, origine anteriore sinistra, S1000. Verificare $30 e $32=1. Fissare la macchina aperta e rimuovere il nastro di trasporto dai finecorsa. Eseguire il riferimento solo dopo aver verificato i finecorsa e $22=1. Assistenza aria automatica disattivata. Wi-Fi e accessori richiedono una configurazione separata."
+          },
+          "artilume_t1_3w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, origine anteriore sinistra, S1000. Verificare $30 e $32=1. Fissare la macchina aperta e rimuovere il nastro di trasporto dai finecorsa. Eseguire il riferimento solo dopo aver verificato i finecorsa e $22=1. Assistenza aria automatica disattivata. Wi-Fi e accessori richiedono una configurazione separata."
+          },
+          "artilume_t1_6w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, origine anteriore sinistra, S1000. Verificare $30 e $32=1. Fissare la macchina aperta e rimuovere il nastro di trasporto dai finecorsa. Eseguire il riferimento solo dopo aver verificato i finecorsa e $22=1. Assistenza aria automatica disattivata. Wi-Fi e accessori richiedono una configurazione separata."
+          },
+          "artilume_t1_7w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, origine anteriore sinistra, S1000. Verificare $30 e $32=1. Fissare la macchina aperta e rimuovere il nastro di trasporto dai finecorsa. Eseguire il riferimento solo dopo aver verificato i finecorsa e $22=1. Assistenza aria automatica disattivata. Wi-Fi e accessori richiedono una configurazione separata."
+          },
+          "artilume_t1_10w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, origine anteriore sinistra, S1000. Verificare $30 e $32=1. Fissare la macchina aperta e rimuovere il nastro di trasporto dai finecorsa. Eseguire il riferimento solo dopo aver verificato i finecorsa e $22=1. Assistenza aria automatica disattivata. Wi-Fi e accessori richiedono una configurazione separata."
+          },
+          "artilume_t1_12w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, origine anteriore sinistra, S1000. Verificare $30 e $32=1. Fissare la macchina aperta e rimuovere il nastro di trasporto dai finecorsa. Eseguire il riferimento solo dopo aver verificato i finecorsa e $22=1. Assistenza aria automatica disattivata. Wi-Fi e accessori richiedono una configurazione separata."
+          },
+          "artilume_t1_ir_1w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, origine anteriore sinistra, S1000. Verificare $30 e $32=1. Fissare la macchina aperta e rimuovere il nastro di trasporto dai finecorsa. Eseguire il riferimento solo dopo aver verificato i finecorsa e $22=1. Assistenza aria automatica disattivata. Wi-Fi e accessori richiedono una configurazione separata."
+          },
+          "artilume_t1_p_3w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, origine anteriore sinistra, S1000. Verificare $30 e $32=1. Fissare la macchina aperta e rimuovere il nastro di trasporto dai finecorsa. Eseguire il riferimento solo dopo aver verificato i finecorsa e $22=1. Assistenza aria automatica disattivata. Wi-Fi e accessori richiedono una configurazione separata."
+          },
+          "artilume_t1_p_7w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, origine anteriore sinistra, S1000. Verificare $30 e $32=1. Fissare la macchina aperta e rimuovere il nastro di trasporto dai finecorsa. Eseguire il riferimento solo dopo aver verificato i finecorsa e $22=1. Assistenza aria automatica disattivata. Wi-Fi e accessori richiedono una configurazione separata."
+          },
+          "artilume_t1_p_12w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, origine anteriore sinistra, S1000. Verificare $30 e $32=1. Fissare la macchina aperta e rimuovere il nastro di trasporto dai finecorsa. Eseguire il riferimento solo dopo aver verificato i finecorsa e $22=1. Assistenza aria automatica disattivata. Wi-Fi e accessori richiedono una configurazione separata."
+          },
+          "artilume_t1_p_ir_1w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, origine anteriore sinistra, S1000. Verificare $30 e $32=1. Fissare la macchina aperta e rimuovere il nastro di trasporto dai finecorsa. Eseguire il riferimento solo dopo aver verificato i finecorsa e $22=1. Assistenza aria automatica disattivata. Wi-Fi e accessori richiedono una configurazione separata."
+          },
+          "artilume_u1_3w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "USB: 115200 baud. X 200 x Y 150 mm, origine anteriore sinistra, S1000. Verificare $30 e $32=1. Riferimento e assistenza aria automatica disattivati. Wi-Fi e accessori richiedono una configurazione separata."
+          },
+          "artilume_u1_7w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "USB: 115200 baud. X 200 x Y 150 mm, origine anteriore sinistra, S1000. Verificare $30 e $32=1. Riferimento e assistenza aria automatica disattivati. Wi-Fi e accessori richiedono una configurazione separata."
+          },
+          "artilume_u1_12w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "USB: 115200 baud. X 200 x Y 150 mm, origine anteriore sinistra, S1000. Verificare $30 e $32=1. Riferimento e assistenza aria automatica disattivati. Wi-Fi e accessori richiedono una configurazione separata."
+          },
+          "artilume_u1_ir_1w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "USB: 115200 baud. X 200 x Y 150 mm, origine anteriore sinistra, S1000. Verificare $30 e $32=1. Riferimento e assistenza aria automatica disattivati. Wi-Fi e accessori richiedono una configurazione separata."
+          },
+          "artilume_a4_7w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "USB: 115200 baud. X 400 x Y 400 mm, origine anteriore sinistra, S1000. Verificare $30 e $32=1. Eseguire il riferimento solo dopo aver verificato i finecorsa e $22=1. Assistenza aria automatica disattivata. Wi-Fi e accessori richiedono una configurazione separata."
+          },
+          "artilume_a4_12w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "USB: 115200 baud. X 400 x Y 400 mm, origine anteriore sinistra, S1000. Verificare $30 e $32=1. Eseguire il riferimento solo dopo aver verificato i finecorsa e $22=1. Assistenza aria automatica disattivata. Wi-Fi e accessori richiedono una configurazione separata."
+          },
+          "artilume_a4_22w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "USB: 115200 baud. X 400 x Y 400 mm, origine anteriore sinistra, S1000. Verificare $30 e $32=1. Eseguire il riferimento solo dopo aver verificato i finecorsa e $22=1. Assistenza aria automatica disattivata. Wi-Fi e accessori richiedono una configurazione separata."
           }
         },
         "report_active_profile": "Salva e attiva questo profilo per condividere le impostazioni con i risultati.",

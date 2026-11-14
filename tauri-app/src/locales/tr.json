@@ -2542,6 +2542,78 @@
           "atomstack_glacier_120w": {
             "description": "Belgelere dayalı GRBL 1.1 USB ön ayarı. Fiziksel makine testleri henüz yapılmadı.",
             "advisory": "USB: 460800 baud. 800 x 800 mm, sol ön başlangıç noktası, S1000. $30 değerini ve $32=1 lazer modunu doğrulayın. Referansa dönüş ve otomatik hava desteği kapalıdır. Diğer donanım yazılımları ve genişletmeler ayrı kurulum gerektirir. Çerçeveleme öncesinde makinenin kontrolleriyle odak ayarını yapın. Kamera, döner aparat ve konveyör ayrı kurulum gerektirir. Güç modunu AtomStack Studio içinde seçin ve Beam Bench bağlantısından önce programı kapatın."
+          },
+          "artilume_t1_2_5w": {
+            "description": "Belgelere dayalı GRBL 1.1 USB ön ayarı. Fiziksel makine testleri henüz yapılmadı.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, başlangıç ön sol, S1000. $30 ve $32=1 değerlerini doğrulayın. Açılmış makineyi sabitleyin ve limit anahtarlarının taşıma bantlarını çıkarın. Yalnızca anahtarları ve $22=1 değerini kontrol ettikten sonra referanslama yapın. Otomatik hava desteği kapalıdır. Wi-Fi ve aksesuarlar ayrı kurulum gerektirir."
+          },
+          "artilume_t1_3w": {
+            "description": "Belgelere dayalı GRBL 1.1 USB ön ayarı. Fiziksel makine testleri henüz yapılmadı.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, başlangıç ön sol, S1000. $30 ve $32=1 değerlerini doğrulayın. Açılmış makineyi sabitleyin ve limit anahtarlarının taşıma bantlarını çıkarın. Yalnızca anahtarları ve $22=1 değerini kontrol ettikten sonra referanslama yapın. Otomatik hava desteği kapalıdır. Wi-Fi ve aksesuarlar ayrı kurulum gerektirir."
+          },
+          "artilume_t1_6w": {
+            "description": "Belgelere dayalı GRBL 1.1 USB ön ayarı. Fiziksel makine testleri henüz yapılmadı.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, başlangıç ön sol, S1000. $30 ve $32=1 değerlerini doğrulayın. Açılmış makineyi sabitleyin ve limit anahtarlarının taşıma bantlarını çıkarın. Yalnızca anahtarları ve $22=1 değerini kontrol ettikten sonra referanslama yapın. Otomatik hava desteği kapalıdır. Wi-Fi ve aksesuarlar ayrı kurulum gerektirir."
+          },
+          "artilume_t1_7w": {
+            "description": "Belgelere dayalı GRBL 1.1 USB ön ayarı. Fiziksel makine testleri henüz yapılmadı.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, başlangıç ön sol, S1000. $30 ve $32=1 değerlerini doğrulayın. Açılmış makineyi sabitleyin ve limit anahtarlarının taşıma bantlarını çıkarın. Yalnızca anahtarları ve $22=1 değerini kontrol ettikten sonra referanslama yapın. Otomatik hava desteği kapalıdır. Wi-Fi ve aksesuarlar ayrı kurulum gerektirir."
+          },
+          "artilume_t1_10w": {
+            "description": "Belgelere dayalı GRBL 1.1 USB ön ayarı. Fiziksel makine testleri henüz yapılmadı.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, başlangıç ön sol, S1000. $30 ve $32=1 değerlerini doğrulayın. Açılmış makineyi sabitleyin ve limit anahtarlarının taşıma bantlarını çıkarın. Yalnızca anahtarları ve $22=1 değerini kontrol ettikten sonra referanslama yapın. Otomatik hava desteği kapalıdır. Wi-Fi ve aksesuarlar ayrı kurulum gerektirir."
+          },
+          "artilume_t1_12w": {
+            "description": "Belgelere dayalı GRBL 1.1 USB ön ayarı. Fiziksel makine testleri henüz yapılmadı.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, başlangıç ön sol, S1000. $30 ve $32=1 değerlerini doğrulayın. Açılmış makineyi sabitleyin ve limit anahtarlarının taşıma bantlarını çıkarın. Yalnızca anahtarları ve $22=1 değerini kontrol ettikten sonra referanslama yapın. Otomatik hava desteği kapalıdır. Wi-Fi ve aksesuarlar ayrı kurulum gerektirir."
+          },
+          "artilume_t1_ir_1w": {
+            "description": "Belgelere dayalı GRBL 1.1 USB ön ayarı. Fiziksel makine testleri henüz yapılmadı.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, başlangıç ön sol, S1000. $30 ve $32=1 değerlerini doğrulayın. Açılmış makineyi sabitleyin ve limit anahtarlarının taşıma bantlarını çıkarın. Yalnızca anahtarları ve $22=1 değerini kontrol ettikten sonra referanslama yapın. Otomatik hava desteği kapalıdır. Wi-Fi ve aksesuarlar ayrı kurulum gerektirir."
+          },
+          "artilume_t1_p_3w": {
+            "description": "Belgelere dayalı GRBL 1.1 USB ön ayarı. Fiziksel makine testleri henüz yapılmadı.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, başlangıç ön sol, S1000. $30 ve $32=1 değerlerini doğrulayın. Açılmış makineyi sabitleyin ve limit anahtarlarının taşıma bantlarını çıkarın. Yalnızca anahtarları ve $22=1 değerini kontrol ettikten sonra referanslama yapın. Otomatik hava desteği kapalıdır. Wi-Fi ve aksesuarlar ayrı kurulum gerektirir."
+          },
+          "artilume_t1_p_7w": {
+            "description": "Belgelere dayalı GRBL 1.1 USB ön ayarı. Fiziksel makine testleri henüz yapılmadı.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, başlangıç ön sol, S1000. $30 ve $32=1 değerlerini doğrulayın. Açılmış makineyi sabitleyin ve limit anahtarlarının taşıma bantlarını çıkarın. Yalnızca anahtarları ve $22=1 değerini kontrol ettikten sonra referanslama yapın. Otomatik hava desteği kapalıdır. Wi-Fi ve aksesuarlar ayrı kurulum gerektirir."
+          },
+          "artilume_t1_p_12w": {
+            "description": "Belgelere dayalı GRBL 1.1 USB ön ayarı. Fiziksel makine testleri henüz yapılmadı.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, başlangıç ön sol, S1000. $30 ve $32=1 değerlerini doğrulayın. Açılmış makineyi sabitleyin ve limit anahtarlarının taşıma bantlarını çıkarın. Yalnızca anahtarları ve $22=1 değerini kontrol ettikten sonra referanslama yapın. Otomatik hava desteği kapalıdır. Wi-Fi ve aksesuarlar ayrı kurulum gerektirir."
+          },
+          "artilume_t1_p_ir_1w": {
+            "description": "Belgelere dayalı GRBL 1.1 USB ön ayarı. Fiziksel makine testleri henüz yapılmadı.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, başlangıç ön sol, S1000. $30 ve $32=1 değerlerini doğrulayın. Açılmış makineyi sabitleyin ve limit anahtarlarının taşıma bantlarını çıkarın. Yalnızca anahtarları ve $22=1 değerini kontrol ettikten sonra referanslama yapın. Otomatik hava desteği kapalıdır. Wi-Fi ve aksesuarlar ayrı kurulum gerektirir."
+          },
+          "artilume_u1_3w": {
+            "description": "Belgelere dayalı GRBL 1.1 USB ön ayarı. Fiziksel makine testleri henüz yapılmadı.",
+            "advisory": "USB: 115200 baud. X 200 x Y 150 mm, başlangıç ön sol, S1000. $30 ve $32=1 değerlerini doğrulayın. Referanslama ve otomatik hava desteği kapalıdır. Wi-Fi ve aksesuarlar ayrı kurulum gerektirir."
+          },
+          "artilume_u1_7w": {
+            "description": "Belgelere dayalı GRBL 1.1 USB ön ayarı. Fiziksel makine testleri henüz yapılmadı.",
+            "advisory": "USB: 115200 baud. X 200 x Y 150 mm, başlangıç ön sol, S1000. $30 ve $32=1 değerlerini doğrulayın. Referanslama ve otomatik hava desteği kapalıdır. Wi-Fi ve aksesuarlar ayrı kurulum gerektirir."
+          },
+          "artilume_u1_12w": {
+            "description": "Belgelere dayalı GRBL 1.1 USB ön ayarı. Fiziksel makine testleri henüz yapılmadı.",
+            "advisory": "USB: 115200 baud. X 200 x Y 150 mm, başlangıç ön sol, S1000. $30 ve $32=1 değerlerini doğrulayın. Referanslama ve otomatik hava desteği kapalıdır. Wi-Fi ve aksesuarlar ayrı kurulum gerektirir."
+          },
+          "artilume_u1_ir_1w": {
+            "description": "Belgelere dayalı GRBL 1.1 USB ön ayarı. Fiziksel makine testleri henüz yapılmadı.",
+            "advisory": "USB: 115200 baud. X 200 x Y 150 mm, başlangıç ön sol, S1000. $30 ve $32=1 değerlerini doğrulayın. Referanslama ve otomatik hava desteği kapalıdır. Wi-Fi ve aksesuarlar ayrı kurulum gerektirir."
+          },
+          "artilume_a4_7w": {
+            "description": "Belgelere dayalı GRBL 1.1 USB ön ayarı. Fiziksel makine testleri henüz yapılmadı.",
+            "advisory": "USB: 115200 baud. X 400 x Y 400 mm, başlangıç ön sol, S1000. $30 ve $32=1 değerlerini doğrulayın. Yalnızca anahtarları ve $22=1 değerini kontrol ettikten sonra referanslama yapın. Otomatik hava desteği kapalıdır. Wi-Fi ve aksesuarlar ayrı kurulum gerektirir."
+          },
+          "artilume_a4_12w": {
+            "description": "Belgelere dayalı GRBL 1.1 USB ön ayarı. Fiziksel makine testleri henüz yapılmadı.",
+            "advisory": "USB: 115200 baud. X 400 x Y 400 mm, başlangıç ön sol, S1000. $30 ve $32=1 değerlerini doğrulayın. Yalnızca anahtarları ve $22=1 değerini kontrol ettikten sonra referanslama yapın. Otomatik hava desteği kapalıdır. Wi-Fi ve aksesuarlar ayrı kurulum gerektirir."
+          },
+          "artilume_a4_22w": {
+            "description": "Belgelere dayalı GRBL 1.1 USB ön ayarı. Fiziksel makine testleri henüz yapılmadı.",
+            "advisory": "USB: 115200 baud. X 400 x Y 400 mm, başlangıç ön sol, S1000. $30 ve $32=1 değerlerini doğrulayın. Yalnızca anahtarları ve $22=1 değerini kontrol ettikten sonra referanslama yapın. Otomatik hava desteği kapalıdır. Wi-Fi ve aksesuarlar ayrı kurulum gerektirir."
           }
         },
         "report_active_profile": "Ayarlarını sonuçlarınızla paylaşmak için bu profili kaydedip etkinleştirin.",

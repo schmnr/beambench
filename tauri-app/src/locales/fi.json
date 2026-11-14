@@ -2542,6 +2542,78 @@
           "atomstack_glacier_120w": {
             "description": "Dokumentaatioon perustuva GRBL 1.1:n USB-esiasetus. Testaus fyysisellä koneella on tekemättä.",
             "advisory": "USB: 460800 baudia. 800 x 800 mm, origo edessä vasemmalla, S1000. Tarkista $30 ja lasertila $32=1. Kotihaku ja automaattinen ilma-avustus ovat pois käytöstä. Muu laiteohjelmisto ja laajennukset vaativat erillisen määrityksen. Säädä tarkennus laitteen ohjaimilla ennen rajauksen ajoa. Kamera, pyörityslaite ja kuljetin on määritettävä erikseen. Valitse tehotila AtomStack Studiossa ja sulje ohjelma ennen Beam Benchin yhdistämistä."
+          },
+          "artilume_t1_2_5w": {
+            "description": "Dokumentaatioon perustuva GRBL 1.1:n USB-esiasetus. Testaus fyysisellä koneella on tekemättä.",
+            "advisory": "USB: 115200 baudia. X 150 x Y 200 mm, origo edessä vasemmalla, S1000. Tarkista $30 ja $32=1. Kiinnitä avattu kone ja poista rajakytkinten kuljetusteipit. Tee kotihaku vasta, kun kytkimet ja $22=1 on tarkistettu. Automaattinen ilma-avustus on pois käytöstä. Wi-Fi ja lisävarusteet määritetään erikseen."
+          },
+          "artilume_t1_3w": {
+            "description": "Dokumentaatioon perustuva GRBL 1.1:n USB-esiasetus. Testaus fyysisellä koneella on tekemättä.",
+            "advisory": "USB: 115200 baudia. X 150 x Y 200 mm, origo edessä vasemmalla, S1000. Tarkista $30 ja $32=1. Kiinnitä avattu kone ja poista rajakytkinten kuljetusteipit. Tee kotihaku vasta, kun kytkimet ja $22=1 on tarkistettu. Automaattinen ilma-avustus on pois käytöstä. Wi-Fi ja lisävarusteet määritetään erikseen."
+          },
+          "artilume_t1_6w": {
+            "description": "Dokumentaatioon perustuva GRBL 1.1:n USB-esiasetus. Testaus fyysisellä koneella on tekemättä.",
+            "advisory": "USB: 115200 baudia. X 150 x Y 200 mm, origo edessä vasemmalla, S1000. Tarkista $30 ja $32=1. Kiinnitä avattu kone ja poista rajakytkinten kuljetusteipit. Tee kotihaku vasta, kun kytkimet ja $22=1 on tarkistettu. Automaattinen ilma-avustus on pois käytöstä. Wi-Fi ja lisävarusteet määritetään erikseen."
+          },
+          "artilume_t1_7w": {
+            "description": "Dokumentaatioon perustuva GRBL 1.1:n USB-esiasetus. Testaus fyysisellä koneella on tekemättä.",
+            "advisory": "USB: 115200 baudia. X 150 x Y 200 mm, origo edessä vasemmalla, S1000. Tarkista $30 ja $32=1. Kiinnitä avattu kone ja poista rajakytkinten kuljetusteipit. Tee kotihaku vasta, kun kytkimet ja $22=1 on tarkistettu. Automaattinen ilma-avustus on pois käytöstä. Wi-Fi ja lisävarusteet määritetään erikseen."
+          },
+          "artilume_t1_10w": {
+            "description": "Dokumentaatioon perustuva GRBL 1.1:n USB-esiasetus. Testaus fyysisellä koneella on tekemättä.",
+            "advisory": "USB: 115200 baudia. X 150 x Y 200 mm, origo edessä vasemmalla, S1000. Tarkista $30 ja $32=1. Kiinnitä avattu kone ja poista rajakytkinten kuljetusteipit. Tee kotihaku vasta, kun kytkimet ja $22=1 on tarkistettu. Automaattinen ilma-avustus on pois käytöstä. Wi-Fi ja lisävarusteet määritetään erikseen."
+          },
+          "artilume_t1_12w": {
+            "description": "Dokumentaatioon perustuva GRBL 1.1:n USB-esiasetus. Testaus fyysisellä koneella on tekemättä.",
+            "advisory": "USB: 115200 baudia. X 150 x Y 200 mm, origo edessä vasemmalla, S1000. Tarkista $30 ja $32=1. Kiinnitä avattu kone ja poista rajakytkinten kuljetusteipit. Tee kotihaku vasta, kun kytkimet ja $22=1 on tarkistettu. Automaattinen ilma-avustus on pois käytöstä. Wi-Fi ja lisävarusteet määritetään erikseen."
+          },
+          "artilume_t1_ir_1w": {
+            "description": "Dokumentaatioon perustuva GRBL 1.1:n USB-esiasetus. Testaus fyysisellä koneella on tekemättä.",
+            "advisory": "USB: 115200 baudia. X 150 x Y 200 mm, origo edessä vasemmalla, S1000. Tarkista $30 ja $32=1. Kiinnitä avattu kone ja poista rajakytkinten kuljetusteipit. Tee kotihaku vasta, kun kytkimet ja $22=1 on tarkistettu. Automaattinen ilma-avustus on pois käytöstä. Wi-Fi ja lisävarusteet määritetään erikseen."
+          },
+          "artilume_t1_p_3w": {
+            "description": "Dokumentaatioon perustuva GRBL 1.1:n USB-esiasetus. Testaus fyysisellä koneella on tekemättä.",
+            "advisory": "USB: 115200 baudia. X 150 x Y 200 mm, origo edessä vasemmalla, S1000. Tarkista $30 ja $32=1. Kiinnitä avattu kone ja poista rajakytkinten kuljetusteipit. Tee kotihaku vasta, kun kytkimet ja $22=1 on tarkistettu. Automaattinen ilma-avustus on pois käytöstä. Wi-Fi ja lisävarusteet määritetään erikseen."
+          },
+          "artilume_t1_p_7w": {
+            "description": "Dokumentaatioon perustuva GRBL 1.1:n USB-esiasetus. Testaus fyysisellä koneella on tekemättä.",
+            "advisory": "USB: 115200 baudia. X 150 x Y 200 mm, origo edessä vasemmalla, S1000. Tarkista $30 ja $32=1. Kiinnitä avattu kone ja poista rajakytkinten kuljetusteipit. Tee kotihaku vasta, kun kytkimet ja $22=1 on tarkistettu. Automaattinen ilma-avustus on pois käytöstä. Wi-Fi ja lisävarusteet määritetään erikseen."
+          },
+          "artilume_t1_p_12w": {
+            "description": "Dokumentaatioon perustuva GRBL 1.1:n USB-esiasetus. Testaus fyysisellä koneella on tekemättä.",
+            "advisory": "USB: 115200 baudia. X 150 x Y 200 mm, origo edessä vasemmalla, S1000. Tarkista $30 ja $32=1. Kiinnitä avattu kone ja poista rajakytkinten kuljetusteipit. Tee kotihaku vasta, kun kytkimet ja $22=1 on tarkistettu. Automaattinen ilma-avustus on pois käytöstä. Wi-Fi ja lisävarusteet määritetään erikseen."
+          },
+          "artilume_t1_p_ir_1w": {
+            "description": "Dokumentaatioon perustuva GRBL 1.1:n USB-esiasetus. Testaus fyysisellä koneella on tekemättä.",
+            "advisory": "USB: 115200 baudia. X 150 x Y 200 mm, origo edessä vasemmalla, S1000. Tarkista $30 ja $32=1. Kiinnitä avattu kone ja poista rajakytkinten kuljetusteipit. Tee kotihaku vasta, kun kytkimet ja $22=1 on tarkistettu. Automaattinen ilma-avustus on pois käytöstä. Wi-Fi ja lisävarusteet määritetään erikseen."
+          },
+          "artilume_u1_3w": {
+            "description": "Dokumentaatioon perustuva GRBL 1.1:n USB-esiasetus. Testaus fyysisellä koneella on tekemättä.",
+            "advisory": "USB: 115200 baudia. X 200 x Y 150 mm, origo edessä vasemmalla, S1000. Tarkista $30 ja $32=1. Kotihaku ja automaattinen ilma-avustus ovat pois käytöstä. Wi-Fi ja lisävarusteet määritetään erikseen."
+          },
+          "artilume_u1_7w": {
+            "description": "Dokumentaatioon perustuva GRBL 1.1:n USB-esiasetus. Testaus fyysisellä koneella on tekemättä.",
+            "advisory": "USB: 115200 baudia. X 200 x Y 150 mm, origo edessä vasemmalla, S1000. Tarkista $30 ja $32=1. Kotihaku ja automaattinen ilma-avustus ovat pois käytöstä. Wi-Fi ja lisävarusteet määritetään erikseen."
+          },
+          "artilume_u1_12w": {
+            "description": "Dokumentaatioon perustuva GRBL 1.1:n USB-esiasetus. Testaus fyysisellä koneella on tekemättä.",
+            "advisory": "USB: 115200 baudia. X 200 x Y 150 mm, origo edessä vasemmalla, S1000. Tarkista $30 ja $32=1. Kotihaku ja automaattinen ilma-avustus ovat pois käytöstä. Wi-Fi ja lisävarusteet määritetään erikseen."
+          },
+          "artilume_u1_ir_1w": {
+            "description": "Dokumentaatioon perustuva GRBL 1.1:n USB-esiasetus. Testaus fyysisellä koneella on tekemättä.",
+            "advisory": "USB: 115200 baudia. X 200 x Y 150 mm, origo edessä vasemmalla, S1000. Tarkista $30 ja $32=1. Kotihaku ja automaattinen ilma-avustus ovat pois käytöstä. Wi-Fi ja lisävarusteet määritetään erikseen."
+          },
+          "artilume_a4_7w": {
+            "description": "Dokumentaatioon perustuva GRBL 1.1:n USB-esiasetus. Testaus fyysisellä koneella on tekemättä.",
+            "advisory": "USB: 115200 baudia. X 400 x Y 400 mm, origo edessä vasemmalla, S1000. Tarkista $30 ja $32=1. Tee kotihaku vasta, kun kytkimet ja $22=1 on tarkistettu. Automaattinen ilma-avustus on pois käytöstä. Wi-Fi ja lisävarusteet määritetään erikseen."
+          },
+          "artilume_a4_12w": {
+            "description": "Dokumentaatioon perustuva GRBL 1.1:n USB-esiasetus. Testaus fyysisellä koneella on tekemättä.",
+            "advisory": "USB: 115200 baudia. X 400 x Y 400 mm, origo edessä vasemmalla, S1000. Tarkista $30 ja $32=1. Tee kotihaku vasta, kun kytkimet ja $22=1 on tarkistettu. Automaattinen ilma-avustus on pois käytöstä. Wi-Fi ja lisävarusteet määritetään erikseen."
+          },
+          "artilume_a4_22w": {
+            "description": "Dokumentaatioon perustuva GRBL 1.1:n USB-esiasetus. Testaus fyysisellä koneella on tekemättä.",
+            "advisory": "USB: 115200 baudia. X 400 x Y 400 mm, origo edessä vasemmalla, S1000. Tarkista $30 ja $32=1. Tee kotihaku vasta, kun kytkimet ja $22=1 on tarkistettu. Automaattinen ilma-avustus on pois käytöstä. Wi-Fi ja lisävarusteet määritetään erikseen."
           }
         },
         "report_active_profile": "Tallenna ja aktivoi tämä profiili, jotta voit jakaa sen asetukset tulosten mukana.",

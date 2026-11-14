@@ -1,0 +1,21 @@
+// Published Artilume module and travel configurations. See docs/machines/artilume-usb-presets.md.
+export const artilumePresetCases = [
+  { presetId: 'artilume_t1_2_5w', name: 'Artilume T1 2.5W', airOn: '', width: 150, height: 200, baud: 115200, maxSpeed: 6000, homing: true, constantPower: false, usbEvidence: true },
+  { presetId: 'artilume_t1_3w', name: 'Artilume T1 3W', airOn: '', width: 150, height: 200, baud: 115200, maxSpeed: 6000, homing: true, constantPower: false, usbEvidence: true },
+  { presetId: 'artilume_t1_6w', name: 'Artilume T1 6W', airOn: '', width: 150, height: 200, baud: 115200, maxSpeed: 6000, homing: true, constantPower: false, usbEvidence: true },
+  { presetId: 'artilume_t1_7w', name: 'Artilume T1 7W', airOn: '', width: 150, height: 200, baud: 115200, maxSpeed: 6000, homing: true, constantPower: false, usbEvidence: true },
+  { presetId: 'artilume_t1_10w', name: 'Artilume T1 10W', airOn: '', width: 150, height: 200, baud: 115200, maxSpeed: 6000, homing: true, constantPower: false, usbEvidence: true },
+  { presetId: 'artilume_t1_12w', name: 'Artilume T1 12W', airOn: '', width: 150, height: 200, baud: 115200, maxSpeed: 6000, homing: true, constantPower: false, usbEvidence: true },
+  { presetId: 'artilume_t1_ir_1w', name: 'Artilume T1 1W IR (1064nm)', airOn: '', width: 150, height: 200, baud: 115200, maxSpeed: 6000, homing: true, constantPower: false, usbEvidence: true },
+  { presetId: 'artilume_t1_p_3w', name: 'Artilume T1-P 3W', airOn: '', width: 150, height: 200, baud: 115200, maxSpeed: 6000, homing: true, constantPower: false, usbEvidence: true },
+  { presetId: 'artilume_t1_p_7w', name: 'Artilume T1-P 7W', airOn: '', width: 150, height: 200, baud: 115200, maxSpeed: 6000, homing: true, constantPower: false, usbEvidence: true },
+  { presetId: 'artilume_t1_p_12w', name: 'Artilume T1-P 12W', airOn: '', width: 150, height: 200, baud: 115200, maxSpeed: 6000, homing: true, constantPower: false, usbEvidence: true },
+  { presetId: 'artilume_t1_p_ir_1w', name: 'Artilume T1-P 1W IR (1064nm)', airOn: '', width: 150, height: 200, baud: 115200, maxSpeed: 6000, homing: true, constantPower: false, usbEvidence: true },
+  { presetId: 'artilume_u1_3w', name: 'Artilume U1 3W', airOn: '', width: 200, height: 150, baud: 115200, maxSpeed: 6000, homing: false, constantPower: false, usbEvidence: true },
+  { presetId: 'artilume_u1_7w', name: 'Artilume U1 7W', airOn: '', width: 200, height: 150, baud: 115200, maxSpeed: 6000, homing: false, constantPower: false, usbEvidence: true },
+  { presetId: 'artilume_u1_12w', name: 'Artilume U1 12W', airOn: '', width: 200, height: 150, baud: 115200, maxSpeed: 6000, homing: false, constantPower: false, usbEvidence: true },
+  { presetId: 'artilume_u1_ir_1w', name: 'Artilume U1 1W IR (1064nm)', airOn: '', width: 200, height: 150, baud: 115200, maxSpeed: 6000, homing: false, constantPower: false, usbEvidence: true },
+  { presetId: 'artilume_a4_7w', name: 'Artilume A4 7W', airOn: '', width: 400, height: 400, baud: 115200, maxSpeed: 6000, homing: true, constantPower: false, usbEvidence: true },
+  { presetId: 'artilume_a4_12w', name: 'Artilume A4 12W', airOn: '', width: 400, height: 400, baud: 115200, maxSpeed: 6000, homing: true, constantPower: false, usbEvidence: true },
+  { presetId: 'artilume_a4_22w', name: 'Artilume A4 22W', airOn: '', width: 400, height: 400, baud: 115200, maxSpeed: 6000, homing: true, constantPower: false, usbEvidence: true },
+] as const;

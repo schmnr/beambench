@@ -2542,6 +2542,78 @@
           "atomstack_glacier_120w": {
             "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
             "advisory": "USB: 460800 Baud. 800 x 800 mm, Ursprung vorne links, S1000. $30 und Lasermodus $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. Andere Firmware und Erweiterungen müssen separat eingerichtet werden. Vor dem Rahmenlauf mit den Bedienelementen der Maschine fokussieren. Kamera, Drehvorrichtung und Förderband müssen separat eingerichtet werden. Den Leistungsmodus in AtomStack Studio wählen und das Programm schließen, bevor Beam Bench verbunden wird."
+          },
+          "artilume_t1_2_5w": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "USB: 115200 Baud. X 150 x Y 200 mm, Ursprung vorne links, S1000. $30 und $32=1 prüfen. Das ausgeklappte Gerät sichern und das Transportklebeband der Endschalter entfernen. Referenzfahrt erst nach Prüfung der Schalter und $22=1 ausführen. Automatische Luftunterstützung ist aus. WLAN und Zubehör separat einrichten."
+          },
+          "artilume_t1_3w": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "USB: 115200 Baud. X 150 x Y 200 mm, Ursprung vorne links, S1000. $30 und $32=1 prüfen. Das ausgeklappte Gerät sichern und das Transportklebeband der Endschalter entfernen. Referenzfahrt erst nach Prüfung der Schalter und $22=1 ausführen. Automatische Luftunterstützung ist aus. WLAN und Zubehör separat einrichten."
+          },
+          "artilume_t1_6w": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "USB: 115200 Baud. X 150 x Y 200 mm, Ursprung vorne links, S1000. $30 und $32=1 prüfen. Das ausgeklappte Gerät sichern und das Transportklebeband der Endschalter entfernen. Referenzfahrt erst nach Prüfung der Schalter und $22=1 ausführen. Automatische Luftunterstützung ist aus. WLAN und Zubehör separat einrichten."
+          },
+          "artilume_t1_7w": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "USB: 115200 Baud. X 150 x Y 200 mm, Ursprung vorne links, S1000. $30 und $32=1 prüfen. Das ausgeklappte Gerät sichern und das Transportklebeband der Endschalter entfernen. Referenzfahrt erst nach Prüfung der Schalter und $22=1 ausführen. Automatische Luftunterstützung ist aus. WLAN und Zubehör separat einrichten."
+          },
+          "artilume_t1_10w": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "USB: 115200 Baud. X 150 x Y 200 mm, Ursprung vorne links, S1000. $30 und $32=1 prüfen. Das ausgeklappte Gerät sichern und das Transportklebeband der Endschalter entfernen. Referenzfahrt erst nach Prüfung der Schalter und $22=1 ausführen. Automatische Luftunterstützung ist aus. WLAN und Zubehör separat einrichten."
+          },
+          "artilume_t1_12w": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "USB: 115200 Baud. X 150 x Y 200 mm, Ursprung vorne links, S1000. $30 und $32=1 prüfen. Das ausgeklappte Gerät sichern und das Transportklebeband der Endschalter entfernen. Referenzfahrt erst nach Prüfung der Schalter und $22=1 ausführen. Automatische Luftunterstützung ist aus. WLAN und Zubehör separat einrichten."
+          },
+          "artilume_t1_ir_1w": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "USB: 115200 Baud. X 150 x Y 200 mm, Ursprung vorne links, S1000. $30 und $32=1 prüfen. Das ausgeklappte Gerät sichern und das Transportklebeband der Endschalter entfernen. Referenzfahrt erst nach Prüfung der Schalter und $22=1 ausführen. Automatische Luftunterstützung ist aus. WLAN und Zubehör separat einrichten."
+          },
+          "artilume_t1_p_3w": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "USB: 115200 Baud. X 150 x Y 200 mm, Ursprung vorne links, S1000. $30 und $32=1 prüfen. Das ausgeklappte Gerät sichern und das Transportklebeband der Endschalter entfernen. Referenzfahrt erst nach Prüfung der Schalter und $22=1 ausführen. Automatische Luftunterstützung ist aus. WLAN und Zubehör separat einrichten."
+          },
+          "artilume_t1_p_7w": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "USB: 115200 Baud. X 150 x Y 200 mm, Ursprung vorne links, S1000. $30 und $32=1 prüfen. Das ausgeklappte Gerät sichern und das Transportklebeband der Endschalter entfernen. Referenzfahrt erst nach Prüfung der Schalter und $22=1 ausführen. Automatische Luftunterstützung ist aus. WLAN und Zubehör separat einrichten."
+          },
+          "artilume_t1_p_12w": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "USB: 115200 Baud. X 150 x Y 200 mm, Ursprung vorne links, S1000. $30 und $32=1 prüfen. Das ausgeklappte Gerät sichern und das Transportklebeband der Endschalter entfernen. Referenzfahrt erst nach Prüfung der Schalter und $22=1 ausführen. Automatische Luftunterstützung ist aus. WLAN und Zubehör separat einrichten."
+          },
+          "artilume_t1_p_ir_1w": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "USB: 115200 Baud. X 150 x Y 200 mm, Ursprung vorne links, S1000. $30 und $32=1 prüfen. Das ausgeklappte Gerät sichern und das Transportklebeband der Endschalter entfernen. Referenzfahrt erst nach Prüfung der Schalter und $22=1 ausführen. Automatische Luftunterstützung ist aus. WLAN und Zubehör separat einrichten."
+          },
+          "artilume_u1_3w": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "USB: 115200 Baud. X 200 x Y 150 mm, Ursprung vorne links, S1000. $30 und $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. WLAN und Zubehör separat einrichten."
+          },
+          "artilume_u1_7w": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "USB: 115200 Baud. X 200 x Y 150 mm, Ursprung vorne links, S1000. $30 und $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. WLAN und Zubehör separat einrichten."
+          },
+          "artilume_u1_12w": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "USB: 115200 Baud. X 200 x Y 150 mm, Ursprung vorne links, S1000. $30 und $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. WLAN und Zubehör separat einrichten."
+          },
+          "artilume_u1_ir_1w": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "USB: 115200 Baud. X 200 x Y 150 mm, Ursprung vorne links, S1000. $30 und $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. WLAN und Zubehör separat einrichten."
+          },
+          "artilume_a4_7w": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "USB: 115200 Baud. X 400 x Y 400 mm, Ursprung vorne links, S1000. $30 und $32=1 prüfen. Referenzfahrt erst nach Prüfung der Schalter und $22=1 ausführen. Automatische Luftunterstützung ist aus. WLAN und Zubehör separat einrichten."
+          },
+          "artilume_a4_12w": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "USB: 115200 Baud. X 400 x Y 400 mm, Ursprung vorne links, S1000. $30 und $32=1 prüfen. Referenzfahrt erst nach Prüfung der Schalter und $22=1 ausführen. Automatische Luftunterstützung ist aus. WLAN und Zubehör separat einrichten."
+          },
+          "artilume_a4_22w": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "USB: 115200 Baud. X 400 x Y 400 mm, Ursprung vorne links, S1000. $30 und $32=1 prüfen. Referenzfahrt erst nach Prüfung der Schalter und $22=1 ausführen. Automatische Luftunterstützung ist aus. WLAN und Zubehör separat einrichten."
           }
         },
         "report_active_profile": "Speichern und aktivieren Sie dieses Profil, um seine Einstellungen mit den Ergebnissen zu teilen.",

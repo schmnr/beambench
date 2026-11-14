@@ -2542,6 +2542,78 @@
           "atomstack_glacier_120w": {
             "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
             "advisory": "USB: 460800 baudios. 800 x 800 mm, origen delantero izquierdo, S1000. Verifica $30 y el modo láser $32=1. El retorno al origen y la asistencia de aire automática están desactivados. Otro firmware y las extensiones requieren una configuración aparte. Enfoque con los controles de la máquina antes de enmarcar. La cámara, el accesorio giratorio y la banda transportadora requieren una configuración independiente. Seleccione el modo de potencia en AtomStack Studio y ciérrelo antes de conectar Beam Bench."
+          },
+          "artilume_t1_2_5w": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "USB: 115200 baudios. X 150 x Y 200 mm, origen delantero izquierdo, S1000. Compruebe $30 y $32=1. Fije la máquina desplegada y retire la cinta de transporte de los finales de carrera. Haga el recorrido de origen solo tras comprobar los interruptores y $22=1. Asistencia de aire automática desactivada. El Wi-Fi y los accesorios requieren configuración aparte."
+          },
+          "artilume_t1_3w": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "USB: 115200 baudios. X 150 x Y 200 mm, origen delantero izquierdo, S1000. Compruebe $30 y $32=1. Fije la máquina desplegada y retire la cinta de transporte de los finales de carrera. Haga el recorrido de origen solo tras comprobar los interruptores y $22=1. Asistencia de aire automática desactivada. El Wi-Fi y los accesorios requieren configuración aparte."
+          },
+          "artilume_t1_6w": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "USB: 115200 baudios. X 150 x Y 200 mm, origen delantero izquierdo, S1000. Compruebe $30 y $32=1. Fije la máquina desplegada y retire la cinta de transporte de los finales de carrera. Haga el recorrido de origen solo tras comprobar los interruptores y $22=1. Asistencia de aire automática desactivada. El Wi-Fi y los accesorios requieren configuración aparte."
+          },
+          "artilume_t1_7w": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "USB: 115200 baudios. X 150 x Y 200 mm, origen delantero izquierdo, S1000. Compruebe $30 y $32=1. Fije la máquina desplegada y retire la cinta de transporte de los finales de carrera. Haga el recorrido de origen solo tras comprobar los interruptores y $22=1. Asistencia de aire automática desactivada. El Wi-Fi y los accesorios requieren configuración aparte."
+          },
+          "artilume_t1_10w": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "USB: 115200 baudios. X 150 x Y 200 mm, origen delantero izquierdo, S1000. Compruebe $30 y $32=1. Fije la máquina desplegada y retire la cinta de transporte de los finales de carrera. Haga el recorrido de origen solo tras comprobar los interruptores y $22=1. Asistencia de aire automática desactivada. El Wi-Fi y los accesorios requieren configuración aparte."
+          },
+          "artilume_t1_12w": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "USB: 115200 baudios. X 150 x Y 200 mm, origen delantero izquierdo, S1000. Compruebe $30 y $32=1. Fije la máquina desplegada y retire la cinta de transporte de los finales de carrera. Haga el recorrido de origen solo tras comprobar los interruptores y $22=1. Asistencia de aire automática desactivada. El Wi-Fi y los accesorios requieren configuración aparte."
+          },
+          "artilume_t1_ir_1w": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "USB: 115200 baudios. X 150 x Y 200 mm, origen delantero izquierdo, S1000. Compruebe $30 y $32=1. Fije la máquina desplegada y retire la cinta de transporte de los finales de carrera. Haga el recorrido de origen solo tras comprobar los interruptores y $22=1. Asistencia de aire automática desactivada. El Wi-Fi y los accesorios requieren configuración aparte."
+          },
+          "artilume_t1_p_3w": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "USB: 115200 baudios. X 150 x Y 200 mm, origen delantero izquierdo, S1000. Compruebe $30 y $32=1. Fije la máquina desplegada y retire la cinta de transporte de los finales de carrera. Haga el recorrido de origen solo tras comprobar los interruptores y $22=1. Asistencia de aire automática desactivada. El Wi-Fi y los accesorios requieren configuración aparte."
+          },
+          "artilume_t1_p_7w": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "USB: 115200 baudios. X 150 x Y 200 mm, origen delantero izquierdo, S1000. Compruebe $30 y $32=1. Fije la máquina desplegada y retire la cinta de transporte de los finales de carrera. Haga el recorrido de origen solo tras comprobar los interruptores y $22=1. Asistencia de aire automática desactivada. El Wi-Fi y los accesorios requieren configuración aparte."
+          },
+          "artilume_t1_p_12w": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "USB: 115200 baudios. X 150 x Y 200 mm, origen delantero izquierdo, S1000. Compruebe $30 y $32=1. Fije la máquina desplegada y retire la cinta de transporte de los finales de carrera. Haga el recorrido de origen solo tras comprobar los interruptores y $22=1. Asistencia de aire automática desactivada. El Wi-Fi y los accesorios requieren configuración aparte."
+          },
+          "artilume_t1_p_ir_1w": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "USB: 115200 baudios. X 150 x Y 200 mm, origen delantero izquierdo, S1000. Compruebe $30 y $32=1. Fije la máquina desplegada y retire la cinta de transporte de los finales de carrera. Haga el recorrido de origen solo tras comprobar los interruptores y $22=1. Asistencia de aire automática desactivada. El Wi-Fi y los accesorios requieren configuración aparte."
+          },
+          "artilume_u1_3w": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "USB: 115200 baudios. X 200 x Y 150 mm, origen delantero izquierdo, S1000. Compruebe $30 y $32=1. Recorrido de origen y asistencia de aire automática desactivados. El Wi-Fi y los accesorios requieren configuración aparte."
+          },
+          "artilume_u1_7w": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "USB: 115200 baudios. X 200 x Y 150 mm, origen delantero izquierdo, S1000. Compruebe $30 y $32=1. Recorrido de origen y asistencia de aire automática desactivados. El Wi-Fi y los accesorios requieren configuración aparte."
+          },
+          "artilume_u1_12w": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "USB: 115200 baudios. X 200 x Y 150 mm, origen delantero izquierdo, S1000. Compruebe $30 y $32=1. Recorrido de origen y asistencia de aire automática desactivados. El Wi-Fi y los accesorios requieren configuración aparte."
+          },
+          "artilume_u1_ir_1w": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "USB: 115200 baudios. X 200 x Y 150 mm, origen delantero izquierdo, S1000. Compruebe $30 y $32=1. Recorrido de origen y asistencia de aire automática desactivados. El Wi-Fi y los accesorios requieren configuración aparte."
+          },
+          "artilume_a4_7w": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "USB: 115200 baudios. X 400 x Y 400 mm, origen delantero izquierdo, S1000. Compruebe $30 y $32=1. Haga el recorrido de origen solo tras comprobar los interruptores y $22=1. Asistencia de aire automática desactivada. El Wi-Fi y los accesorios requieren configuración aparte."
+          },
+          "artilume_a4_12w": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "USB: 115200 baudios. X 400 x Y 400 mm, origen delantero izquierdo, S1000. Compruebe $30 y $32=1. Haga el recorrido de origen solo tras comprobar los interruptores y $22=1. Asistencia de aire automática desactivada. El Wi-Fi y los accesorios requieren configuración aparte."
+          },
+          "artilume_a4_22w": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "USB: 115200 baudios. X 400 x Y 400 mm, origen delantero izquierdo, S1000. Compruebe $30 y $32=1. Haga el recorrido de origen solo tras comprobar los interruptores y $22=1. Asistencia de aire automática desactivada. El Wi-Fi y los accesorios requieren configuración aparte."
           }
         },
         "report_active_profile": "Guarda y activa este perfil para compartir sus ajustes con los resultados.",

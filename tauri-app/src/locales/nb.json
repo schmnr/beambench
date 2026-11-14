@@ -2542,6 +2542,78 @@
           "atomstack_glacier_120w": {
             "description": "USB-forhåndsinnstilling for GRBL 1.1 basert på dokumentasjon. Testing på maskinen gjenstår.",
             "advisory": "USB: 460800 baud. 800 x 800 mm, origo foran til venstre, S1000. Kontroller $30 og lasermodus $32=1. Referansekjøring og automatisk luftassistanse er slått av. Annen fastvare og utvidelser krever eget oppsett. Still inn fokus med maskinens kontroller før innramming. Kamera, rotasjonsenhet og transportbånd må settes opp separat. Velg effektmodus i AtomStack Studio og lukk programmet før du kobler til Beam Bench."
+          },
+          "artilume_t1_2_5w": {
+            "description": "USB-forhåndsinnstilling for GRBL 1.1 basert på dokumentasjon. Testing på maskinen gjenstår.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, origo foran til venstre, S1000. Kontroller $30 og $32=1. Fest den utfoldede maskinen og fjern transportteipen fra endebryterne. Kjør hjem først etter at bryterne og $22=1 er kontrollert. Automatisk luftassistanse er av. Wi-Fi og tilbehør settes opp separat."
+          },
+          "artilume_t1_3w": {
+            "description": "USB-forhåndsinnstilling for GRBL 1.1 basert på dokumentasjon. Testing på maskinen gjenstår.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, origo foran til venstre, S1000. Kontroller $30 og $32=1. Fest den utfoldede maskinen og fjern transportteipen fra endebryterne. Kjør hjem først etter at bryterne og $22=1 er kontrollert. Automatisk luftassistanse er av. Wi-Fi og tilbehør settes opp separat."
+          },
+          "artilume_t1_6w": {
+            "description": "USB-forhåndsinnstilling for GRBL 1.1 basert på dokumentasjon. Testing på maskinen gjenstår.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, origo foran til venstre, S1000. Kontroller $30 og $32=1. Fest den utfoldede maskinen og fjern transportteipen fra endebryterne. Kjør hjem først etter at bryterne og $22=1 er kontrollert. Automatisk luftassistanse er av. Wi-Fi og tilbehør settes opp separat."
+          },
+          "artilume_t1_7w": {
+            "description": "USB-forhåndsinnstilling for GRBL 1.1 basert på dokumentasjon. Testing på maskinen gjenstår.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, origo foran til venstre, S1000. Kontroller $30 og $32=1. Fest den utfoldede maskinen og fjern transportteipen fra endebryterne. Kjør hjem først etter at bryterne og $22=1 er kontrollert. Automatisk luftassistanse er av. Wi-Fi og tilbehør settes opp separat."
+          },
+          "artilume_t1_10w": {
+            "description": "USB-forhåndsinnstilling for GRBL 1.1 basert på dokumentasjon. Testing på maskinen gjenstår.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, origo foran til venstre, S1000. Kontroller $30 og $32=1. Fest den utfoldede maskinen og fjern transportteipen fra endebryterne. Kjør hjem først etter at bryterne og $22=1 er kontrollert. Automatisk luftassistanse er av. Wi-Fi og tilbehør settes opp separat."
+          },
+          "artilume_t1_12w": {
+            "description": "USB-forhåndsinnstilling for GRBL 1.1 basert på dokumentasjon. Testing på maskinen gjenstår.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, origo foran til venstre, S1000. Kontroller $30 og $32=1. Fest den utfoldede maskinen og fjern transportteipen fra endebryterne. Kjør hjem først etter at bryterne og $22=1 er kontrollert. Automatisk luftassistanse er av. Wi-Fi og tilbehør settes opp separat."
+          },
+          "artilume_t1_ir_1w": {
+            "description": "USB-forhåndsinnstilling for GRBL 1.1 basert på dokumentasjon. Testing på maskinen gjenstår.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, origo foran til venstre, S1000. Kontroller $30 og $32=1. Fest den utfoldede maskinen og fjern transportteipen fra endebryterne. Kjør hjem først etter at bryterne og $22=1 er kontrollert. Automatisk luftassistanse er av. Wi-Fi og tilbehør settes opp separat."
+          },
+          "artilume_t1_p_3w": {
+            "description": "USB-forhåndsinnstilling for GRBL 1.1 basert på dokumentasjon. Testing på maskinen gjenstår.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, origo foran til venstre, S1000. Kontroller $30 og $32=1. Fest den utfoldede maskinen og fjern transportteipen fra endebryterne. Kjør hjem først etter at bryterne og $22=1 er kontrollert. Automatisk luftassistanse er av. Wi-Fi og tilbehør settes opp separat."
+          },
+          "artilume_t1_p_7w": {
+            "description": "USB-forhåndsinnstilling for GRBL 1.1 basert på dokumentasjon. Testing på maskinen gjenstår.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, origo foran til venstre, S1000. Kontroller $30 og $32=1. Fest den utfoldede maskinen og fjern transportteipen fra endebryterne. Kjør hjem først etter at bryterne og $22=1 er kontrollert. Automatisk luftassistanse er av. Wi-Fi og tilbehør settes opp separat."
+          },
+          "artilume_t1_p_12w": {
+            "description": "USB-forhåndsinnstilling for GRBL 1.1 basert på dokumentasjon. Testing på maskinen gjenstår.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, origo foran til venstre, S1000. Kontroller $30 og $32=1. Fest den utfoldede maskinen og fjern transportteipen fra endebryterne. Kjør hjem først etter at bryterne og $22=1 er kontrollert. Automatisk luftassistanse er av. Wi-Fi og tilbehør settes opp separat."
+          },
+          "artilume_t1_p_ir_1w": {
+            "description": "USB-forhåndsinnstilling for GRBL 1.1 basert på dokumentasjon. Testing på maskinen gjenstår.",
+            "advisory": "USB: 115200 baud. X 150 x Y 200 mm, origo foran til venstre, S1000. Kontroller $30 og $32=1. Fest den utfoldede maskinen og fjern transportteipen fra endebryterne. Kjør hjem først etter at bryterne og $22=1 er kontrollert. Automatisk luftassistanse er av. Wi-Fi og tilbehør settes opp separat."
+          },
+          "artilume_u1_3w": {
+            "description": "USB-forhåndsinnstilling for GRBL 1.1 basert på dokumentasjon. Testing på maskinen gjenstår.",
+            "advisory": "USB: 115200 baud. X 200 x Y 150 mm, origo foran til venstre, S1000. Kontroller $30 og $32=1. Hjemkjøring og automatisk luftassistanse er av. Wi-Fi og tilbehør settes opp separat."
+          },
+          "artilume_u1_7w": {
+            "description": "USB-forhåndsinnstilling for GRBL 1.1 basert på dokumentasjon. Testing på maskinen gjenstår.",
+            "advisory": "USB: 115200 baud. X 200 x Y 150 mm, origo foran til venstre, S1000. Kontroller $30 og $32=1. Hjemkjøring og automatisk luftassistanse er av. Wi-Fi og tilbehør settes opp separat."
+          },
+          "artilume_u1_12w": {
+            "description": "USB-forhåndsinnstilling for GRBL 1.1 basert på dokumentasjon. Testing på maskinen gjenstår.",
+            "advisory": "USB: 115200 baud. X 200 x Y 150 mm, origo foran til venstre, S1000. Kontroller $30 og $32=1. Hjemkjøring og automatisk luftassistanse er av. Wi-Fi og tilbehør settes opp separat."
+          },
+          "artilume_u1_ir_1w": {
+            "description": "USB-forhåndsinnstilling for GRBL 1.1 basert på dokumentasjon. Testing på maskinen gjenstår.",
+            "advisory": "USB: 115200 baud. X 200 x Y 150 mm, origo foran til venstre, S1000. Kontroller $30 og $32=1. Hjemkjøring og automatisk luftassistanse er av. Wi-Fi og tilbehør settes opp separat."
+          },
+          "artilume_a4_7w": {
+            "description": "USB-forhåndsinnstilling for GRBL 1.1 basert på dokumentasjon. Testing på maskinen gjenstår.",
+            "advisory": "USB: 115200 baud. X 400 x Y 400 mm, origo foran til venstre, S1000. Kontroller $30 og $32=1. Kjør hjem først etter at bryterne og $22=1 er kontrollert. Automatisk luftassistanse er av. Wi-Fi og tilbehør settes opp separat."
+          },
+          "artilume_a4_12w": {
+            "description": "USB-forhåndsinnstilling for GRBL 1.1 basert på dokumentasjon. Testing på maskinen gjenstår.",
+            "advisory": "USB: 115200 baud. X 400 x Y 400 mm, origo foran til venstre, S1000. Kontroller $30 og $32=1. Kjør hjem først etter at bryterne og $22=1 er kontrollert. Automatisk luftassistanse er av. Wi-Fi og tilbehør settes opp separat."
+          },
+          "artilume_a4_22w": {
+            "description": "USB-forhåndsinnstilling for GRBL 1.1 basert på dokumentasjon. Testing på maskinen gjenstår.",
+            "advisory": "USB: 115200 baud. X 400 x Y 400 mm, origo foran til venstre, S1000. Kontroller $30 og $32=1. Kjør hjem først etter at bryterne og $22=1 er kontrollert. Automatisk luftassistanse er av. Wi-Fi og tilbehør settes opp separat."
           }
         },
         "report_active_profile": "Lagre og aktiver denne profilen for å dele innstillingene med resultatene dine.",

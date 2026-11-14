@@ -2542,6 +2542,78 @@
           "atomstack_glacier_120w": {
             "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
             "advisory": "USB: 460800 baudů. 800 x 800 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení. Před obkreslením rámečku zaostřete pomocí ovládání stroje. Kamera, rotační zařízení a dopravník vyžadují samostatné nastavení. Vyberte režim výkonu v AtomStack Studio a před připojením Beam Bench tento program zavřete."
+          },
+          "artilume_t1_2_5w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "USB: 115200 baudů. X 150 x Y 200 mm, počátek vpředu vlevo, S1000. Ověřte $30 a $32=1. Zajistěte rozložený stroj a odstraňte přepravní pásku z koncových spínačů. Referování spusťte až po ověření spínačů a $22=1. Automatický ofuk je vypnutý. Wi-Fi a příslušenství nastavte samostatně."
+          },
+          "artilume_t1_3w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "USB: 115200 baudů. X 150 x Y 200 mm, počátek vpředu vlevo, S1000. Ověřte $30 a $32=1. Zajistěte rozložený stroj a odstraňte přepravní pásku z koncových spínačů. Referování spusťte až po ověření spínačů a $22=1. Automatický ofuk je vypnutý. Wi-Fi a příslušenství nastavte samostatně."
+          },
+          "artilume_t1_6w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "USB: 115200 baudů. X 150 x Y 200 mm, počátek vpředu vlevo, S1000. Ověřte $30 a $32=1. Zajistěte rozložený stroj a odstraňte přepravní pásku z koncových spínačů. Referování spusťte až po ověření spínačů a $22=1. Automatický ofuk je vypnutý. Wi-Fi a příslušenství nastavte samostatně."
+          },
+          "artilume_t1_7w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "USB: 115200 baudů. X 150 x Y 200 mm, počátek vpředu vlevo, S1000. Ověřte $30 a $32=1. Zajistěte rozložený stroj a odstraňte přepravní pásku z koncových spínačů. Referování spusťte až po ověření spínačů a $22=1. Automatický ofuk je vypnutý. Wi-Fi a příslušenství nastavte samostatně."
+          },
+          "artilume_t1_10w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "USB: 115200 baudů. X 150 x Y 200 mm, počátek vpředu vlevo, S1000. Ověřte $30 a $32=1. Zajistěte rozložený stroj a odstraňte přepravní pásku z koncových spínačů. Referování spusťte až po ověření spínačů a $22=1. Automatický ofuk je vypnutý. Wi-Fi a příslušenství nastavte samostatně."
+          },
+          "artilume_t1_12w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "USB: 115200 baudů. X 150 x Y 200 mm, počátek vpředu vlevo, S1000. Ověřte $30 a $32=1. Zajistěte rozložený stroj a odstraňte přepravní pásku z koncových spínačů. Referování spusťte až po ověření spínačů a $22=1. Automatický ofuk je vypnutý. Wi-Fi a příslušenství nastavte samostatně."
+          },
+          "artilume_t1_ir_1w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "USB: 115200 baudů. X 150 x Y 200 mm, počátek vpředu vlevo, S1000. Ověřte $30 a $32=1. Zajistěte rozložený stroj a odstraňte přepravní pásku z koncových spínačů. Referování spusťte až po ověření spínačů a $22=1. Automatický ofuk je vypnutý. Wi-Fi a příslušenství nastavte samostatně."
+          },
+          "artilume_t1_p_3w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "USB: 115200 baudů. X 150 x Y 200 mm, počátek vpředu vlevo, S1000. Ověřte $30 a $32=1. Zajistěte rozložený stroj a odstraňte přepravní pásku z koncových spínačů. Referování spusťte až po ověření spínačů a $22=1. Automatický ofuk je vypnutý. Wi-Fi a příslušenství nastavte samostatně."
+          },
+          "artilume_t1_p_7w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "USB: 115200 baudů. X 150 x Y 200 mm, počátek vpředu vlevo, S1000. Ověřte $30 a $32=1. Zajistěte rozložený stroj a odstraňte přepravní pásku z koncových spínačů. Referování spusťte až po ověření spínačů a $22=1. Automatický ofuk je vypnutý. Wi-Fi a příslušenství nastavte samostatně."
+          },
+          "artilume_t1_p_12w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "USB: 115200 baudů. X 150 x Y 200 mm, počátek vpředu vlevo, S1000. Ověřte $30 a $32=1. Zajistěte rozložený stroj a odstraňte přepravní pásku z koncových spínačů. Referování spusťte až po ověření spínačů a $22=1. Automatický ofuk je vypnutý. Wi-Fi a příslušenství nastavte samostatně."
+          },
+          "artilume_t1_p_ir_1w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "USB: 115200 baudů. X 150 x Y 200 mm, počátek vpředu vlevo, S1000. Ověřte $30 a $32=1. Zajistěte rozložený stroj a odstraňte přepravní pásku z koncových spínačů. Referování spusťte až po ověření spínačů a $22=1. Automatický ofuk je vypnutý. Wi-Fi a příslušenství nastavte samostatně."
+          },
+          "artilume_u1_3w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "USB: 115200 baudů. X 200 x Y 150 mm, počátek vpředu vlevo, S1000. Ověřte $30 a $32=1. Referování a automatický ofuk jsou vypnuté. Wi-Fi a příslušenství nastavte samostatně."
+          },
+          "artilume_u1_7w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "USB: 115200 baudů. X 200 x Y 150 mm, počátek vpředu vlevo, S1000. Ověřte $30 a $32=1. Referování a automatický ofuk jsou vypnuté. Wi-Fi a příslušenství nastavte samostatně."
+          },
+          "artilume_u1_12w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "USB: 115200 baudů. X 200 x Y 150 mm, počátek vpředu vlevo, S1000. Ověřte $30 a $32=1. Referování a automatický ofuk jsou vypnuté. Wi-Fi a příslušenství nastavte samostatně."
+          },
+          "artilume_u1_ir_1w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "USB: 115200 baudů. X 200 x Y 150 mm, počátek vpředu vlevo, S1000. Ověřte $30 a $32=1. Referování a automatický ofuk jsou vypnuté. Wi-Fi a příslušenství nastavte samostatně."
+          },
+          "artilume_a4_7w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "USB: 115200 baudů. X 400 x Y 400 mm, počátek vpředu vlevo, S1000. Ověřte $30 a $32=1. Referování spusťte až po ověření spínačů a $22=1. Automatický ofuk je vypnutý. Wi-Fi a příslušenství nastavte samostatně."
+          },
+          "artilume_a4_12w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "USB: 115200 baudů. X 400 x Y 400 mm, počátek vpředu vlevo, S1000. Ověřte $30 a $32=1. Referování spusťte až po ověření spínačů a $22=1. Automatický ofuk je vypnutý. Wi-Fi a příslušenství nastavte samostatně."
+          },
+          "artilume_a4_22w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "USB: 115200 baudů. X 400 x Y 400 mm, počátek vpředu vlevo, S1000. Ověřte $30 a $32=1. Referování spusťte až po ověření spínačů a $22=1. Automatický ofuk je vypnutý. Wi-Fi a příslušenství nastavte samostatně."
           }
         },
         "report_active_profile": "Uložte a aktivujte tento profil, chcete-li sdílet jeho nastavení s výsledky.",

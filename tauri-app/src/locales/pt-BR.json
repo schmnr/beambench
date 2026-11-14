@@ -2542,6 +2542,78 @@
           "atomstack_glacier_120w": {
             "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
             "advisory": "USB: 460800 baud. 800 x 800 mm, origem frontal esquerda, S1000. Verifique $30 e o modo laser $32=1. A busca de origem e a assistência de ar automática estão desativadas. Outros firmwares e extensões precisam de configuração separada. Ajuste o foco pelos controles da máquina antes de delimitar a área. Câmera, acessório rotativo e esteira precisam de configuração separada. Selecione o modo de potência no AtomStack Studio e feche-o antes de conectar o Beam Bench."
+          },
+          "artilume_t1_2_5w": {
+            "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
+            "advisory": "USB: 115200 bauds. X 150 x Y 200 mm, origem frontal esquerda, S1000. Verifique $30 e $32=1. Fixe a máquina aberta e remova a fita de transporte dos fins de curso. Faça o retorno à origem somente após verificar os sensores e $22=1. Assistência de ar automática desativada. Wi-Fi e acessórios exigem configuração separada."
+          },
+          "artilume_t1_3w": {
+            "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
+            "advisory": "USB: 115200 bauds. X 150 x Y 200 mm, origem frontal esquerda, S1000. Verifique $30 e $32=1. Fixe a máquina aberta e remova a fita de transporte dos fins de curso. Faça o retorno à origem somente após verificar os sensores e $22=1. Assistência de ar automática desativada. Wi-Fi e acessórios exigem configuração separada."
+          },
+          "artilume_t1_6w": {
+            "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
+            "advisory": "USB: 115200 bauds. X 150 x Y 200 mm, origem frontal esquerda, S1000. Verifique $30 e $32=1. Fixe a máquina aberta e remova a fita de transporte dos fins de curso. Faça o retorno à origem somente após verificar os sensores e $22=1. Assistência de ar automática desativada. Wi-Fi e acessórios exigem configuração separada."
+          },
+          "artilume_t1_7w": {
+            "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
+            "advisory": "USB: 115200 bauds. X 150 x Y 200 mm, origem frontal esquerda, S1000. Verifique $30 e $32=1. Fixe a máquina aberta e remova a fita de transporte dos fins de curso. Faça o retorno à origem somente após verificar os sensores e $22=1. Assistência de ar automática desativada. Wi-Fi e acessórios exigem configuração separada."
+          },
+          "artilume_t1_10w": {
+            "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
+            "advisory": "USB: 115200 bauds. X 150 x Y 200 mm, origem frontal esquerda, S1000. Verifique $30 e $32=1. Fixe a máquina aberta e remova a fita de transporte dos fins de curso. Faça o retorno à origem somente após verificar os sensores e $22=1. Assistência de ar automática desativada. Wi-Fi e acessórios exigem configuração separada."
+          },
+          "artilume_t1_12w": {
+            "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
+            "advisory": "USB: 115200 bauds. X 150 x Y 200 mm, origem frontal esquerda, S1000. Verifique $30 e $32=1. Fixe a máquina aberta e remova a fita de transporte dos fins de curso. Faça o retorno à origem somente após verificar os sensores e $22=1. Assistência de ar automática desativada. Wi-Fi e acessórios exigem configuração separada."
+          },
+          "artilume_t1_ir_1w": {
+            "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
+            "advisory": "USB: 115200 bauds. X 150 x Y 200 mm, origem frontal esquerda, S1000. Verifique $30 e $32=1. Fixe a máquina aberta e remova a fita de transporte dos fins de curso. Faça o retorno à origem somente após verificar os sensores e $22=1. Assistência de ar automática desativada. Wi-Fi e acessórios exigem configuração separada."
+          },
+          "artilume_t1_p_3w": {
+            "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
+            "advisory": "USB: 115200 bauds. X 150 x Y 200 mm, origem frontal esquerda, S1000. Verifique $30 e $32=1. Fixe a máquina aberta e remova a fita de transporte dos fins de curso. Faça o retorno à origem somente após verificar os sensores e $22=1. Assistência de ar automática desativada. Wi-Fi e acessórios exigem configuração separada."
+          },
+          "artilume_t1_p_7w": {
+            "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
+            "advisory": "USB: 115200 bauds. X 150 x Y 200 mm, origem frontal esquerda, S1000. Verifique $30 e $32=1. Fixe a máquina aberta e remova a fita de transporte dos fins de curso. Faça o retorno à origem somente após verificar os sensores e $22=1. Assistência de ar automática desativada. Wi-Fi e acessórios exigem configuração separada."
+          },
+          "artilume_t1_p_12w": {
+            "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
+            "advisory": "USB: 115200 bauds. X 150 x Y 200 mm, origem frontal esquerda, S1000. Verifique $30 e $32=1. Fixe a máquina aberta e remova a fita de transporte dos fins de curso. Faça o retorno à origem somente após verificar os sensores e $22=1. Assistência de ar automática desativada. Wi-Fi e acessórios exigem configuração separada."
+          },
+          "artilume_t1_p_ir_1w": {
+            "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
+            "advisory": "USB: 115200 bauds. X 150 x Y 200 mm, origem frontal esquerda, S1000. Verifique $30 e $32=1. Fixe a máquina aberta e remova a fita de transporte dos fins de curso. Faça o retorno à origem somente após verificar os sensores e $22=1. Assistência de ar automática desativada. Wi-Fi e acessórios exigem configuração separada."
+          },
+          "artilume_u1_3w": {
+            "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
+            "advisory": "USB: 115200 bauds. X 200 x Y 150 mm, origem frontal esquerda, S1000. Verifique $30 e $32=1. Retorno à origem e assistência de ar automática desativados. Wi-Fi e acessórios exigem configuração separada."
+          },
+          "artilume_u1_7w": {
+            "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
+            "advisory": "USB: 115200 bauds. X 200 x Y 150 mm, origem frontal esquerda, S1000. Verifique $30 e $32=1. Retorno à origem e assistência de ar automática desativados. Wi-Fi e acessórios exigem configuração separada."
+          },
+          "artilume_u1_12w": {
+            "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
+            "advisory": "USB: 115200 bauds. X 200 x Y 150 mm, origem frontal esquerda, S1000. Verifique $30 e $32=1. Retorno à origem e assistência de ar automática desativados. Wi-Fi e acessórios exigem configuração separada."
+          },
+          "artilume_u1_ir_1w": {
+            "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
+            "advisory": "USB: 115200 bauds. X 200 x Y 150 mm, origem frontal esquerda, S1000. Verifique $30 e $32=1. Retorno à origem e assistência de ar automática desativados. Wi-Fi e acessórios exigem configuração separada."
+          },
+          "artilume_a4_7w": {
+            "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
+            "advisory": "USB: 115200 bauds. X 400 x Y 400 mm, origem frontal esquerda, S1000. Verifique $30 e $32=1. Faça o retorno à origem somente após verificar os sensores e $22=1. Assistência de ar automática desativada. Wi-Fi e acessórios exigem configuração separada."
+          },
+          "artilume_a4_12w": {
+            "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
+            "advisory": "USB: 115200 bauds. X 400 x Y 400 mm, origem frontal esquerda, S1000. Verifique $30 e $32=1. Faça o retorno à origem somente após verificar os sensores e $22=1. Assistência de ar automática desativada. Wi-Fi e acessórios exigem configuração separada."
+          },
+          "artilume_a4_22w": {
+            "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
+            "advisory": "USB: 115200 bauds. X 400 x Y 400 mm, origem frontal esquerda, S1000. Verifique $30 e $32=1. Faça o retorno à origem somente após verificar os sensores e $22=1. Assistência de ar automática desativada. Wi-Fi e acessórios exigem configuração separada."
           }
         },
         "report_active_profile": "Salve e ative este perfil para compartilhar as configurações com os resultados.",
