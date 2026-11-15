@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add Monport K40 GRBL 2.0 and K40 Pro 40W USB presets with a 300 x 200 mm
+  workspace and rear-left origin. Include setup guidance and framing,
+  vector/raster output and saved-settings tests. Physical testing is pending.
+
 ## 0.2.45
 
 - Add 18 Artilume USB presets for documented T1, T1-P, U1 and A4 modules,

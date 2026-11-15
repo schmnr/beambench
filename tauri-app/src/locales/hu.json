@@ -2543,6 +2543,14 @@
             "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
             "advisory": "USB: 460800 baud. 800 x 800 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek. A keretezés előtt állítsa be a fókuszt a gép kezelőszerveivel. A kamera, a forgató és a szállítószalag külön beállítást igényel. Válassza ki a teljesítménymódot az AtomStack Studio programban, majd zárja be a Beam Bench csatlakoztatása előtt."
           },
+          "monport_k40_grbl_2_0": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "Csak GRBL USB: 115200 baud, X 300 x Y 200 mm, bal hátsó origó, S1000/M4. Ellenőrizze a $30, $32=1 beállításokat és mindkét tengely irányát. Alaphelyzet-keresés csak a kapcsolók és a $22=1 ellenőrzése után. A vízhűtés maradjon bekapcsolva; kikapcsolt lézerrel keretezzen, és kis teljesítménnyel teszteljen. Kézi levegő és fókusz. A Nano, Ruida és a módosított kábelezés külön beállítást igényel."
+          },
+          "monport_k40_pro": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "Csak GRBL USB: 115200 baud, X 300 x Y 200 mm, bal hátsó origó, S1000/M4. Ellenőrizze a $30, $32=1 beállításokat és mindkét tengely irányát. Alaphelyzet-keresés csak a kapcsolók és a $22=1 ellenőrzése után. A vízhűtés maradjon bekapcsolva; kikapcsolt lézerrel keretezzen, és kis teljesítménnyel teszteljen. Kézi levegő és fókusz. A Nano, Ruida és a módosított kábelezés külön beállítást igényel."
+          },
           "artilume_t1_2_5w": {
             "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
             "advisory": "USB: 115200 baud. X 150 x Y 200 mm, bal elülső origó, S1000. Ellenőrizze a $30 és $32=1 értékét. Rögzítse a szétnyitott gépet, és távolítsa el a végálláskapcsolók szállítási szalagját. Csak a kapcsolók és a $22=1 ellenőrzése után végezzen alaphelyzetbe állítást. Az automatikus légsegéd ki van kapcsolva. A Wi-Fi és a tartozékok külön beállítást igényelnek."

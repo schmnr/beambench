@@ -2543,6 +2543,14 @@
             "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
             "advisory": "USB: 460800 baud. 800 x 800 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning. Ställ in fokus med maskinens reglage före inramning. Kamera, rotationsenhet och transportband måste ställas in separat. Välj effektläge i AtomStack Studio och stäng programmet innan du ansluter Beam Bench."
           },
+          "monport_k40_grbl_2_0": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "Endast GRBL USB: 115200 baud, X 300 x Y 200 mm, origo bak till vänster, S1000/M4. Kontrollera $30, $32=1 och båda axlarnas riktning. Kör hem först efter kontroll av brytarna och $22=1. Håll vattenkylningen igång; rama in med lasern avstängd och testa med låg effekt. Manuell luft och fokus. Nano, Ruida och ändrad kabeldragning kräver separat inställning."
+          },
+          "monport_k40_pro": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "Endast GRBL USB: 115200 baud, X 300 x Y 200 mm, origo bak till vänster, S1000/M4. Kontrollera $30, $32=1 och båda axlarnas riktning. Kör hem först efter kontroll av brytarna och $22=1. Håll vattenkylningen igång; rama in med lasern avstängd och testa med låg effekt. Manuell luft och fokus. Nano, Ruida och ändrad kabeldragning kräver separat inställning."
+          },
           "artilume_t1_2_5w": {
             "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
             "advisory": "USB: 115200 baud. X 150 x Y 200 mm, origo framtill till vänster, S1000. Kontrollera $30 och $32=1. Fäst den utfällda maskinen och ta bort transporttejpen från gränslägesbrytarna. Kör hem först efter kontroll av brytarna och $22=1. Automatisk luftassistans är avstängd. Wi-Fi och tillbehör ställs in separat."

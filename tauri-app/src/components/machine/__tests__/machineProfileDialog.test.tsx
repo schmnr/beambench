@@ -9,6 +9,7 @@ import { MachinePresetPanel } from '../MachinePresetPanel';
 import { FEEDBACK_REPORT_OPEN_EVENT } from '../../../feedbackEvents';
 import { atomstackPresetCases } from '../../../test-utils/atomstackPresets';
 import { artilumePresetCases } from '../../../test-utils/artilumePresets';
+import { monportPresetCases } from '../../../test-utils/monportPresets';
 
 const mockInvoke = vi.fn().mockResolvedValue([]);
 const mockOpen = vi.fn().mockResolvedValue(null);
@@ -589,6 +590,7 @@ describe('MachineProfileDialog', () => {
     { presetId: 'aufero_laser_2', name: 'Aufero Laser 2 (LU2-2 / LU2-4)', airOn: '', width: 390, height: 390, homing: false, constantPower: false, usbEvidence: true },
     ...atomstackPresetCases,
     ...artilumePresetCases,
+    ...monportPresetCases,
     { presetId: 'creality_cr_laser_falcon_5w', name: 'Creality CR-Laser Falcon 5W', airOn: '', width: 400, height: 415, homing: false, constantPower: false, usbEvidence: true },
     { presetId: 'creality_cr_laser_falcon_7_5w', name: 'Creality CR-Laser Falcon 7.5W', airOn: '', width: 400, height: 415, homing: false, constantPower: false, usbEvidence: true },
     { presetId: 'creality_cr_laser_falcon_10w', name: 'Creality CR-Laser Falcon 10W', airOn: '', width: 400, height: 415, homing: false, constantPower: false, usbEvidence: true },
@@ -606,7 +608,7 @@ describe('MachineProfileDialog', () => {
     { presetId: 'twotrees_tts_20_pro', name: 'Two Trees TTS-20 Pro', airOn: '', width: 418, height: 418, homing: false, constantPower: true, usbEvidence: true },
     { presetId: 'twotrees_ts2_10w', name: 'Two Trees TS2 10W', airOn: '', width: 450, height: 450, homing: false, constantPower: true, usbEvidence: true },
     { presetId: 'twotrees_ts2_20w', name: 'Two Trees TS2 20W', airOn: '', width: 410, height: 410, homing: false, constantPower: true, usbEvidence: true },
-  ].map((preset) => ({ baud: 115200, maxSpeed: 6000, ...preset })))('previews and applies $presetId with explicit confirmation', async ({ presetId, name, airOn, width, height, homing, constantPower, usbEvidence, baud, maxSpeed }) => {
+  ].map((preset) => ({ baud: 115200, maxSpeed: 6000, origin: 'bottom_left' as const, ...preset })))('previews and applies $presetId with explicit confirmation', async ({ presetId, name, airOn, width, height, homing, constantPower, usbEvidence, baud, maxSpeed, origin }) => {
     const profile = makeProfile({ id: 'prof-preset', name: 'Preset Profile' });
     const appliedProfile = {
       ...profile,
@@ -620,6 +622,7 @@ describe('MachineProfileDialog', () => {
       use_constant_power: constantPower,
       default_baud_rate: baud,
       max_speed_mm_min: maxSpeed,
+      origin,
     };
 
     let storedProfile = profile;
@@ -632,7 +635,7 @@ describe('MachineProfileDialog', () => {
             name,
             description: 'Documented stock defaults',
             advisory_text: 'Use a wall outlet if air assist resets the controller.',
-            origin: 'bottom_left',
+            origin,
             firmware_type: 'grbl',
             default_baud_rate: baud,
             bed_width_mm: width,
@@ -710,7 +713,10 @@ describe('MachineProfileDialog', () => {
     }
     if (usbEvidence) {
       expect(screen.getByText(/Documentation-based GRBL 1.1 USB preset/)).toBeDefined();
-      if (presetId.startsWith('artilume_')) {
+      if (presetId.startsWith('monport_')) {
+        expect(screen.getByText(/rear-left origin/)).toBeDefined();
+        expect(screen.getByText(/frame with the laser off/)).toBeDefined();
+      } else if (presetId.startsWith('artilume_')) {
         expect(screen.getByText(/USB: 115200 baud/)).toBeDefined();
         expect(screen.getByText(homing
           ? /Home only after checking the switches and \$22=1/
@@ -743,6 +749,7 @@ describe('MachineProfileDialog', () => {
       expect((screen.getByLabelText('Air On G-code') as HTMLInputElement).value).toBe(airOn);
       expect((screen.getByLabelText('Width (mm)') as HTMLInputElement).value).toBe(String(width));
       expect((screen.getByLabelText('Height (mm)') as HTMLInputElement).value).toBe(String(height));
+      expect((screen.getByLabelText('Origin') as HTMLSelectElement).value).toBe(origin);
       expect((screen.getByText('Constant Power (M3)', { exact: true }).parentElement?.querySelector('input') as HTMLInputElement).checked).toBe(constantPower);
       expect(loadProfiles).toHaveBeenCalled();
     });

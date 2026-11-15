@@ -30,6 +30,11 @@ Ortur/Aufero, AtomStack Pro V2, standard Falcon2, Sculpfun and Two Trees
 configurations, also documentation-based. These presets do not establish
 brand-wide compatibility. D1/D1 Pro use a separate [native USB and Wi-Fi adapters](machines/xtool-d1.md)
 and stock-module presets in 0.2.32. Physical testing is pending.
+The [Monport GRBL K40 presets](machines/monport-usb-presets.md) cover the
+300 x 200 mm K40 with GRBL controller 2.0 and K40 Pro / G320. These use
+rear-left coordinates and are documentation-based, with physical testing
+pending. Stock Nano, Reno DSP, fiber and UV controllers require separate
+support; these entries do not establish brand-wide compatibility.
 
 
 | Controller choice | Connection | Status | Current scope |

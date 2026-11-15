@@ -12648,6 +12648,158 @@ mod tests {
     }
 
     #[test]
+    fn monport_presets_frame_and_stream_in_rear_left_coordinates() {
+        let _guard = crate::test_support::PersistTestGuard::new();
+        for preset_id in ["monport_k40_grbl_2_0", "monport_k40_pro"] {
+            for start_from in [
+                StartFromMode::AbsoluteCoords,
+                StartFromMode::CurrentPosition,
+            ] {
+                let profile = MachineProfile::default();
+                let profile_id = profile.id;
+                let status = "<Idle|MPos:100,100,0|WCO:0,0,0|FS:0,0>";
+                let (ctx, transport) = ready_grbl_context_with_status(profile, status);
+                transport.lock().unwrap().rx.extend(
+                    [
+                        "MonPort",
+                        "[VER:1.1f.20220618:]",
+                        "[OPT:VML,35,254]",
+                        "$22=1",
+                        "$30=1000",
+                        "$32=1",
+                        status,
+                    ]
+                    .map(String::from),
+                );
+                machine_status(&ctx).unwrap();
+                let mut project = frame_project();
+                project.machine_profile_id = Some(profile_id);
+                project.start_from = start_from;
+                project.job_origin = beambench_common::AnchorPoint::TopLeft;
+                project.objects[0].bounds =
+                    Bounds::new(Point2D::new(10.0, 20.0), Point2D::new(20.0, 30.0));
+                project.layers[0].primary_entry_mut().power_percent = 10.0;
+                project.layers[0].primary_entry_mut().speed_mm_min = 1000.0;
+                *ctx.project.lock().unwrap() = Some(project);
+                super::super::profiles::apply_profile_preset(&ctx, profile_id, preset_id).unwrap();
+                let project = ctx.project.lock().unwrap().clone().unwrap();
+                assert_eq!(
+                    project.workspace.origin,
+                    beambench_core::WorkspaceOrigin::TopLeft
+                );
+                assert_eq!(
+                    (
+                        project.workspace.bed_width_mm,
+                        project.workspace.bed_height_mm
+                    ),
+                    (300.0, 200.0)
+                );
+                ctx.machine_coordinates_valid.store(true, Ordering::Release);
+                transport
+                    .lock()
+                    .unwrap()
+                    .status_on_query
+                    .push_back(status.into());
+
+                let finish = |mut progress: JobProgress| {
+                    for _ in 0..50 {
+                        let mut wire = transport.lock().unwrap();
+                        wire.rx.extend(
+                            (progress.acknowledged_lines..progress.sent_lines).map(|_| "ok".into()),
+                        );
+                        wire.rx.push_back(status.into());
+                        drop(wire);
+                        progress = tick_job(&ctx).unwrap().unwrap();
+                        if progress.state == JobState::Completed {
+                            break;
+                        }
+                    }
+                    assert_eq!(progress.state, JobState::Completed, "{progress:?}");
+                    assert!(tick_job(&ctx).unwrap().is_none());
+                };
+                let framed = frame_job(&ctx, "rectangular", &[], false, Some(1000.0)).unwrap();
+                finish(framed.clone());
+                let frame_lines = sent_lines(&transport);
+                let corners = if start_from == StartFromMode::AbsoluteCoords {
+                    [(10.0, 20.0), (10.0, 30.0), (20.0, 20.0), (20.0, 30.0)]
+                } else {
+                    [
+                        (100.0, 100.0),
+                        (100.0, 110.0),
+                        (110.0, 100.0),
+                        (110.0, 110.0),
+                    ]
+                };
+                for (x, y) in corners {
+                    assert!(
+                        contains_xy(&frame_lines, x, y),
+                        "{preset_id}/{start_from:?}: {frame_lines:?}"
+                    );
+                }
+                assert!(frame_lines.iter().any(|line| line.contains("F1000")));
+                assert!(
+                    frame_lines
+                        .iter()
+                        .flat_map(|line| line.split_whitespace())
+                        .filter_map(|word| word.strip_prefix('S'))
+                        .all(|value| value.parse::<f64>().unwrap() == 0.0),
+                    "{frame_lines:?}"
+                );
+                assert!(framed.continuous_frame.is_none());
+
+                let frame_count = frame_lines.len();
+                transport
+                    .lock()
+                    .unwrap()
+                    .status_on_query
+                    .push_back(status.into());
+                let burning = start_job_with_options_confirming_advisories(
+                    &ctx,
+                    &planning::SessionJobOptions::default(),
+                    true,
+                )
+                .unwrap();
+                finish(burning);
+                let lines = sent_lines(&transport);
+                let burn_lines = &lines[frame_count..];
+                for (x, y) in corners {
+                    assert!(
+                        contains_xy(burn_lines, x, y),
+                        "{preset_id}/{start_from:?}: {burn_lines:?}"
+                    );
+                }
+                assert!(burn_lines.iter().any(|line| line.starts_with("M4 ")));
+                assert!(
+                    burn_lines
+                        .iter()
+                        .any(|line| line.split_whitespace().any(|word| word == "S100"))
+                );
+                assert!(burn_lines.iter().any(|line| line == "M5"));
+                assert!(
+                    lines.iter().all(|line| !line.starts_with('$')
+                        && !matches!(line.as_str(), "M7" | "M8" | "M9")),
+                    "{lines:?}"
+                );
+
+                transport
+                    .lock()
+                    .unwrap()
+                    .status_on_query
+                    .push_back(status.into());
+                frame_job(&ctx, "rectangular", &[], false, Some(1000.0)).unwrap();
+                transport
+                    .lock()
+                    .unwrap()
+                    .status_on_query
+                    .extend((0..5).map(|_| status.into()));
+                emergency_stop(&ctx).unwrap();
+                assert!(sent_soft_resets(&transport) > 0);
+                assert!(tick_job(&ctx).unwrap().is_none());
+            }
+        }
+    }
+
+    #[test]
     fn frame_job_uses_supplied_feed_rate() {
         let profile = MachineProfile {
             bed_width_mm: 400.0,
