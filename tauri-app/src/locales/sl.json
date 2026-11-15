@@ -2543,6 +2543,14 @@
             "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
             "advisory": "USB: 460800 baudov. 800 x 800 mm, izhodišče spredaj levo, S1000. Preverite $30 in laserski način $32=1. Iskanje izhodišča in samodejni vpih zraka sta izklopljena. Druga strojna programska oprema in razširitve zahtevajo ločeno nastavitev. Pred obrisovanjem nastavite ostrenje s krmilniki stroja. Kamera, rotacijska naprava in tekoči trak zahtevajo ločeno nastavitev. Izberite način moči v programu AtomStack Studio in ga zaprite, preden povežete Beam Bench."
           },
+          "monport_k40_grbl_2_0": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "Samo GRBL USB: 115200 baud, X 300 x Y 200 mm, izhodišče zadaj levo, S1000/M4. Preverite $30, $32=1 in smer obeh osi. Referenčni pomik izvedite šele po preverjanju stikal in $22=1. Vodno hlajenje naj deluje; okvir preverite z izklopljenim laserjem in preizkušajte pri majhni moči. Zrak in ostrenje sta ročna. Nano, Ruida in spremenjena napeljava zahtevajo ločeno nastavitev."
+          },
+          "monport_k40_pro": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "Samo GRBL USB: 115200 baud, X 300 x Y 200 mm, izhodišče zadaj levo, S1000/M4. Preverite $30, $32=1 in smer obeh osi. Referenčni pomik izvedite šele po preverjanju stikal in $22=1. Vodno hlajenje naj deluje; okvir preverite z izklopljenim laserjem in preizkušajte pri majhni moči. Zrak in ostrenje sta ročna. Nano, Ruida in spremenjena napeljava zahtevajo ločeno nastavitev."
+          },
           "artilume_t1_2_5w": {
             "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
             "advisory": "USB: 115200 baudov. X 150 x Y 200 mm, izhodišče spredaj levo, S1000. Preverite $30 in $32=1. Pritrdite razprti stroj in odstranite transportni trak s končnih stikal. Referenciranje izvedite šele po preverjanju stikal in $22=1. Samodejna zračna pomoč je izklopljena. Wi-Fi in dodatke nastavite posebej."

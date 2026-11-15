@@ -140,6 +140,9 @@ own specifications support an entry. Do not copy the S9 defaults across a brand.
 - [Artilume USB catalog, 18 presets at version 1](machines/artilume-usb-presets.md):
   T1, T1-P, U1 and A4 with documented diode and IR modules. T1 and U1 retain
   their different X/Y travel. Documentation-based, physical testing pending.
+- [Monport GRBL K40 presets, version 1](machines/monport-usb-presets.md):
+  K40 GRBL 2.0 and K40 Pro 40W, 300 x 200 mm with rear-left coordinates.
+  Includes an audit of other Monport families. Physical testing is pending.
 - [Creality CR-Laser Falcon USB presets, version 1](machines/creality-cr-laser-falcon.md)
   for the original 5W, 7.5W and 10W models. Includes the Creality catalog audit.
 - [Creality Falcon A1 10W, preset version 1](machines/creality-falcon-a1-10w.md):

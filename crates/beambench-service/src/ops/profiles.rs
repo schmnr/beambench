@@ -507,6 +507,32 @@ pub fn profile_presets() -> Vec<MachineProfilePreset> {
             390.0,
             "390 x 390 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
         ),
+        // Stock K40 XY setup only; retrofit wiring must be checked separately.
+        // Sources and exclusions: docs/machines/monport-usb-presets.md.
+        MachineProfilePreset {
+            homing_enabled: true,
+            origin: WorkspaceOrigin::TopLeft,
+            preferred_default_origin: Some(WorkspaceOrigin::TopLeft),
+            ..documented_grbl_usb_preset(
+                "monport_k40_grbl_2_0",
+                "Monport K40 (GRBL 2.0 controller)",
+                300.0,
+                200.0,
+                "GRBL USB only: 115200 baud, X 300 x Y 200 mm, rear-left origin, S1000/M4. Verify $30, $32=1 and both axis directions. Home only after checking switches and $22=1. Keep water cooling running; frame with the laser off and use low-power tests. Manual air and focus. Nano, Ruida and modified wiring need separate setup.",
+            )
+        },
+        MachineProfilePreset {
+            homing_enabled: true,
+            origin: WorkspaceOrigin::TopLeft,
+            preferred_default_origin: Some(WorkspaceOrigin::TopLeft),
+            ..documented_grbl_usb_preset(
+                "monport_k40_pro",
+                "Monport K40 Pro 40W (GRBL / G320)",
+                300.0,
+                200.0,
+                "GRBL USB only: 115200 baud, X 300 x Y 200 mm, rear-left origin, S1000/M4. Verify $30, $32=1 and both axis directions. Home only after checking switches and $22=1. Keep water cooling running; frame with the laser off and use low-power tests. Manual air and focus. Nano, Ruida and modified wiring need separate setup.",
+            )
+        },
         // Exact modules, axis ordering and control sources: docs/machines/artilume-usb-presets.md.
         MachineProfilePreset {
             homing_enabled: true,
@@ -2766,6 +2792,8 @@ mod tests {
 
     use crate::test_support::PersistTestGuard;
 
+    const MONPORT_PRESET_IDS: &[&str] = &["monport_k40_grbl_2_0", "monport_k40_pro"];
+
     // Manufacturer manuals and U1 setup videos establish different X/Y travel.
     // See docs/machines/artilume-usb-presets.md.
     const ARTILUME_PRESET_CASES: &[(&str, f64, f64, bool)] = &[
@@ -3482,6 +3510,7 @@ mod tests {
                         air_on,
                         constant_power,
                         false,
+                        WorkspaceOrigin::BottomLeft,
                     )
                 },
             )
@@ -3489,12 +3518,50 @@ mod tests {
                 ARTILUME_PRESET_CASES
                     .iter()
                     .map(|&(id, width, height, homing)| {
-                        (id, 115200, width, height, 6000.0, "", false, homing)
+                        (
+                            id,
+                            115200,
+                            width,
+                            height,
+                            6000.0,
+                            "",
+                            false,
+                            homing,
+                            WorkspaceOrigin::BottomLeft,
+                        )
                     }),
             );
-        for (id, baud, width, height, speed, air_on, constant_power, homing) in cases {
+        assert_eq!(
+            profile_presets()
+                .iter()
+                .filter(|preset| preset.id.starts_with("monport_"))
+                .count(),
+            MONPORT_PRESET_IDS.len()
+        );
+        let cases = cases.chain(MONPORT_PRESET_IDS.iter().map(|&id| {
+            (
+                id,
+                115200,
+                300.0,
+                200.0,
+                6000.0,
+                "",
+                false,
+                true,
+                WorkspaceOrigin::TopLeft,
+            )
+        }));
+        for (id, baud, width, height, speed, air_on, constant_power, homing, origin) in cases {
             let ctx = ServiceContext::with_settings(AppSettings::default());
-            let created = save_profile(&ctx, sample_input()).unwrap();
+            let mut input = sample_input();
+            input.connection_preference = Some(MachineConnectionPreference::Serial {
+                port_name: "COM3".into(),
+                baud_rate: 9600,
+                controller_selection: beambench_common::ControllerSelection::KnownDriver {
+                    driver: beambench_common::ControllerDriverId::Grbl,
+                },
+            });
+            let created = save_profile(&ctx, input).unwrap();
             set_active_profile(&ctx, Some(created.id)).unwrap();
             let mut project = Project::new("Documented preset workflow");
             project.machine_profile_id = Some(created.id);
@@ -3529,6 +3596,17 @@ mod tests {
                 .find(|saved| saved.id == created.id)
                 .unwrap();
             assert_eq!(reopened, profile, "{id}: persisted profile differs");
+            assert_eq!(
+                profile.connection_preference,
+                Some(MachineConnectionPreference::Serial {
+                    port_name: "COM3".into(),
+                    baud_rate: baud,
+                    controller_selection: beambench_common::ControllerSelection::KnownDriver {
+                        driver: beambench_common::ControllerDriverId::Grbl,
+                    },
+                }),
+                "{id}: saved USB connection differs"
+            );
             assert_eq!(profile.default_baud_rate, baud, "{id}");
             assert_eq!(
                 (profile.bed_width_mm, profile.bed_height_mm),
@@ -3538,7 +3616,8 @@ mod tests {
             assert_eq!(profile.max_speed_mm_min, speed, "{id}");
             assert_eq!(profile.s_value_max, 1000, "{id}");
             assert_eq!(profile.firmware_type, "grbl", "{id}");
-            assert_eq!(profile.origin, WorkspaceOrigin::BottomLeft, "{id}");
+            assert_eq!(profile.origin, origin, "{id}");
+            assert_eq!(profile.preferred_default_origin, Some(origin), "{id}");
             assert_eq!(profile.use_constant_power, constant_power, "{id}");
             assert_eq!(profile.air_assist_on_gcode, air_on, "{id}");
             assert!(
@@ -3639,8 +3718,22 @@ mod tests {
                 assert!(gcode.iter().any(|line| line == "M5"), "{id}");
                 if !raster {
                     for coordinate in [
-                        "Y10.000".to_string(),
-                        "Y20.000".to_string(),
+                        format!(
+                            "Y{:.3}",
+                            if origin == WorkspaceOrigin::TopLeft {
+                                height - 10.0
+                            } else {
+                                10.0
+                            }
+                        ),
+                        format!(
+                            "Y{:.3}",
+                            if origin == WorkspaceOrigin::TopLeft {
+                                height - 20.0
+                            } else {
+                                20.0
+                            }
+                        ),
                         format!("X{:.3}", width - 20.0),
                         format!("X{:.3}", width - 10.0),
                     ] {
@@ -3867,6 +3960,7 @@ mod tests {
         .into_iter()
         .chain(ATOMSTACK_PRESET_CASES.iter().map(|case| case.0))
         .chain(ARTILUME_PRESET_CASES.iter().map(|case| case.0))
+        .chain(MONPORT_PRESET_IDS.iter().copied())
         {
             let diff = profile_preset_diff(&ctx, active.id, preset_id).unwrap();
             let power_change = diff.iter().find(|change| change.field == "s_value_max");
@@ -4443,6 +4537,12 @@ mod tests {
     #[test]
     fn suggest_profile_preset_does_not_match_generic_or_other_firmware() {
         for lines in [
+            vec![
+                "MonPort",
+                "Grbl 1.1f",
+                "[VER:1.1f.20220618:]",
+                "[OPT:VML,35,254]",
+            ],
             vec!["Grbl 1.1h ['$' for help]"],
             vec!["Grbl 1.1h ['$' for help]", "[VER:FluidNC v3.7.0:]"],
             vec!["Grbl 1.1h ['$' for help]", "[VER:Smoothie compatible:]"],

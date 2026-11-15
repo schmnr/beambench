@@ -2543,6 +2543,14 @@
             "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
             "advisory": "USB: 460800 baudů. 800 x 800 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení. Před obkreslením rámečku zaostřete pomocí ovládání stroje. Kamera, rotační zařízení a dopravník vyžadují samostatné nastavení. Vyberte režim výkonu v AtomStack Studio a před připojením Beam Bench tento program zavřete."
           },
+          "monport_k40_grbl_2_0": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "Pouze GRBL USB: 115200 baud, X 300 x Y 200 mm, počátek vzadu vlevo, S1000/M4. Ověřte $30, $32=1 a směry obou os. Referenční pohyb spusťte až po kontrole spínačů a $22=1. Udržujte vodní chlazení v chodu; rámujte s vypnutým laserem a testujte při nízkém výkonu. Vzduch a ostření se ovládají ručně. Nano, Ruida a upravené zapojení vyžadují samostatné nastavení."
+          },
+          "monport_k40_pro": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "Pouze GRBL USB: 115200 baud, X 300 x Y 200 mm, počátek vzadu vlevo, S1000/M4. Ověřte $30, $32=1 a směry obou os. Referenční pohyb spusťte až po kontrole spínačů a $22=1. Udržujte vodní chlazení v chodu; rámujte s vypnutým laserem a testujte při nízkém výkonu. Vzduch a ostření se ovládají ručně. Nano, Ruida a upravené zapojení vyžadují samostatné nastavení."
+          },
           "artilume_t1_2_5w": {
             "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
             "advisory": "USB: 115200 baudů. X 150 x Y 200 mm, počátek vpředu vlevo, S1000. Ověřte $30 a $32=1. Zajistěte rozložený stroj a odstraňte přepravní pásku z koncových spínačů. Referování spusťte až po ověření spínačů a $22=1. Automatický ofuk je vypnutý. Wi-Fi a příslušenství nastavte samostatně."

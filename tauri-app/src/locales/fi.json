@@ -2543,6 +2543,14 @@
             "description": "Dokumentaatioon perustuva GRBL 1.1:n USB-esiasetus. Testaus fyysisellä koneella on tekemättä.",
             "advisory": "USB: 460800 baudia. 800 x 800 mm, origo edessä vasemmalla, S1000. Tarkista $30 ja lasertila $32=1. Kotihaku ja automaattinen ilma-avustus ovat pois käytöstä. Muu laiteohjelmisto ja laajennukset vaativat erillisen määrityksen. Säädä tarkennus laitteen ohjaimilla ennen rajauksen ajoa. Kamera, pyörityslaite ja kuljetin on määritettävä erikseen. Valitse tehotila AtomStack Studiossa ja sulje ohjelma ennen Beam Benchin yhdistämistä."
           },
+          "monport_k40_grbl_2_0": {
+            "description": "Dokumentaatioon perustuva GRBL 1.1:n USB-esiasetus. Testaus fyysisellä koneella on tekemättä.",
+            "advisory": "Vain GRBL USB: 115200 baudia, X 300 x Y 200 mm, alkupiste takana vasemmalla, S1000/M4. Tarkista $30, $32=1 ja molempien akselien suunnat. Tee kotihaku vasta rajakytkinten ja $22=1-asetuksen tarkistamisen jälkeen. Pidä vesijäähdytys käynnissä; rajaa laser sammutettuna ja testaa pienellä teholla. Ilma ja tarkennus säädetään käsin. Nano, Ruida ja muutetut johdotukset vaativat erilliset asetukset."
+          },
+          "monport_k40_pro": {
+            "description": "Dokumentaatioon perustuva GRBL 1.1:n USB-esiasetus. Testaus fyysisellä koneella on tekemättä.",
+            "advisory": "Vain GRBL USB: 115200 baudia, X 300 x Y 200 mm, alkupiste takana vasemmalla, S1000/M4. Tarkista $30, $32=1 ja molempien akselien suunnat. Tee kotihaku vasta rajakytkinten ja $22=1-asetuksen tarkistamisen jälkeen. Pidä vesijäähdytys käynnissä; rajaa laser sammutettuna ja testaa pienellä teholla. Ilma ja tarkennus säädetään käsin. Nano, Ruida ja muutetut johdotukset vaativat erilliset asetukset."
+          },
           "artilume_t1_2_5w": {
             "description": "Dokumentaatioon perustuva GRBL 1.1:n USB-esiasetus. Testaus fyysisellä koneella on tekemättä.",
             "advisory": "USB: 115200 baudia. X 150 x Y 200 mm, origo edessä vasemmalla, S1000. Tarkista $30 ja $32=1. Kiinnitä avattu kone ja poista rajakytkinten kuljetusteipit. Tee kotihaku vasta, kun kytkimet ja $22=1 on tarkistettu. Automaattinen ilma-avustus on pois käytöstä. Wi-Fi ja lisävarusteet määritetään erikseen."
