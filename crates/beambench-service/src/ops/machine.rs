@@ -12658,20 +12658,33 @@ mod tests {
                 let profile = MachineProfile::default();
                 let profile_id = profile.id;
                 let status = "<Idle|MPos:100,100,0|WCO:0,0,0|FS:0,0>";
-                let (ctx, transport) = ready_grbl_context_with_status(profile, status);
-                transport.lock().unwrap().rx.extend(
-                    [
-                        "MonPort",
-                        "[VER:1.1f.20220618:]",
-                        "[OPT:VML,35,254]",
-                        "$22=1",
-                        "$30=1000",
-                        "$32=1",
-                        status,
-                    ]
-                    .map(String::from),
-                );
-                machine_status(&ctx).unwrap();
+                let ctx = Arc::new(ServiceContext::with_settings(AppSettings {
+                    active_profile_id: Some(profile_id),
+                    machine_profiles: vec![profile],
+                    ..AppSettings::default()
+                }));
+                let transport = Arc::new(Mutex::new(RecordingTransportState {
+                    rx: VecDeque::from(
+                        [
+                            "MonPort",
+                            "Grbl 1.1f ['$' for help]",
+                            "[VER:1.1f.20220618:]",
+                            "[OPT:VML,35,254]",
+                            "$22=1",
+                            "$30=1000",
+                            "$32=1",
+                            status,
+                        ]
+                        .map(String::from),
+                    ),
+                    ..RecordingTransportState::default()
+                }));
+                let mut session =
+                    GrblSession::new(Box::new(RecordingTransport::new(Arc::clone(&transport))));
+                session.connect().unwrap();
+                session.poll().unwrap();
+                session.mark_ready().unwrap();
+                *ctx.session.lock().unwrap() = Some(MachineSessionHandle::Grbl(session.into()));
                 let mut project = frame_project();
                 project.machine_profile_id = Some(profile_id);
                 project.start_from = start_from;

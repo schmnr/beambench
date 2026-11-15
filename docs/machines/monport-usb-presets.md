@@ -11,6 +11,9 @@
 | `monport_k40_pro` | K40 Pro 40W, GRBL / G320 manual | 300 x 200 | Rear-left |
 
 Both use 115200 baud, S1000, M4 dynamic power and buffered transfer.
+M4 is the starting power mode chosen for these GRBL 1.1 laser-mode
+configurations; its behavior follows the upstream
+[GRBL laser-mode documentation](https://github.com/gnea/grbl/blob/master/doc/markdown/laser_mode.md).
 The profile speed limit is a conservative 6000 mm/min starting value,
 not a material setting or the advertised maximum speed.
 Homing capability is enabled, but applying a preset does not send Home,
@@ -91,7 +94,8 @@ Tests cover selecting, previewing and applying both presets in the desktop
 dialog, saved settings, project workspace/origin updates, vector and raster
 planning, M4 power mapping, connected-controller power-scale preservation,
 and absence of unsolicited air or homing commands.
-The simulated-controller workflow checks laser-off framing, frame/job
+The simulated-controller workflow starts with the documented MonPort /
+GRBL 1.1f handshake and checks laser-off framing, frame/job
 agreement in Absolute Coordinates and Current Position, feed limits, job
 completion and immediate Stop. Localized setup guidance is checked in all
 23 languages. The generic MonPort banner does not select a bed-size preset.
