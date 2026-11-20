@@ -2473,6 +2473,14 @@
             "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
             "advisory": "300 x 210 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup."
           },
+          "ortur_f20": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "150 x 150 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup."
+          },
+          "ortur_f20_pro": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "150 x 150 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup."
+          },
           "aufero_laser_3": {
             "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
             "advisory": "400 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup."

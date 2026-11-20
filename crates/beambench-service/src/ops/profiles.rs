@@ -475,13 +475,16 @@ pub fn profile_presets() -> Vec<MachineProfilePreset> {
                 "400 x 430 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
             )
         },
-        documented_grbl_usb_preset(
-            "ortur_lm2_s2",
-            "Ortur Laser Master 2 S2 (LU2-2 / LU2-4)",
-            390.0,
-            410.0,
-            "390 x 410 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
-        ),
+        MachineProfilePreset {
+            max_speed_mm_min: 5000.0,
+            ..documented_grbl_usb_preset(
+                "ortur_lm2_s2",
+                "Ortur Laser Master 2 S2 (LU2-2 / LU2-4 / LU2-10A)",
+                390.0,
+                410.0,
+                "390 x 410 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+            )
+        },
         documented_grbl_usb_preset(
             "ortur_lm2_pro_s1",
             "Ortur Laser Master 2 Pro S1",
@@ -533,7 +536,7 @@ pub fn profile_presets() -> Vec<MachineProfilePreset> {
         ),
         documented_grbl_usb_preset(
             "ortur_h20_ir_2w",
-            "Ortur H20 2W IR (LR4-2B)",
+            "Ortur H20 2W IR (LR4-2A)",
             420.0,
             275.0,
             "420 x 275 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
@@ -578,6 +581,20 @@ pub fn profile_presets() -> Vec<MachineProfilePreset> {
             300.0,
             210.0,
             "300 x 210 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+        ),
+        documented_grbl_usb_preset(
+            "ortur_f20",
+            "Ortur F20",
+            150.0,
+            150.0,
+            "150 x 150 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+        ),
+        documented_grbl_usb_preset(
+            "ortur_f20_pro",
+            "Ortur F20 Pro",
+            150.0,
+            150.0,
+            "150 x 150 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
         ),
         documented_grbl_usb_preset(
             "aufero_laser_3",
@@ -2928,7 +2945,7 @@ mod tests {
     const ORTUR_PRESET_CASES: &[(&str, f64, f64, f64)] = &[
         ("ortur_lm1", 150.0, 160.0, 3000.0),
         ("ortur_lm2", 400.0, 430.0, 3000.0),
-        ("ortur_lm2_s2", 390.0, 410.0, 6000.0),
+        ("ortur_lm2_s2", 390.0, 410.0, 5000.0),
         ("ortur_lm2_pro_s1", 400.0, 400.0, 6000.0),
         ("ortur_lm2_pro_s2_10w", 400.0, 400.0, 6000.0),
         ("ortur_lm3_le_5w", 400.0, 400.0, 6000.0),
@@ -2942,6 +2959,8 @@ mod tests {
         ("ortur_r2_10w", 300.0, 210.0, 6000.0),
         ("ortur_r2_20w", 300.0, 190.0, 6000.0),
         ("ortur_r2_ir_1_3w", 300.0, 210.0, 6000.0),
+        ("ortur_f20", 150.0, 150.0, 6000.0),
+        ("ortur_f20_pro", 150.0, 150.0, 6000.0),
         ("aufero_laser_3", 400.0, 400.0, 6000.0),
     ];
 
