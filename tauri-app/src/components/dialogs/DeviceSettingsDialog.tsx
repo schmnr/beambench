@@ -651,6 +651,13 @@ function ConnectionTab({ active }: { active: boolean }) {
               {REFRESH_SYMBOL}
             </button>
           </div>
+          {!loading && availableLihuiyuUsbDevices.length === 0 && (
+            <p className="text-xs text-bb-text-muted">
+              {t('controller_choice.usb_serial_hint', {
+                serial: t('controller_choice.transport_serial'),
+              })}
+            </p>
+          )}
           {incompatibleUsbDriver && (
             <div
               role="alert"

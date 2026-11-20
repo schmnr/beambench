@@ -19,12 +19,13 @@
   "controller_choice": {
     "controller": "Controller",
     "transport": "Connection",
-    "transport_serial": "Serial",
+    "transport_serial": "Série (USB / port COM)",
     "transport_network": "Réseau (Wi-Fi / Ethernet)",
-    "transport_usb": "USB",
+    "transport_usb": "USB direct (Lihuiyu)",
     "usb_device": "USB device",
     "select_usb_device": "Select a Lihuiyu controller",
     "no_usb_devices": "No Lihuiyu controllers found",
+    "usb_serial_hint": "Si votre laser GRBL est branché en USB, choisissez {serial}, puis sélectionnez son port.",
     "refresh_usb_devices": "Refresh USB devices",
     "lihuiyu_windows_driver_incompatible": "Ce contrôleur utilise le pilote USB Windows {driver}. Beam Bench nécessite WinUSB pour l’appareil 1a86:5512. Changez le pilote, reconnectez le contrôleur, puis actualisez la liste USB.",
     "lihuiyu_windows_driver_tradeoff": "Le changement de pilote USB peut empêcher LaserDRW ou un autre logiciel du fabricant d’utiliser ce contrôleur jusqu’à la restauration de son pilote d’origine.",
@@ -2255,6 +2256,82 @@
           "longer_b1_40w": {
             "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
             "advisory": "450 x 440 mm, origine avant gauche, S1000, assistance air M8/M9. Vérifiez $30, $32=1, les fins de course et la pompe. Le référencement automatique est désactivé par défaut. Les machines modifiées nécessitent une configuration distincte."
+          },
+          "ortur_lm1": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "150 x 160 mm, origine à l'avant gauche, S1000. Vérifiez $30 et le mode laser $32=1. La prise d'origine et l'assistance d'air automatique sont désactivées. Les autres firmwares et les extensions nécessitent une configuration distincte."
+          },
+          "ortur_lm2": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "400 x 430 mm, origine à l'avant gauche, S1000. Vérifiez $30 et le mode laser $32=1. La prise d'origine et l'assistance d'air automatique sont désactivées. Les autres firmwares et les extensions nécessitent une configuration distincte."
+          },
+          "ortur_lm2_s2": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "390 x 410 mm, origine à l'avant gauche, S1000. Vérifiez $30 et le mode laser $32=1. La prise d'origine et l'assistance d'air automatique sont désactivées. Les autres firmwares et les extensions nécessitent une configuration distincte."
+          },
+          "ortur_lm2_pro_s1": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "400 x 400 mm, origine à l'avant gauche, S1000. Vérifiez $30 et le mode laser $32=1. La prise d'origine et l'assistance d'air automatique sont désactivées. Les autres firmwares et les extensions nécessitent une configuration distincte."
+          },
+          "ortur_lm2_pro_s2_10w": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "400 x 400 mm, origine à l'avant gauche, S1000. Vérifiez $30 et le mode laser $32=1. La prise d'origine et l'assistance d'air automatique sont désactivées. Les autres firmwares et les extensions nécessitent une configuration distincte."
+          },
+          "ortur_lm3_le_5w": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "400 x 400 mm, origine à l'avant gauche, S1000. Vérifiez $30 et le mode laser $32=1. La prise d'origine et l'assistance d'air automatique sont désactivées. Les autres firmwares et les extensions nécessitent une configuration distincte."
+          },
+          "ortur_lm_h10": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "300 x 300 mm, origine à l'avant gauche, S1000. Vérifiez $30 et le mode laser $32=1. La prise d'origine et l'assistance d'air automatique sont désactivées. Les autres firmwares et les extensions nécessitent une configuration distincte."
+          },
+          "ortur_h20_10w": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "420 x 300 mm, origine à l'avant gauche, S1000. Vérifiez $30 et le mode laser $32=1. La prise d'origine et l'assistance d'air automatique sont désactivées. Les autres firmwares et les extensions nécessitent une configuration distincte."
+          },
+          "ortur_h20_20w": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "420 x 300 mm, origine à l'avant gauche, S1000. Vérifiez $30 et le mode laser $32=1. La prise d'origine et l'assistance d'air automatique sont désactivées. Les autres firmwares et les extensions nécessitent une configuration distincte."
+          },
+          "ortur_h20_40w": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "410 x 275 mm, origine à l'avant gauche, S1000. Vérifiez $30 et le mode laser $32=1. La prise d'origine et l'assistance d'air automatique sont désactivées. Les autres firmwares et les extensions nécessitent une configuration distincte."
+          },
+          "ortur_h20_ir_2w": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "420 x 275 mm, origine à l'avant gauche, S1000. Vérifiez $30 et le mode laser $32=1. La prise d'origine et l'assistance d'air automatique sont désactivées. Les autres firmwares et les extensions nécessitent une configuration distincte."
+          },
+          "ortur_r1_5w": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "100 x 100 mm, origine à l'avant gauche, S1000. Vérifiez $30 et le mode laser $32=1. La prise d'origine et l'assistance d'air automatique sont désactivées. Les autres firmwares et les extensions nécessitent une configuration distincte."
+          },
+          "ortur_r1_ir_1_3w": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "100 x 80 mm, origine à l'avant gauche, S1000. Vérifiez $30 et le mode laser $32=1. La prise d'origine et l'assistance d'air automatique sont désactivées. Les autres firmwares et les extensions nécessitent une configuration distincte."
+          },
+          "ortur_r2_10w": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "300 x 210 mm, origine à l'avant gauche, S1000. Vérifiez $30 et le mode laser $32=1. La prise d'origine et l'assistance d'air automatique sont désactivées. Les autres firmwares et les extensions nécessitent une configuration distincte."
+          },
+          "ortur_r2_20w": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "300 x 190 mm, origine à l'avant gauche, S1000. Vérifiez $30 et le mode laser $32=1. La prise d'origine et l'assistance d'air automatique sont désactivées. Les autres firmwares et les extensions nécessitent une configuration distincte."
+          },
+          "ortur_r2_ir_1_3w": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "300 x 210 mm, origine à l'avant gauche, S1000. Vérifiez $30 et le mode laser $32=1. La prise d'origine et l'assistance d'air automatique sont désactivées. Les autres firmwares et les extensions nécessitent une configuration distincte."
+          },
+          "ortur_f20": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "150 x 150 mm, origine à l'avant gauche, S1000. Vérifiez $30 et le mode laser $32=1. La prise d'origine et l'assistance d'air automatique sont désactivées. Les autres firmwares et les extensions nécessitent une configuration distincte."
+          },
+          "ortur_f20_pro": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "150 x 150 mm, origine à l'avant gauche, S1000. Vérifiez $30 et le mode laser $32=1. La prise d'origine et l'assistance d'air automatique sont désactivées. Les autres firmwares et les extensions nécessitent une configuration distincte."
+          },
+          "aufero_laser_3": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "400 x 400 mm, origine à l'avant gauche, S1000. Vérifiez $30 et le mode laser $32=1. La prise d'origine et l'assistance d'air automatique sont désactivées. Les autres firmwares et les extensions nécessitent une configuration distincte."
           },
           "ortur_lm2_pro_s2": {
             "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
