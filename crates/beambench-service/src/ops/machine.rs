@@ -3078,7 +3078,7 @@ pub fn begin_controller_connection(
         }
     ) {
         return Err(ServiceError::invalid_input(
-            "Lihuiyu M2/M3 Nano (Experimental) uses the USB connection",
+            "Lihuiyu M2/M3 Nano (Experimental) uses the Direct USB (Lihuiyu) connection",
         ));
     }
     if matches!(
@@ -3212,7 +3212,7 @@ pub fn begin_network_controller_connection(
             driver: ControllerDriverId::Lihuiyu,
         } => {
             return Err(ServiceError::invalid_input(
-                "Lihuiyu M2/M3 Nano (Experimental) uses the USB connection",
+                "Lihuiyu M2/M3 Nano (Experimental) uses the Direct USB (Lihuiyu) connection",
             ));
         }
         ControllerSelection::KnownDriver { driver } => {

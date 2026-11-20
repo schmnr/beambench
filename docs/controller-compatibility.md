@@ -30,6 +30,8 @@ Ortur/Aufero, AtomStack Pro V2, standard Falcon2, Sculpfun and Two Trees
 configurations, also documentation-based. These presets do not establish
 brand-wide compatibility. D1/D1 Pro use a separate [native USB and Wi-Fi adapters](machines/xtool-d1.md)
 and stock-module presets in 0.2.32. Physical testing is pending.
+The [Ortur and Aufero USB serial catalog](machines/ortur-usb-presets.md) includes
+the original Laser Master 2 and module-specific workspaces for newer models.
 The [Monport GRBL K40 presets](machines/monport-usb-presets.md) cover the
 300 x 200 mm K40 with GRBL controller 2.0 and K40 Pro / G320. These use
 rear-left coordinates and are documentation-based, with physical testing
@@ -70,8 +72,9 @@ recorded in the [controller detection matrix](controller-detection-matrix.md).
 ## Connecting
 
 1. Open the Laser panel or **Devices > Connection**.
-2. Choose **Serial**, **Network (Wi-Fi / Ethernet)**, or **USB** for the machine's actual
-   connection.
+2. Choose **Serial (USB / COM port)** for a controller that appears as a serial
+   port, **Network (Wi-Fi / Ethernet)** for a network controller, or
+   **Direct USB (Lihuiyu)** for a Lihuiyu M2/M3 Nano board.
 3. Choose the controller. Experimental choices carry the label directly in
    this list.
 4. Select the serial port, enter the network host and port, or select the USB

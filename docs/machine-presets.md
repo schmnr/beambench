@@ -137,6 +137,9 @@ own specifications support an entry. Do not copy the S9 defaults across a brand.
 
 ## Evidence records
 
+- [Ortur and Aufero USB serial catalog, 17 new presets at version 1](machines/ortur-usb-presets.md):
+  original Laser Master 1/2, 2 S2 and Pro revisions, Laser Master 3 LE 5 W,
+  H10, H20, R1, R2 and Aufero Laser 3. Documentation-based, physical testing pending.
 - [Artilume USB catalog, 18 presets at version 1](machines/artilume-usb-presets.md):
   T1, T1-P, U1 and A4 with documented diode and IR modules. T1 and U1 retain
   their different X/Y travel. Documentation-based, physical testing pending.

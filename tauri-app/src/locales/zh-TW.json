@@ -19,12 +19,13 @@
   "controller_choice": {
     "controller": "Controller",
     "transport": "Connection",
-    "transport_serial": "Serial",
+    "transport_serial": "序列連接（USB / COM 連接埠）",
     "transport_network": "網路 (Wi-Fi / 乙太網路)",
-    "transport_usb": "USB",
+    "transport_usb": "直接 USB 連接（Lihuiyu）",
     "usb_device": "USB device",
     "select_usb_device": "Select a Lihuiyu controller",
     "no_usb_devices": "No Lihuiyu controllers found",
+    "usb_serial_hint": "若 GRBL 雷射機透過 USB 連接，請選擇「{serial}」，再選取雷射機的連接埠。",
     "refresh_usb_devices": "Refresh USB devices",
     "lihuiyu_windows_driver_incompatible": "This controller is using the Windows USB driver {driver}. Beam Bench requires WinUSB for device 1a86:5512. Change the driver, reconnect the controller, then refresh the USB list.",
     "lihuiyu_windows_driver_tradeoff": "Changing the USB driver may prevent LaserDRW or other vendor software from using this controller until its original driver is restored.",
@@ -2255,6 +2256,74 @@
           "longer_b1_40w": {
             "description": "依據文件建立的 GRBL 1.1 USB 預設。尚未進行實機測試。",
             "advisory": "450 x 440 mm，前左原點，S1000，M8/M9 氣輔。請核對 $30、$32=1、限位開關和氣泵。預設關閉自動回零。改裝機器需個別設定。"
+          },
+          "ortur_lm1": {
+            "description": "依據文件建立的 GRBL 1.1 USB 預設。尚未進行實機測試。",
+            "advisory": "150 x 160 mm，原點位於左前方，S1000。請核對 $30 和雷射模式 $32=1。回零和自動氣輔已關閉。其他韌體和擴充框架需要另外設定。"
+          },
+          "ortur_lm2": {
+            "description": "依據文件建立的 GRBL 1.1 USB 預設。尚未進行實機測試。",
+            "advisory": "400 x 430 mm，原點位於左前方，S1000。請核對 $30 和雷射模式 $32=1。回零和自動氣輔已關閉。其他韌體和擴充框架需要另外設定。"
+          },
+          "ortur_lm2_s2": {
+            "description": "依據文件建立的 GRBL 1.1 USB 預設。尚未進行實機測試。",
+            "advisory": "390 x 410 mm，原點位於左前方，S1000。請核對 $30 和雷射模式 $32=1。回零和自動氣輔已關閉。其他韌體和擴充框架需要另外設定。"
+          },
+          "ortur_lm2_pro_s1": {
+            "description": "依據文件建立的 GRBL 1.1 USB 預設。尚未進行實機測試。",
+            "advisory": "400 x 400 mm，原點位於左前方，S1000。請核對 $30 和雷射模式 $32=1。回零和自動氣輔已關閉。其他韌體和擴充框架需要另外設定。"
+          },
+          "ortur_lm2_pro_s2_10w": {
+            "description": "依據文件建立的 GRBL 1.1 USB 預設。尚未進行實機測試。",
+            "advisory": "400 x 400 mm，原點位於左前方，S1000。請核對 $30 和雷射模式 $32=1。回零和自動氣輔已關閉。其他韌體和擴充框架需要另外設定。"
+          },
+          "ortur_lm3_le_5w": {
+            "description": "依據文件建立的 GRBL 1.1 USB 預設。尚未進行實機測試。",
+            "advisory": "400 x 400 mm，原點位於左前方，S1000。請核對 $30 和雷射模式 $32=1。回零和自動氣輔已關閉。其他韌體和擴充框架需要另外設定。"
+          },
+          "ortur_lm_h10": {
+            "description": "依據文件建立的 GRBL 1.1 USB 預設。尚未進行實機測試。",
+            "advisory": "300 x 300 mm，原點位於左前方，S1000。請核對 $30 和雷射模式 $32=1。回零和自動氣輔已關閉。其他韌體和擴充框架需要另外設定。"
+          },
+          "ortur_h20_10w": {
+            "description": "依據文件建立的 GRBL 1.1 USB 預設。尚未進行實機測試。",
+            "advisory": "420 x 300 mm，原點位於左前方，S1000。請核對 $30 和雷射模式 $32=1。回零和自動氣輔已關閉。其他韌體和擴充框架需要另外設定。"
+          },
+          "ortur_h20_20w": {
+            "description": "依據文件建立的 GRBL 1.1 USB 預設。尚未進行實機測試。",
+            "advisory": "420 x 300 mm，原點位於左前方，S1000。請核對 $30 和雷射模式 $32=1。回零和自動氣輔已關閉。其他韌體和擴充框架需要另外設定。"
+          },
+          "ortur_h20_40w": {
+            "description": "依據文件建立的 GRBL 1.1 USB 預設。尚未進行實機測試。",
+            "advisory": "410 x 275 mm，原點位於左前方，S1000。請核對 $30 和雷射模式 $32=1。回零和自動氣輔已關閉。其他韌體和擴充框架需要另外設定。"
+          },
+          "ortur_h20_ir_2w": {
+            "description": "依據文件建立的 GRBL 1.1 USB 預設。尚未進行實機測試。",
+            "advisory": "420 x 275 mm，原點位於左前方，S1000。請核對 $30 和雷射模式 $32=1。回零和自動氣輔已關閉。其他韌體和擴充框架需要另外設定。"
+          },
+          "ortur_r1_5w": {
+            "description": "依據文件建立的 GRBL 1.1 USB 預設。尚未進行實機測試。",
+            "advisory": "100 x 100 mm，原點位於左前方，S1000。請核對 $30 和雷射模式 $32=1。回零和自動氣輔已關閉。其他韌體和擴充框架需要另外設定。"
+          },
+          "ortur_r1_ir_1_3w": {
+            "description": "依據文件建立的 GRBL 1.1 USB 預設。尚未進行實機測試。",
+            "advisory": "100 x 80 mm，原點位於左前方，S1000。請核對 $30 和雷射模式 $32=1。回零和自動氣輔已關閉。其他韌體和擴充框架需要另外設定。"
+          },
+          "ortur_r2_10w": {
+            "description": "依據文件建立的 GRBL 1.1 USB 預設。尚未進行實機測試。",
+            "advisory": "300 x 210 mm，原點位於左前方，S1000。請核對 $30 和雷射模式 $32=1。回零和自動氣輔已關閉。其他韌體和擴充框架需要另外設定。"
+          },
+          "ortur_r2_20w": {
+            "description": "依據文件建立的 GRBL 1.1 USB 預設。尚未進行實機測試。",
+            "advisory": "300 x 190 mm，原點位於左前方，S1000。請核對 $30 和雷射模式 $32=1。回零和自動氣輔已關閉。其他韌體和擴充框架需要另外設定。"
+          },
+          "ortur_r2_ir_1_3w": {
+            "description": "依據文件建立的 GRBL 1.1 USB 預設。尚未進行實機測試。",
+            "advisory": "300 x 210 mm，原點位於左前方，S1000。請核對 $30 和雷射模式 $32=1。回零和自動氣輔已關閉。其他韌體和擴充框架需要另外設定。"
+          },
+          "aufero_laser_3": {
+            "description": "依據文件建立的 GRBL 1.1 USB 預設。尚未進行實機測試。",
+            "advisory": "400 x 400 mm，原點位於左前方，S1000。請核對 $30 和雷射模式 $32=1。回零和自動氣輔已關閉。其他韌體和擴充框架需要另外設定。"
           },
           "ortur_lm2_pro_s2": {
             "description": "依據文件建立的 GRBL 1.1 USB 預設。尚未進行實機測試。",

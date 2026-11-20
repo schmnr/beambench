@@ -19,12 +19,13 @@
   "controller_choice": {
     "controller": "Controller",
     "transport": "Connection",
-    "transport_serial": "Serial",
+    "transport_serial": "シリアル（USB / COM ポート）",
     "transport_network": "ネットワーク (Wi-Fi / イーサネット)",
-    "transport_usb": "USB",
+    "transport_usb": "直接 USB 接続（Lihuiyu）",
     "usb_device": "USB device",
     "select_usb_device": "Select a Lihuiyu controller",
     "no_usb_devices": "No Lihuiyu controllers found",
+    "usb_serial_hint": "GRBL レーザーを USB で接続する場合は「{serial}」を選び、レーザーのポートを指定してください。",
     "refresh_usb_devices": "Refresh USB devices",
     "lihuiyu_windows_driver_incompatible": "This controller is using the Windows USB driver {driver}. Beam Bench requires WinUSB for device 1a86:5512. Change the driver, reconnect the controller, then refresh the USB list.",
     "lihuiyu_windows_driver_tradeoff": "Changing the USB driver may prevent LaserDRW or other vendor software from using this controller until its original driver is restored.",
@@ -2255,6 +2256,74 @@
           "longer_b1_40w": {
             "description": "資料に基づくGRBL 1.1 USB用プリセットです。実機でのテストは未実施です。",
             "advisory": "450 x 440 mm、原点は手前左、S1000、M8/M9エアアシスト。$30、$32=1、リミットスイッチ、ポンプを確認してください。自動原点復帰は既定でオフです。改造機には別途設定が必要です。"
+          },
+          "ortur_lm1": {
+            "description": "資料に基づくGRBL 1.1 USB用プリセットです。実機でのテストは未実施です。",
+            "advisory": "150 x 160 mm、原点は左手前、S1000。$30とレーザーモード$32=1を確認してください。原点復帰と自動エアアシストは無効です。他のファームウェアや拡張フレームは個別の設定が必要です。"
+          },
+          "ortur_lm2": {
+            "description": "資料に基づくGRBL 1.1 USB用プリセットです。実機でのテストは未実施です。",
+            "advisory": "400 x 430 mm、原点は左手前、S1000。$30とレーザーモード$32=1を確認してください。原点復帰と自動エアアシストは無効です。他のファームウェアや拡張フレームは個別の設定が必要です。"
+          },
+          "ortur_lm2_s2": {
+            "description": "資料に基づくGRBL 1.1 USB用プリセットです。実機でのテストは未実施です。",
+            "advisory": "390 x 410 mm、原点は左手前、S1000。$30とレーザーモード$32=1を確認してください。原点復帰と自動エアアシストは無効です。他のファームウェアや拡張フレームは個別の設定が必要です。"
+          },
+          "ortur_lm2_pro_s1": {
+            "description": "資料に基づくGRBL 1.1 USB用プリセットです。実機でのテストは未実施です。",
+            "advisory": "400 x 400 mm、原点は左手前、S1000。$30とレーザーモード$32=1を確認してください。原点復帰と自動エアアシストは無効です。他のファームウェアや拡張フレームは個別の設定が必要です。"
+          },
+          "ortur_lm2_pro_s2_10w": {
+            "description": "資料に基づくGRBL 1.1 USB用プリセットです。実機でのテストは未実施です。",
+            "advisory": "400 x 400 mm、原点は左手前、S1000。$30とレーザーモード$32=1を確認してください。原点復帰と自動エアアシストは無効です。他のファームウェアや拡張フレームは個別の設定が必要です。"
+          },
+          "ortur_lm3_le_5w": {
+            "description": "資料に基づくGRBL 1.1 USB用プリセットです。実機でのテストは未実施です。",
+            "advisory": "400 x 400 mm、原点は左手前、S1000。$30とレーザーモード$32=1を確認してください。原点復帰と自動エアアシストは無効です。他のファームウェアや拡張フレームは個別の設定が必要です。"
+          },
+          "ortur_lm_h10": {
+            "description": "資料に基づくGRBL 1.1 USB用プリセットです。実機でのテストは未実施です。",
+            "advisory": "300 x 300 mm、原点は左手前、S1000。$30とレーザーモード$32=1を確認してください。原点復帰と自動エアアシストは無効です。他のファームウェアや拡張フレームは個別の設定が必要です。"
+          },
+          "ortur_h20_10w": {
+            "description": "資料に基づくGRBL 1.1 USB用プリセットです。実機でのテストは未実施です。",
+            "advisory": "420 x 300 mm、原点は左手前、S1000。$30とレーザーモード$32=1を確認してください。原点復帰と自動エアアシストは無効です。他のファームウェアや拡張フレームは個別の設定が必要です。"
+          },
+          "ortur_h20_20w": {
+            "description": "資料に基づくGRBL 1.1 USB用プリセットです。実機でのテストは未実施です。",
+            "advisory": "420 x 300 mm、原点は左手前、S1000。$30とレーザーモード$32=1を確認してください。原点復帰と自動エアアシストは無効です。他のファームウェアや拡張フレームは個別の設定が必要です。"
+          },
+          "ortur_h20_40w": {
+            "description": "資料に基づくGRBL 1.1 USB用プリセットです。実機でのテストは未実施です。",
+            "advisory": "410 x 275 mm、原点は左手前、S1000。$30とレーザーモード$32=1を確認してください。原点復帰と自動エアアシストは無効です。他のファームウェアや拡張フレームは個別の設定が必要です。"
+          },
+          "ortur_h20_ir_2w": {
+            "description": "資料に基づくGRBL 1.1 USB用プリセットです。実機でのテストは未実施です。",
+            "advisory": "420 x 275 mm、原点は左手前、S1000。$30とレーザーモード$32=1を確認してください。原点復帰と自動エアアシストは無効です。他のファームウェアや拡張フレームは個別の設定が必要です。"
+          },
+          "ortur_r1_5w": {
+            "description": "資料に基づくGRBL 1.1 USB用プリセットです。実機でのテストは未実施です。",
+            "advisory": "100 x 100 mm、原点は左手前、S1000。$30とレーザーモード$32=1を確認してください。原点復帰と自動エアアシストは無効です。他のファームウェアや拡張フレームは個別の設定が必要です。"
+          },
+          "ortur_r1_ir_1_3w": {
+            "description": "資料に基づくGRBL 1.1 USB用プリセットです。実機でのテストは未実施です。",
+            "advisory": "100 x 80 mm、原点は左手前、S1000。$30とレーザーモード$32=1を確認してください。原点復帰と自動エアアシストは無効です。他のファームウェアや拡張フレームは個別の設定が必要です。"
+          },
+          "ortur_r2_10w": {
+            "description": "資料に基づくGRBL 1.1 USB用プリセットです。実機でのテストは未実施です。",
+            "advisory": "300 x 210 mm、原点は左手前、S1000。$30とレーザーモード$32=1を確認してください。原点復帰と自動エアアシストは無効です。他のファームウェアや拡張フレームは個別の設定が必要です。"
+          },
+          "ortur_r2_20w": {
+            "description": "資料に基づくGRBL 1.1 USB用プリセットです。実機でのテストは未実施です。",
+            "advisory": "300 x 190 mm、原点は左手前、S1000。$30とレーザーモード$32=1を確認してください。原点復帰と自動エアアシストは無効です。他のファームウェアや拡張フレームは個別の設定が必要です。"
+          },
+          "ortur_r2_ir_1_3w": {
+            "description": "資料に基づくGRBL 1.1 USB用プリセットです。実機でのテストは未実施です。",
+            "advisory": "300 x 210 mm、原点は左手前、S1000。$30とレーザーモード$32=1を確認してください。原点復帰と自動エアアシストは無効です。他のファームウェアや拡張フレームは個別の設定が必要です。"
+          },
+          "aufero_laser_3": {
+            "description": "資料に基づくGRBL 1.1 USB用プリセットです。実機でのテストは未実施です。",
+            "advisory": "400 x 400 mm、原点は左手前、S1000。$30とレーザーモード$32=1を確認してください。原点復帰と自動エアアシストは無効です。他のファームウェアや拡張フレームは個別の設定が必要です。"
           },
           "ortur_lm2_pro_s2": {
             "description": "資料に基づくGRBL 1.1 USB用プリセットです。実機でのテストは未実施です。",

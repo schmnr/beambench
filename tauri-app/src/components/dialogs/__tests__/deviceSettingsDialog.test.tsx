@@ -1249,6 +1249,60 @@ describe('DeviceSettingsDialog', () => {
     expect(connectNetwork).not.toHaveBeenCalled();
   });
 
+  it('guides an Ortur owner from the empty direct USB scan to serial and reconnects on the COM port', async () => {
+    const port = { port_name: 'COM4', description: 'USB Serial Device', manufacturer: '', vid: null, pid: null };
+    const profile = makeProfile({
+      name: 'Ortur Laser Master 2 (original)', preset_id: 'ortur_lm2', preset_version: 1,
+      firmware_type: 'grbl', bed_width_mm: 400, bed_height_mm: 430, homing_enabled: false,
+    });
+    const selection = { mode: 'known_driver', driver: 'grbl' } as const;
+    useMachineStore.setState({ profiles: [profile], activeProfileId: profile.id });
+    mockInvoke.mockImplementation(async (command, args) => {
+      if (command === 'list_serial_ports') return [port];
+      if (command === 'list_lihuiyu_usb_devices') return [];
+      if (command === 'begin_controller_connection') return {
+        status: 'connected', session_state: 'ready',
+        endpoint: { type: 'serial', port_name: port.port_name, baud_rate: 115200 },
+      };
+      if (command === 'get_machine_status') return { run_state: 'idle' };
+      if (command === 'save_machine_profile') return args.profile;
+      return null;
+    });
+
+    render(<DeviceSettingsDialog onClose={vi.fn()} />);
+    const transport = screen.getByLabelText('Connection');
+    expect(within(transport).getByRole('option', { name: 'Serial (USB / COM port)' })).toBeDefined();
+    const direct = within(transport).getByRole('option', { name: 'Direct USB (Lihuiyu)' });
+    fireEvent.change(transport, { target: { value: (direct as HTMLOptionElement).value } });
+    await waitFor(() => expect(mockInvoke).toHaveBeenCalledWith('list_lihuiyu_usb_devices'));
+    expect(screen.getByRole('option', { name: 'No Lihuiyu controllers found' })).toBeDefined();
+    expect(screen.getByText('If your GRBL laser plugs in by USB, choose Serial (USB / COM port), then select its port.')).toBeDefined();
+    expect((screen.getByRole('button', { name: 'Connect' }) as HTMLButtonElement).disabled).toBe(true);
+
+    fireEvent.change(transport, { target: { value: 'serial' } });
+    expect(screen.queryByText(/If your GRBL laser plugs in/)).toBeNull();
+    const ports = screen.getByLabelText('Port');
+    await within(ports).findByRole('option', { name: /COM4/ });
+    fireEvent.change(ports, { target: { value: port.port_name } });
+    fireEvent.change(screen.getByLabelText('Controller'), { target: { value: 'grbl' } });
+
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      fireEvent.click(screen.getByRole('button', { name: 'Connect' }));
+      const disconnect = await screen.findByRole('button', { name: 'Disconnect' });
+      expect(useMachineStore.getState().connectedPort).toBe(port.port_name);
+      const requests = mockInvoke.mock.calls.filter(([command]) => command === 'begin_controller_connection');
+      expect(requests).toHaveLength(attempt);
+      expect(requests[attempt - 1]).toEqual(['begin_controller_connection', { portName: port.port_name, baudRate: 115200, selection }]);
+      await waitFor(() => expect(useMachineStore.getState().profiles[0].connection_preference).toEqual({
+        type: 'serial', port_name: port.port_name, baud_rate: 115200, controller_selection: selection,
+      }));
+      fireEvent.click(disconnect);
+      await screen.findByRole('button', { name: 'Connect' });
+    }
+    expect(mockInvoke.mock.calls.filter(([command]) => command === 'disconnect_machine')).toHaveLength(2);
+    expect(mockInvoke.mock.calls.some(([command]) => command === 'begin_usb_controller_connection')).toBe(false);
+  });
+
   it('blocks an incompatible Lihuiyu Windows driver with actionable guidance', async () => {
     const connectUsb = vi.fn();
     useMachineStore.setState({
@@ -1291,6 +1345,7 @@ describe('DeviceSettingsDialog', () => {
     expect(warning.textContent).toContain('CH341PAR');
     expect(warning.textContent).toContain('requires WinUSB');
     expect(warning.textContent).toContain('LaserDRW');
+    expect(screen.queryByText(/If your GRBL laser plugs in/)).toBeNull();
 
     const connectButton = screen.getByText('Connect') as HTMLButtonElement;
     expect(connectButton.disabled).toBe(true);

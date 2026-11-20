@@ -454,6 +454,138 @@ pub fn profile_presets() -> Vec<MachineProfilePreset> {
             400.0,
             "400 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
         ),
+        // Exact models, USB settings and sources: docs/machines/ortur-usb-presets.md.
+        MachineProfilePreset {
+            max_speed_mm_min: 3000.0,
+            ..documented_grbl_usb_preset(
+                "ortur_lm1",
+                "Ortur Laser Master 1 (original)",
+                150.0,
+                160.0,
+                "150 x 160 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+            )
+        },
+        MachineProfilePreset {
+            max_speed_mm_min: 3000.0,
+            ..documented_grbl_usb_preset(
+                "ortur_lm2",
+                "Ortur Laser Master 2 (original)",
+                400.0,
+                430.0,
+                "400 x 430 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+            )
+        },
+        documented_grbl_usb_preset(
+            "ortur_lm2_s2",
+            "Ortur Laser Master 2 S2 (LU2-2 / LU2-4)",
+            390.0,
+            410.0,
+            "390 x 410 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+        ),
+        documented_grbl_usb_preset(
+            "ortur_lm2_pro_s1",
+            "Ortur Laser Master 2 Pro S1",
+            400.0,
+            400.0,
+            "400 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+        ),
+        documented_grbl_usb_preset(
+            "ortur_lm2_pro_s2_10w",
+            "Ortur Laser Master 2 Pro S2 10W (LU2-10A)",
+            400.0,
+            400.0,
+            "400 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+        ),
+        documented_grbl_usb_preset(
+            "ortur_lm3_le_5w",
+            "Ortur Laser Master 3 LE 5W (LU2-4 SF / LF)",
+            400.0,
+            400.0,
+            "400 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+        ),
+        documented_grbl_usb_preset(
+            "ortur_lm_h10",
+            "Ortur Laser Master H10 (LU2-4 / LU2-10A / LU3-20A/B)",
+            300.0,
+            300.0,
+            "300 x 300 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+        ),
+        documented_grbl_usb_preset(
+            "ortur_h20_10w",
+            "Ortur H20 10W",
+            420.0,
+            300.0,
+            "420 x 300 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+        ),
+        documented_grbl_usb_preset(
+            "ortur_h20_20w",
+            "Ortur H20 20W",
+            420.0,
+            300.0,
+            "420 x 300 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+        ),
+        documented_grbl_usb_preset(
+            "ortur_h20_40w",
+            "Ortur H20 40W",
+            410.0,
+            275.0,
+            "410 x 275 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+        ),
+        documented_grbl_usb_preset(
+            "ortur_h20_ir_2w",
+            "Ortur H20 2W IR (LR4-2B)",
+            420.0,
+            275.0,
+            "420 x 275 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+        ),
+        MachineProfilePreset {
+            max_speed_mm_min: 3000.0,
+            ..documented_grbl_usb_preset(
+                "ortur_r1_5w",
+                "Ortur R1 5W (LU3-5B)",
+                100.0,
+                100.0,
+                "100 x 100 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+            )
+        },
+        MachineProfilePreset {
+            max_speed_mm_min: 3000.0,
+            ..documented_grbl_usb_preset(
+                "ortur_r1_ir_1_3w",
+                "Ortur R1 1.3W IR (LR4-1A)",
+                100.0,
+                80.0,
+                "100 x 80 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+            )
+        },
+        documented_grbl_usb_preset(
+            "ortur_r2_10w",
+            "Ortur R2 10W",
+            300.0,
+            210.0,
+            "300 x 210 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+        ),
+        documented_grbl_usb_preset(
+            "ortur_r2_20w",
+            "Ortur R2 20W",
+            300.0,
+            190.0,
+            "300 x 190 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+        ),
+        documented_grbl_usb_preset(
+            "ortur_r2_ir_1_3w",
+            "Ortur R2 1.3W IR (LR4-1A)",
+            300.0,
+            210.0,
+            "300 x 210 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+        ),
+        documented_grbl_usb_preset(
+            "aufero_laser_3",
+            "Aufero Laser 3 (LU3-5 / LU2-10B)",
+            400.0,
+            400.0,
+            "400 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+        ),
         // Documentation-based model entries: docs/machines/common-grbl-usb-presets.md.
         documented_grbl_usb_preset(
             "ortur_lm2_pro_s2",
@@ -2792,6 +2924,27 @@ mod tests {
 
     use crate::test_support::PersistTestGuard;
 
+    // Model workspace and initial speed from docs/machines/ortur-usb-presets.md.
+    const ORTUR_PRESET_CASES: &[(&str, f64, f64, f64)] = &[
+        ("ortur_lm1", 150.0, 160.0, 3000.0),
+        ("ortur_lm2", 400.0, 430.0, 3000.0),
+        ("ortur_lm2_s2", 390.0, 410.0, 6000.0),
+        ("ortur_lm2_pro_s1", 400.0, 400.0, 6000.0),
+        ("ortur_lm2_pro_s2_10w", 400.0, 400.0, 6000.0),
+        ("ortur_lm3_le_5w", 400.0, 400.0, 6000.0),
+        ("ortur_lm_h10", 300.0, 300.0, 6000.0),
+        ("ortur_h20_10w", 420.0, 300.0, 6000.0),
+        ("ortur_h20_20w", 420.0, 300.0, 6000.0),
+        ("ortur_h20_40w", 410.0, 275.0, 6000.0),
+        ("ortur_h20_ir_2w", 420.0, 275.0, 6000.0),
+        ("ortur_r1_5w", 100.0, 100.0, 3000.0),
+        ("ortur_r1_ir_1_3w", 100.0, 80.0, 3000.0),
+        ("ortur_r2_10w", 300.0, 210.0, 6000.0),
+        ("ortur_r2_20w", 300.0, 190.0, 6000.0),
+        ("ortur_r2_ir_1_3w", 300.0, 210.0, 6000.0),
+        ("aufero_laser_3", 400.0, 400.0, 6000.0),
+    ];
+
     const MONPORT_PRESET_IDS: &[&str] = &["monport_k40_grbl_2_0", "monport_k40_pro"];
 
     // Manufacturer manuals and U1 setup videos establish different X/Y travel.
@@ -3551,6 +3704,23 @@ mod tests {
                 WorkspaceOrigin::TopLeft,
             )
         }));
+        let cases = cases.chain(
+            ORTUR_PRESET_CASES
+                .iter()
+                .map(|&(id, width, height, speed)| {
+                    (
+                        id,
+                        115200,
+                        width,
+                        height,
+                        speed,
+                        "",
+                        false,
+                        false,
+                        WorkspaceOrigin::BottomLeft,
+                    )
+                }),
+        );
         for (id, baud, width, height, speed, air_on, constant_power, homing, origin) in cases {
             let ctx = ServiceContext::with_settings(AppSettings::default());
             let mut input = sample_input();
@@ -3961,6 +4131,7 @@ mod tests {
         .chain(ATOMSTACK_PRESET_CASES.iter().map(|case| case.0))
         .chain(ARTILUME_PRESET_CASES.iter().map(|case| case.0))
         .chain(MONPORT_PRESET_IDS.iter().copied())
+        .chain(ORTUR_PRESET_CASES.iter().map(|&(id, ..)| id))
         {
             let diff = profile_preset_diff(&ctx, active.id, preset_id).unwrap();
             let power_change = diff.iter().find(|change| change.field == "s_value_max");
