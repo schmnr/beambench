@@ -58,6 +58,7 @@
     "file": {
       "label": "Bestand",
       "open": "Openen",
+      "laser_window": "Nog een laservenster openen",
       "new": "Nieuw",
       "import": "Importeren",
       "save": "Opslaan",

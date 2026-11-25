@@ -58,6 +58,7 @@
     "file": {
       "label": "Arkiv",
       "open": "Öppna",
+      "laser_window": "Öppna ett till laserfönster",
       "new": "Nytt",
       "import": "Importera",
       "save": "Spara",

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { check } from '@tauri-apps/plugin-updater';
+import { invoke } from './invoke';
 import { relaunch } from '@tauri-apps/plugin-process';
 import {
   checkForUpdate,
@@ -10,6 +11,7 @@ import {
 } from './updateService';
 import { useMachineStore } from '../stores/machineStore';
 
+vi.mock('./invoke', () => ({ invoke: vi.fn().mockResolvedValue(undefined) }));
 vi.mock('@tauri-apps/plugin-updater', () => ({
   check: vi.fn(),
 }));
@@ -85,6 +87,15 @@ describe('updateService', () => {
     expect(update.install).not.toHaveBeenCalled();
     expect(relaunch).not.toHaveBeenCalled();
     expect(getUpdateInstallBlocker()).toBe('Finish or stop the current job before installing.');
+  });
+
+  it('leaves the installer untouched when another laser window is open', async () => {
+    const update = makeUpdate();
+    vi.mocked(check).mockResolvedValue(update as never);
+    vi.mocked(invoke).mockRejectedValueOnce(new Error('Close the other windows'));
+    await expect(downloadAndInstallUpdate()).rejects.toThrow('Close the other windows');
+    expect(update.install).not.toHaveBeenCalled();
+    expect(relaunch).not.toHaveBeenCalled();
   });
 
   it('downloads, installs, and relaunches when the machine is idle', async () => {

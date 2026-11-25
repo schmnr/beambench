@@ -470,6 +470,14 @@ export function MenuBar() {
                 void executeAppCommand(APP_COMMANDS.FILE_NEW, menuCommandDialogs, { source: 'menu' });
               }}
             />
+            <MenuItem
+              label={ml("Open Another Laser Window")}
+              shortcut={shortcutFor(APP_COMMANDS.FILE_LASER_WINDOW)}
+              onClick={() => {
+                setOpenMenu(null);
+                void executeAppCommand(APP_COMMANDS.FILE_LASER_WINDOW, menuCommandDialogs, { source: 'menu' });
+              }}
+            />
             <MenuSubmenu label={ml("Recent Projects")}>
               {recentFiles.length === 0 ? (
                 <MenuItem label={ml("No Recent Projects")} disabled onClick={noop} />

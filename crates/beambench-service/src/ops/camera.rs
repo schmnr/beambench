@@ -458,7 +458,7 @@ fn validate_camera_alignment(alignment: &CameraAlignment) -> ServiceResult<()> {
 }
 
 pub fn camera_frame_dir() -> std::path::PathBuf {
-    std::env::temp_dir().join("beam-bench-camera")
+    camera_backend::frame_dir()
 }
 
 fn is_camera_frame_path(path: &std::path::Path) -> bool {

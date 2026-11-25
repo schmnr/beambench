@@ -58,6 +58,7 @@
     "file": {
       "label": "Fil",
       "open": "Åpne",
+      "laser_window": "Åpne et nytt laservindu",
       "new": "Nytt",
       "import": "Importer",
       "save": "Lagre",

@@ -3,6 +3,7 @@ export const APP_COMMANDS = {
   APP_PREFERENCES: 'app.preferences',
   APP_QUIT: 'app.quit',
 
+  FILE_LASER_WINDOW: 'file.laser_window',
   FILE_NEW: 'file.new',
   FILE_OPEN_RECENT: 'file.open_recent',
   FILE_OPEN: 'file.open',

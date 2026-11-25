@@ -69,7 +69,13 @@ pub fn set_window_title(window: WebviewWindow, title: String) -> Result<(), Stri
     if title.chars().count() > 512 {
         return Err("Window title is too long".to_string());
     }
-    window.set_title(title).map_err(|e| e.to_string())
+    let number = beambench_common::desktop_instance::number();
+    if number > 1 {
+        window.set_title(&format!("{title}  [#{number}]"))
+    } else {
+        window.set_title(title)
+    }
+    .map_err(|e| e.to_string())
 }
 
 /// Called by the frontend once React has mounted. Until this fires, the

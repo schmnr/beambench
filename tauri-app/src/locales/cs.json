@@ -58,6 +58,7 @@
     "file": {
       "label": "Soubor",
       "open": "Otevřít",
+      "laser_window": "Otevřít další okno laseru",
       "new": "Nové",
       "import": "Importovat",
       "save": "Uložit",

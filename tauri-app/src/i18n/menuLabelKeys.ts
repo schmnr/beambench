@@ -1,5 +1,6 @@
 export const MENU_LABEL_KEYS = {
   File: 'menus.file.label',
+  'Open Another Laser Window': 'menus.file.laser_window',
   New: 'menus.file.new',
   'Recent Projects': 'menus.recent_projects.label',
   'No Recent Projects': 'menus.recent_projects.empty',

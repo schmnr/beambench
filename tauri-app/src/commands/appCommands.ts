@@ -530,6 +530,9 @@ export async function executeAppCommand(
     case APP_COMMANDS.APP_QUIT:
       void appService.requestWindowClose();
       return;
+    case APP_COMMANDS.FILE_LASER_WINDOW:
+      await runCommand(() => appService.openLaserWindow());
+      return;
     case APP_COMMANDS.FILE_NEW:
       guardUnsavedChanges(() => {
         ps.createProject(i18n.t('menus.file.untitled_project'));

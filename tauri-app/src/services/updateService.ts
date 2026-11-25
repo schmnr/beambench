@@ -184,13 +184,18 @@ export async function downloadAndInstallUpdate(
     throw new UpdateInstallBlockedError(beforeInstallBlocker);
   }
 
-  await update.install();
+  await invoke<void>('begin_instance_update');
+  try {
+    await update.install();
 
-  await protectUnsavedChanges();
-  const beforeRelaunchBlocker = getUpdateInstallBlocker();
-  if (beforeRelaunchBlocker) {
-    throw new UpdateInstallBlockedError(beforeRelaunchBlocker);
+    await protectUnsavedChanges();
+    const beforeRelaunchBlocker = getUpdateInstallBlocker();
+    if (beforeRelaunchBlocker) {
+      throw new UpdateInstallBlockedError(beforeRelaunchBlocker);
+    }
+
+    await relaunch();
+  } finally {
+    await invoke<void>('end_instance_update');
   }
-
-  await relaunch();
 }

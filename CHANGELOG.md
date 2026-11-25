@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Run USB lasers independently from one computer. Choose File > Open Another
+  Laser Window and connect each window to a different serial port. Each copy
+  keeps its own settings and crash recovery. Its title shows the connected port.
+  Use the first window for network controllers and software updates.
+
 - Add Monport K40 GRBL 2.0 and K40 Pro 40W USB presets with a 300 x 200 mm
   workspace and rear-left origin. Include setup guidance and framing,
   vector/raster output and saved-settings tests. Physical testing is pending.

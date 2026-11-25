@@ -25,6 +25,7 @@ type CommandDefinition = Omit<CommandMetadata, 'labelKey' | 'groupKey'>;
 const COMMAND_DEFINITIONS: CommandDefinition[] = [
   { id: APP_COMMANDS.APP_PREFERENCES, label: 'Settings', group: 'Edit', defaultHotkey: 'Ctrl+,', editable: true },
   { id: APP_COMMANDS.FILE_NEW, label: 'New', group: 'File', defaultHotkey: 'Ctrl+n', editable: true },
+  { id: APP_COMMANDS.FILE_LASER_WINDOW, label: 'Open Another Laser Window', group: 'File', editable: true },
   { id: APP_COMMANDS.FILE_OPEN, label: 'Open', group: 'File', defaultHotkey: 'Ctrl+o', editable: true },
   { id: APP_COMMANDS.FILE_IMPORT, label: 'Import', group: 'File', defaultHotkey: 'Ctrl+i', editable: true },
   { id: APP_COMMANDS.FILE_NOTES, label: 'Project Notes', group: 'File', defaultHotkey: 'Ctrl+Alt+n', editable: true },

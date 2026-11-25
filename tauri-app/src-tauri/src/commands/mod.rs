@@ -3,6 +3,7 @@ pub mod app;
 pub mod art_library;
 pub mod camera;
 pub mod connected_library;
+pub mod desktop_instance;
 pub mod export;
 pub mod feedback;
 pub mod import;

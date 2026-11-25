@@ -413,13 +413,21 @@ function WindowTitleBridge() {
   const projectName = useProjectStore((s) => s.project?.metadata.project_name ?? null);
   const dirty = useProjectStore((s) => s.project?.dirty ?? false);
 
+  const port = useMachineStore((s) => s.connectionPreview ? null : s.connectedPort);
+  const profileName = useMachineStore((s) =>
+    s.connectedPort && s.activeProfileId
+      ? s.profiles.find((profile) => profile.id === s.activeProfileId)?.name
+      : null,
+  );
+
   useEffect(() => {
-    const title = projectWindowTitle(projectPath, projectName, dirty);
+    const base = projectWindowTitle(projectPath, projectName, dirty);
+    const title = port ? [base, profileName, port].filter(Boolean).join(' · ') : base;
     document.title = title;
     void appService.setWindowTitle(title).catch((error) => {
       console.error('[Beam Bench] Failed to update the native window title', error);
     });
-  }, [dirty, projectName, projectPath]);
+  }, [dirty, port, profileName, projectName, projectPath]);
 
   return null;
 }

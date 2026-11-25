@@ -58,6 +58,7 @@
     "file": {
       "label": "Datoteka",
       "open": "Odpri",
+      "laser_window": "Odpri še eno okno za laser",
       "new": "Novo",
       "import": "Uvozi",
       "save": "Shrani",

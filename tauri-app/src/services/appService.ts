@@ -98,6 +98,9 @@ function serializePanelLayout(layout: PanelLayoutState): Record<string, unknown>
 }
 
 export const appService = {
+  openLaserWindow() {
+    return invoke<void>('open_laser_window');
+  },
   async getStatus(): Promise<AppStatus> {
     return invoke<AppStatus>('get_app_status');
   },

@@ -13,6 +13,7 @@ pub mod command {
     pub const APP_PREFERENCES: &str = "app.preferences";
     pub const APP_QUIT: &str = "app.quit";
 
+    pub const FILE_LASER_WINDOW: &str = "file.laser_window";
     pub const FILE_NEW: &str = "file.new";
     pub const FILE_OPEN_RECENT: &str = "file.open_recent";
     pub const FILE_RECENT_EMPTY: &str = "file.recent.empty";
@@ -294,6 +295,12 @@ const FILE_MENU: &[NativeMenuEntry] = &[
         id: command::FILE_NEW,
         title: "New",
         accelerator: Some("CmdOrCtrl+N"),
+        enabled: true,
+    },
+    NativeMenuEntry::Command {
+        id: command::FILE_LASER_WINDOW,
+        title: "Open Another Laser Window",
+        accelerator: None,
         enabled: true,
     },
     NativeMenuEntry::RecentProjects,
@@ -2531,6 +2538,12 @@ mod tests {
                     "File > New".to_string(),
                     command::FILE_NEW,
                     Some("CmdOrCtrl+N"),
+                    true
+                ),
+                (
+                    "File > Open Another Laser Window".to_string(),
+                    command::FILE_LASER_WINDOW,
+                    None,
                     true
                 ),
                 (

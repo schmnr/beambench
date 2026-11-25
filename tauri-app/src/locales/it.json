@@ -58,6 +58,7 @@
     "file": {
       "label": "File",
       "open": "Apri",
+      "laser_window": "Apri un’altra finestra laser",
       "new": "Nuovo",
       "import": "Importa",
       "save": "Salva",

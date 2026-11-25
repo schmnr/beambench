@@ -58,6 +58,7 @@
     "file": {
       "label": "檔案",
       "open": "開啟",
+      "laser_window": "開啟另一個雷射視窗",
       "new": "新",
       "import": "進口",
       "save": "儲存",
