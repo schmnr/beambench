@@ -37,6 +37,34 @@ function makeOutlinerProject() {
   return makeProject({ layers: [black, red], objects: [child, group, loose, target] });
 }
 
+function setupContentDrag(selectedObjectIds: string[] = []) {
+  const project = makeOutlinerProject();
+  const image = makeLayer({ id: 'image', operation: 'image' });
+  project.layers.push(image, makeLayer({ id: 'tool', operation: 'tool' }));
+  project.objects.push(makeProjectObject({
+    id: 'photo', layer_id: 'image',
+    data: { type: 'raster_image', asset_key: 'photo', original_width_px: 4, original_height_px: 4 },
+  }));
+  project.objects.push(makeProjectObject({
+    id: 'clone', layer_id: 'image', data: { type: 'virtual_clone', source_id: 'photo' },
+  }));
+  project.objects.push(makeProjectObject({
+    id: 'images', layer_id: 'image', data: { type: 'group', children: ['clone'] },
+  }));
+  const move = vi.fn().mockResolvedValue(true);
+  useUiStore.setState({ workspaceMode: 'design' });
+  useProjectStore.setState({ project, selectedObjectIds, moveObjectsInOutliner: move });
+  render(<OutlinerPanel />);
+  const dataTransfer = { effectAllowed: '', dropEffect: '', setData: vi.fn() };
+  const row = (id: string) => screen.getByTestId('outliner-' + id);
+  return {
+    start: (id: string) => fireEvent.dragStart(row(id), { dataTransfer }),
+    over: (id: string) => fireEvent.dragOver(row(id), { dataTransfer }),
+    drop: (id: string) => fireEvent.drop(row(id), { dataTransfer }),
+    dataTransfer, move,
+  };
+}
+
 describe('OutlinerPanel', () => {
   it('shows layers, top-level objects, and expandable group contents', () => {
     useProjectStore.setState({ project: makeOutlinerProject(), selectedLayerId: 'black', selectedObjectIds: [] });
@@ -126,6 +154,47 @@ describe('OutlinerPanel', () => {
     });
 
     expect(moveObjectsInOutliner).toHaveBeenCalledWith(['loose'], 'red', 'target');
+  });
+
+  it.each(['layer-image', 'object-photo'])('rejects vector drops on %s before submitting a move', (target) => {
+    const drag = setupContentDrag();
+    drag.start('object-loose');
+    drag.over('object-target');
+    expect(drag.dataTransfer.dropEffect).toBe('move');
+    expect(drag.over(target)).toBe(true); // A native drop is enabled only by cancelling dragover.
+    expect(drag.dataTransfer.dropEffect).toBe('none');
+    expect(screen.getByRole('status').textContent).toContain('Image layers only accept images');
+    drag.drop(target); // Also guard a drop dispatched directly by a webview.
+    expect(drag.move).not.toHaveBeenCalled();
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('lets a group of raster clones continue dragging from a blocked row to a valid row', () => {
+    const drag = setupContentDrag();
+    drag.start('object-images');
+    drag.over('object-target');
+    expect(screen.getByRole('status').textContent).toContain('Move images to an Image layer');
+    drag.over('object-photo');
+    expect(screen.queryByRole('status')).toBeNull();
+    expect(drag.dataTransfer.dropEffect).toBe('move');
+    drag.drop('object-photo');
+    expect(drag.move).toHaveBeenCalledWith(['images'], 'image', null);
+  });
+
+  it('keeps a mixed selection together and allows moving it to a tool layer', () => {
+    const drag = setupContentDrag(['loose', 'photo']);
+    drag.start('object-photo');
+    drag.over('layer-black');
+    expect(screen.getByRole('status').textContent).toContain('separately');
+    drag.drop('layer-black');
+    expect(drag.move).not.toHaveBeenCalled();
+    drag.start('object-photo');
+    drag.over('layer-image');
+    expect(drag.dataTransfer.dropEffect).toBe('none');
+    drag.over('layer-tool');
+    expect(drag.dataTransfer.dropEffect).toBe('move');
+    drag.drop('layer-tool');
+    expect(drag.move).toHaveBeenCalledWith(['loose', 'photo'], 'tool', null);
   });
 
   it('reorders processing layers by dragging a layer row', async () => {

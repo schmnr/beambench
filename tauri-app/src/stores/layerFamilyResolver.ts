@@ -96,11 +96,11 @@ const DEFAULT_AUTO_BASE_NAMES = new Set(['Layer', 'Line', 'Fill', 'Offset Fill',
  *  score, fill, offset_fill — host non-raster objects per the
  *  backend layer-content invariant. */
 function isImageLayer(layer: Layer): boolean {
-  return layer.entries[0]?.operation === 'image';
+  return layer.entries.some((entry) => entry.operation === 'image');
 }
 
 /** Does the layer's operation match the requested content kind? */
-function layerMatchesKind(layer: Layer, kind: ContentKind): boolean {
+export function layerMatchesKind(layer: Layer, kind: ContentKind): boolean {
   if (layer.is_tool_layer) return true;
   return kind === 'raster' ? isImageLayer(layer) : !isImageLayer(layer);
 }

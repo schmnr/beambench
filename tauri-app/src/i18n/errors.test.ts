@@ -43,6 +43,19 @@ describe('wrapBackendError', () => {
     }
   });
 
+  it('shows the layer compatibility guidance in Brazilian Portuguese after a backend rejection', async () => {
+    const previousLanguage = i18n.language;
+    try {
+      await i18n.changeLanguage('pt-BR');
+      expect(wrapBackendError('Image layers hold only raster objects; place vector content on a non-image layer'))
+        .toContain('Camadas de imagem só aceitam imagens');
+      expect(wrapBackendError('Raster objects can only live on image layers'))
+        .toBe('Mova as imagens para uma camada de imagem.');
+    } finally {
+      await i18n.changeLanguage(previousLanguage);
+    }
+  });
+
   it('names the newer Beam Bench version for projects it cannot safely open', () => {
     expect(
       wrapBackendError(

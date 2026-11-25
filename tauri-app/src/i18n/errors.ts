@@ -51,6 +51,12 @@ const ERROR_CODE_TAG = /^\[[a-z_]+\]\s*/u;
  */
 export function wrapBackendError(detail: string): string {
   const normalized = detail.replace(/^(?:Error:\s*|Operation failed:\s*)+/u, '');
+  if (normalized === 'Image layers hold only raster objects; place vector content on a non-image layer') {
+    return i18n.t('errors.image_layer_images_only');
+  }
+  if (normalized === 'Raster objects can only live on image layers') {
+    return i18n.t('errors.images_need_image_layer');
+  }
   if (normalized.includes(SERIAL_OPEN_NO_RESPONSE)) {
     return i18n.t('errors.serial_open_no_response');
   }
