@@ -16,8 +16,12 @@ export function projectWindowTitle(
   projectPath: string | null,
   projectName: string | null,
   dirty: boolean,
+  port?: string | null,
+  profileName?: string | null,
 ): string {
   const visibleName = projectDisplayName(projectPath, projectName);
-  if (!visibleName) return APP_NAME;
-  return `${visibleName}${dirty ? ' *' : ''} - ${APP_NAME}`;
+  const project = visibleName ? `${visibleName}${dirty ? ' *' : ''} - ${APP_NAME}` : APP_NAME;
+  // Keep the endpoint visible even when the taskbar truncates a long project name.
+  const title = port ? [port, profileName, project].filter(Boolean).join(' · ') : project;
+  return Array.from(title).slice(0, 512).join('');
 }

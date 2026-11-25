@@ -58,6 +58,7 @@
     "file": {
       "label": "Tiedosto",
       "open": "Avaa",
+      "laser_window": "Avaa toinen laserikkuna",
       "new": "Uusi",
       "import": "Tuo",
       "save": "Tallenna",

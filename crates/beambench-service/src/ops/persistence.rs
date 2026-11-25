@@ -244,9 +244,9 @@ fn lock_err(name: &str, e: impl std::fmt::Display) -> ServiceError {
 }
 
 fn recovery_dir() -> ServiceResult<PathBuf> {
-    let config_dir = dirs::config_dir()
+    let config_dir = crate::persist::config_dir()
         .ok_or_else(|| ServiceError::persistence("Could not determine config directory"))?;
-    Ok(config_dir.join("beam-bench").join("recovery"))
+    Ok(config_dir.join("recovery"))
 }
 
 /// Remove the open project's autosave after an intentional application close.

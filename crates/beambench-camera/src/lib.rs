@@ -241,8 +241,8 @@ fn native_camera_info_for_id(camera_id: &str) -> Result<nokhwa::utils::CameraInf
         .ok_or_else(|| format!("Camera '{camera_id}' not found"))
 }
 
-fn frame_dir() -> PathBuf {
-    std::env::temp_dir().join("beam-bench-camera")
+pub fn frame_dir() -> PathBuf {
+    beambench_common::desktop_instance::storage_dir(std::env::temp_dir().join("beam-bench-camera"))
 }
 
 fn draw_mock_frame(camera: &CameraDeviceInfo) -> RgbaImage {

@@ -5,6 +5,7 @@ import {checkForUpdate, clearPendingUpdate, downloadAndInstallUpdate} from './up
 import {useProjectStore} from '../stores/projectStore';
 import {useUnsavedGuardStore} from '../stores/unsavedGuardStore';
 import {makeProject} from '../test-utils/projectFixtures';
+vi.mock('./invoke', () => ({ invoke: vi.fn().mockResolvedValue(undefined) }));
 vi.mock('@tauri-apps/plugin-updater', () => ({check:vi.fn()}));
 vi.mock('@tauri-apps/plugin-process', () => ({relaunch:vi.fn()}));
 function updateFixture() { return {currentVersion:'1',version:'2',rawJson:{},download:vi.fn(async()=>{}),install:vi.fn(async()=>{}),close:vi.fn(async()=>{})}; }

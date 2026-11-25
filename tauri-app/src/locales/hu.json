@@ -58,6 +58,7 @@
     "file": {
       "label": "Fájl",
       "open": "Megnyitás",
+      "laser_window": "Másik lézerablak megnyitása",
       "new": "Új",
       "import": "Importálás",
       "save": "Mentés",

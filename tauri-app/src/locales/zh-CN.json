@@ -58,6 +58,7 @@
     "file": {
       "label": "文件",
       "open": "打开",
+      "laser_window": "打开另一个激光窗口",
       "new": "新",
       "import": "进口",
       "save": "保存",

@@ -3173,6 +3173,13 @@ pub fn begin_network_controller_connection(
     ctx: &ServiceContext,
     input: BeginNetworkControllerConnectionInput,
 ) -> ServiceResult<ControllerConnectionResult> {
+    // Network controllers can accept concurrent senders. Extra desktop copies
+    // support independently claimed USB devices; the first retains network access.
+    if beambench_common::desktop_instance::number() > 1 {
+        return Err(ServiceError::invalid_state(
+            "Use the first Beam Bench window for network controllers. Connect a separate USB laser in this window.",
+        ));
+    }
     let mut host = input.host.trim().to_string();
     if host.starts_with('[') && host.ends_with(']') && host.len() > 2 {
         host = host[1..host.len() - 1].to_string();

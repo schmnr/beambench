@@ -113,13 +113,10 @@ pub fn config_dir() -> Option<PathBuf> {
     if let Some(path) = crate::test_support::persistence_config_dir_for_current_test() {
         return Some(path);
     }
-    if let Some(path) = isolated_directory("config") {
-        return Some(path);
-    }
-    if let Some(path) = std::env::var_os(CONFIG_DIR_ENV) {
-        return Some(PathBuf::from(path));
-    }
-    dirs::config_dir().map(|d| d.join("beam-bench"))
+    let base = isolated_directory("config")
+        .or_else(|| std::env::var_os(CONFIG_DIR_ENV).map(PathBuf::from))
+        .or_else(|| dirs::config_dir().map(|dir| dir.join("beam-bench")))?;
+    Some(beambench_common::desktop_instance::storage_dir(base))
 }
 
 /// Return the path to the settings JSON file.
@@ -451,13 +448,10 @@ pub fn data_dir() -> Option<PathBuf> {
     if let Some(path) = crate::test_support::persistence_data_dir_for_current_test() {
         return Some(path);
     }
-    if let Some(path) = isolated_directory("data") {
-        return Some(path);
-    }
-    if let Some(path) = std::env::var_os(DATA_DIR_ENV) {
-        return Some(PathBuf::from(path));
-    }
-    dirs::data_dir().map(|d| d.join("beam-bench"))
+    let base = isolated_directory("data")
+        .or_else(|| std::env::var_os(DATA_DIR_ENV).map(PathBuf::from))
+        .or_else(|| dirs::data_dir().map(|dir| dir.join("beam-bench")))?;
+    Some(beambench_common::desktop_instance::storage_dir(base))
 }
 
 /// Keep the preceding launch available when a renderer or GTK failure forces

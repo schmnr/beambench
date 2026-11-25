@@ -6,6 +6,7 @@ pub mod color;
 pub mod connected_library;
 pub mod console;
 pub mod controller_choice;
+pub mod desktop_instance;
 pub mod error;
 pub mod event;
 pub mod feedback;

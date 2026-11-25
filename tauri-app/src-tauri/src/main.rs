@@ -9,7 +9,6 @@ mod panic_reports;
 mod state;
 mod theme;
 
-use std::net::TcpListener;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
@@ -20,11 +19,6 @@ use tauri::{Emitter, Manager};
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
-// Debug builds use a separate lock so a dev app can run beside an installed release.
-#[cfg(not(debug_assertions))]
-const SINGLE_INSTANCE_LOCK_ADDR: &str = "127.0.0.1:47683";
-#[cfg(debug_assertions)]
-const SINGLE_INSTANCE_LOCK_ADDR: &str = "127.0.0.1:47684";
 const DESIGN_RENDER_TEMP_PREFIX: &str = "beambench-design-render-";
 const DESIGN_RENDER_MAX_AGE: Duration = Duration::from_secs(24 * 60 * 60);
 
@@ -95,65 +89,6 @@ fn linux_session_is_wayland() -> bool {
             .is_ok_and(|session| session.eq_ignore_ascii_case("wayland"))
 }
 
-/// Reply a running copy sends to a second launch, so an unrelated program on
-/// the same port is not mistaken for Beam Bench.
-const SINGLE_INSTANCE_HELLO: &[u8] = b"beambench-instance\n";
-
-enum SingleInstance {
-    Acquired(TcpListener),
-    AlreadyRunning,
-    PortUnavailable(std::io::Error),
-}
-
-fn acquire_single_instance_lock() -> SingleInstance {
-    match TcpListener::bind(SINGLE_INSTANCE_LOCK_ADDR) {
-        Ok(listener) => SingleInstance::Acquired(listener),
-        Err(bind_error) => {
-            // Ask whoever holds the port. A running Beam Bench answers with
-            // its hello and focuses its window.
-            use std::io::Read;
-            let answered = SINGLE_INSTANCE_LOCK_ADDR
-                .parse()
-                .ok()
-                .and_then(|addr| {
-                    std::net::TcpStream::connect_timeout(&addr, Duration::from_millis(500)).ok()
-                })
-                .and_then(|mut stream| {
-                    stream
-                        .set_read_timeout(Some(Duration::from_millis(1000)))
-                        .ok()?;
-                    let mut reply = vec![0u8; SINGLE_INSTANCE_HELLO.len()];
-                    stream.read_exact(&mut reply).ok()?;
-                    Some(reply == SINGLE_INSTANCE_HELLO)
-                })
-                .unwrap_or(false);
-            if answered {
-                SingleInstance::AlreadyRunning
-            } else {
-                SingleInstance::PortUnavailable(bind_error)
-            }
-        }
-    }
-}
-
-/// Answer second launches: greet them and bring the main window forward.
-fn serve_single_instance_requests(listener: TcpListener, app: tauri::AppHandle) {
-    std::thread::spawn(move || {
-        use std::io::Write;
-        for mut stream in listener.incoming().flatten() {
-            let _ = stream.write_all(SINGLE_INSTANCE_HELLO);
-            let handle = app.clone();
-            let _ = app.run_on_main_thread(move || {
-                if let Some(window) = handle.get_webview_window("main") {
-                    let _ = window.unminimize();
-                    let _ = window.show();
-                    let _ = window.set_focus();
-                }
-            });
-        }
-    });
-}
-
 fn main() {
     // WebKitGTK can fail before the frontend boots on several Linux graphics
     // stacks: NVIDIA proprietary drivers, Wayland/EGL regressions, hybrid GPUs,
@@ -167,24 +102,10 @@ fn main() {
         }
     }
 
+    let instance = commands::desktop_instance::DesktopInstance::start()
+        .expect("Could not reserve storage for this Beam Bench window");
+    let instance_number = instance.number;
     panic_reports::install_panic_hook();
-    // Before anything reads or repairs settings: a second launch must not
-    // touch files the running copy owns.
-    let single_instance_lock = match acquire_single_instance_lock() {
-        SingleInstance::Acquired(listener) => Some(listener),
-        SingleInstance::AlreadyRunning => {
-            eprintln!("Beam Bench is already running; its window was brought to the front.");
-            return;
-        }
-        SingleInstance::PortUnavailable(error) => {
-            // Another program holds the port. Starting without the lock is
-            // better than refusing to start with no visible message.
-            eprintln!(
-                "Beam Bench could not reserve {SINGLE_INSTANCE_LOCK_ADDR} ({error}); starting without the single-instance check."
-            );
-            None
-        }
-    };
     let startup_diagnostics_path = logging::install_startup_diagnostics();
     let ctx = Arc::new(ServiceContext::new());
     panic_reports::load_startup_panics_into_context(&ctx);
@@ -213,6 +134,18 @@ fn main() {
     let mut tauri_context = tauri::generate_context!();
     for window_config in &mut tauri_context.config_mut().app.windows {
         theme::configure_window(window_config, startup_ui_theme);
+        if instance_number > 1 {
+            window_config.data_directory = Some(format!("instance-{instance_number}").into());
+            #[cfg(target_os = "macos")]
+            {
+                if objc2::available!(macos = 14.0) {
+                    window_config.data_store_identifier =
+                        Some(u128::from(instance_number).to_be_bytes());
+                } else {
+                    window_config.incognito = true;
+                }
+            }
+        }
     }
 
     tauri::Builder::default()
@@ -223,6 +156,11 @@ fn main() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(
             tauri_plugin_window_state::Builder::default()
+                .with_filename(if instance_number == 1 {
+                    tauri_plugin_window_state::DEFAULT_FILENAME.to_string()
+                } else {
+                    format!(".window-state-{instance_number}.json")
+                })
                 .with_state_flags(
                     tauri_plugin_window_state::StateFlags::POSITION
                         | tauri_plugin_window_state::StateFlags::SIZE
@@ -233,6 +171,7 @@ fn main() {
                 .with_filter(|label| label == "main")
                 .build(),
         )
+        .manage(instance)
         .manage(ctx.clone())
         .manage(api_runtime)
         .manage(native_menu::NativeMenuRegistry::default())
@@ -373,6 +312,9 @@ fn main() {
             commands::app::confirm_window_close,
             commands::app::request_window_close,
             commands::app::set_window_title,
+            commands::desktop_instance::open_laser_window,
+            commands::desktop_instance::begin_instance_update,
+            commands::desktop_instance::end_instance_update,
             commands::app::open_external_url,
             commands::app::get_app_settings,
             commands::app::take_pending_notices,
@@ -743,9 +685,6 @@ fn main() {
         .setup(move |app| {
             app.state::<commands::connected_library::ConnectedLibrary>().bind_events(app.handle());
             native_menu::install(app)?;
-            if let Some(listener) = single_instance_lock {
-                serve_single_instance_requests(listener, app.handle().clone());
-            }
             let ctx = app.state::<Arc<ServiceContext>>();
             let api_runtime = app.state::<ApiRuntime>().inner().clone();
             ctx.set_settings_applier({

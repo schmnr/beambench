@@ -19,6 +19,13 @@ describe('projectWindowTitle', () => {
     expect(projectWindowTitle(null, null, false)).toBe('Beam Bench');
   });
 
+  it('keeps the connected port visible on long titles accepted by the desktop', () => {
+    const title = projectWindowTitle(null, 'x'.repeat(512), true, 'COM4', 'Workshop laser');
+    expect(title.startsWith('COM4 · Workshop laser · ')).toBe(true);
+    expect(Array.from(title)).toHaveLength(512);
+    expect(projectWindowTitle(null, null, false, 'COM5')).toBe('COM5 · Beam Bench');
+  });
+
   it('uses one visible project name across saved UI surfaces', () => {
     expect(projectDisplayName('/Users/test/cut.lzrproj', 'Stale Name')).toBe('cut.lzrproj');
     expect(projectDisplayName(null, '  New Project  ')).toBe('New Project');

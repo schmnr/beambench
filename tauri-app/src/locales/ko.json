@@ -58,6 +58,7 @@
     "file": {
       "label": "파일",
       "open": "열기",
+      "laser_window": "다른 레이저 창 열기",
       "new": "새로운",
       "import": "가져오기",
       "save": "저장",

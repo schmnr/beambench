@@ -58,6 +58,7 @@
     "file": {
       "label": "Fil",
       "open": "Åbn",
+      "laser_window": "Åbn et nyt laservindue",
       "new": "Ny",
       "import": "Importer",
       "save": "Gem",

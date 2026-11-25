@@ -58,6 +58,7 @@
     "file": {
       "label": "File",
       "open": "Open",
+      "laser_window": "Open Another Laser Window",
       "new": "New",
       "import": "Import",
       "project_notes": "Project Notes...",

@@ -58,6 +58,7 @@
     "file": {
       "label": "Dosya",
       "open": "Aç",
+      "laser_window": "Başka bir lazer penceresi aç",
       "new": "Yeni",
       "import": "İthalat",
       "save": "Kaydet",
