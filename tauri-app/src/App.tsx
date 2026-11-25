@@ -421,8 +421,7 @@ function WindowTitleBridge() {
   );
 
   useEffect(() => {
-    const base = projectWindowTitle(projectPath, projectName, dirty);
-    const title = port ? [base, profileName, port].filter(Boolean).join(' · ') : base;
+    const title = projectWindowTitle(projectPath, projectName, dirty, port, profileName);
     document.title = title;
     void appService.setWindowTitle(title).catch((error) => {
       console.error('[Beam Bench] Failed to update the native window title', error);
