@@ -20,6 +20,9 @@ import {
   Unlock,
 } from 'lucide-react';
 import { useProjectStore } from '../../stores/projectStore';
+import { objectContentKind, type ContentKind } from '../../commands/selectionContext';
+import { layerMatchesKind } from '../../stores/layerFamilyResolver';
+import { topLevelArrangementObjectId } from '../../utils/arrangementSelection';
 import { useUiStore } from '../../stores/uiStore';
 import type { Layer, Project, ProjectObject } from '../../types/project';
 import { INSPECTOR_CARD_CLASS, INSPECTOR_HELP_TEXT_CLASS } from '../shared/panelAppearance';
@@ -34,9 +37,20 @@ import { LayerModeIcon } from '../layers/LayerModeIcon';
 
 type DragState =
   | { kind: 'layer'; layerId: string }
-  | { kind: 'object'; rootId: string; objectIds: string[] };
+  | { kind: 'object'; rootId: string; objectIds: string[]; contentKinds: Set<ContentKind> };
+
+function blockedDropMessage(kinds: Set<ContentKind>, layer: Layer) {
+  for (const kind of kinds) {
+    if (!layerMatchesKind(layer, kind)) {
+      if (kinds.size > 1) return 'errors.move_images_separately';
+      return kind === 'raster' ? 'errors.images_need_image_layer' : 'errors.image_layer_images_only';
+    }
+  }
+  return null;
+}
 
 type DropState =
+  | { kind: 'blocked'; message: NonNullable<ReturnType<typeof blockedDropMessage>> }
   | { kind: 'layer'; layerId: string; edge: 'before' | 'after' | 'inside' }
   | { kind: 'object'; objectId: string; edge: 'before' | 'after' }
   | null;
@@ -226,28 +240,44 @@ export function OutlinerPanel() {
 
   const startObjectDrag = (event: React.DragEvent, object: ProjectObject) => {
     if (!editable) return;
-    const roots = selectedObjectIds.includes(object.id) && selectedObjectIds.length > 1
+    const selection = selectedObjectIds.includes(object.id) && selectedObjectIds.length > 1
       ? selectedObjectIds
       : [object.id];
     event.stopPropagation();
     event.dataTransfer.effectAllowed = 'move';
     event.dataTransfer.setData(OUTLINER_DATA_TYPE, object.id);
-    const nextDrag: DragState = { kind: 'object', rootId: object.id, objectIds: roots };
+    const roots = [...new Set(selection.map((id) => topLevelArrangementObjectId(project, id)))];
+    const contentKinds = new Set<ContentKind>();
+    for (const id of roots.flatMap((root) => objectAndDescendantIds(project, root))) {
+      const member = objectsById.get(id);
+      if (member && member.data.type !== 'group') contentKinds.add(objectContentKind(member.data, project.objects));
+    }
+    const nextDrag: DragState = { kind: 'object', rootId: object.id, objectIds: roots, contentKinds };
     dragRef.current = nextDrag;
     setDrag(nextDrag);
   };
 
+  const showBlockedDrop = (event: React.DragEvent, kinds: Set<ContentKind>, layer: Layer) => {
+    const message = blockedDropMessage(kinds, layer);
+    if (!message) return false;
+    event.stopPropagation();
+    event.dataTransfer.dropEffect = 'none';
+    setDrop({ kind: 'blocked', message });
+    return true;
+  };
+
   const moveObjectBlock = async (
-    targetLayerId: string,
+    layer: Layer,
     beforeObjectId: string | null,
   ) => {
     const activeDrag = dragRef.current ?? drag;
     if (activeDrag?.kind !== 'object') return;
-    await moveObjectsInOutliner(activeDrag.objectIds, targetLayerId, beforeObjectId);
     finishDrag();
+    if (blockedDropMessage(activeDrag.contentKinds, layer)) return;
+    await moveObjectsInOutliner(activeDrag.objectIds, layer.id, beforeObjectId);
   };
 
-  const renderObject = (object: ProjectObject, depth: number, topLevel: boolean): React.ReactNode => {
+  const renderObject = (object: ProjectObject, layer: Layer, depth: number, topLevel: boolean): React.ReactNode => {
     const isGroup = object.data.type === 'group';
     const groupChildren = object.data.type === 'group' ? object.data.children : [];
     const expanded = isGroup && expandedGroups.has(object.id);
@@ -272,14 +302,16 @@ export function OutlinerPanel() {
           data-testid={`outliner-object-${object.id}`}
           onDragStart={(event) => startObjectDrag(event, object)}
           onDragEnd={finishDrag}
-          onDragOver={topLevel ? (event) => {
+          onDragOver={(event) => {
             const activeDrag = dragRef.current ?? drag;
-            if (activeDrag?.kind !== 'object' || activeDrag.objectIds.includes(object.id)) return;
+            if (activeDrag?.kind !== 'object') return;
+            if (showBlockedDrop(event, activeDrag.contentKinds, layer)) return;
+            if (!topLevel || activeDrag.objectIds.includes(object.id)) return;
             event.preventDefault();
             event.stopPropagation();
             event.dataTransfer.dropEffect = 'move';
             setDrop({ kind: 'object', objectId: object.id, edge: dropEdgeForRow(event) });
-          } : undefined}
+          }}
           onDrop={topLevel ? (event) => {
             const activeDrag = dragRef.current ?? drag;
             if (activeDrag?.kind !== 'object') return;
@@ -287,7 +319,8 @@ export function OutlinerPanel() {
             event.stopPropagation();
             const edge = dropOnObject ? drop.edge : dropEdgeForRow(event);
             const beforeId = resolveObjectDropBeforeId(project, activeDrag.objectIds, object.id, edge);
-            void moveObjectBlock(object.layer_id, beforeId);
+            if (activeDrag.objectIds.includes(object.id)) return finishDrag();
+            void moveObjectBlock(layer, beforeId);
           } : undefined}
           onClick={(event) => {
             if (!object.visible) return;
@@ -375,16 +408,21 @@ export function OutlinerPanel() {
           .map((childId) => objectsById.get(childId))
           .filter((child): child is ProjectObject => Boolean(child))
           .sort((a, b) => b.z_index - a.z_index)
-          .map((child) => renderObject(child, depth + 1, false))}
+          .map((child) => renderObject(child, layer, depth + 1, false))}
       </div>
     );
   };
 
   return (
     <section
-      className={`${orientation === 'wide' ? WIDE_INSPECTOR_CARD_CLASS : INSPECTOR_CARD_CLASS} flex min-h-0 flex-col`}
+      className={`${orientation === 'wide' ? WIDE_INSPECTOR_CARD_CLASS : INSPECTOR_CARD_CLASS} relative flex min-h-0 flex-col`}
       data-testid="outliner-panel"
     >
+      {drop?.kind === 'blocked' && (
+        <div role="status" className="pointer-events-none absolute inset-x-0 top-0 z-10 border-b border-bb-border bg-bb-surface px-3 py-1 text-xs text-bb-text">
+          {t(drop.message)}
+        </div>
+      )}
       <div className="flex h-9 items-center border-b border-bb-border bg-gradient-to-r from-bb-accent/10 to-bb-surface/30 px-3">
         <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-bb-text-dim">
           {t('panels.outliner.summary', { layers: project.layers.length, objects: project.objects.length })}
@@ -400,6 +438,10 @@ export function OutlinerPanel() {
       <div
         className={orientation === 'wide' ? 'bb-bottom-outliner-tree min-h-0 flex-1' : 'min-h-0 flex-1 overflow-auto py-1'}
         role="tree"
+        onDragOver={() => setDrop(null)}
+        onDragLeave={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDrop(null);
+        }}
         aria-label={t('panels.registry.outliner')}
       >
         {project.layers.map((layer) => {
@@ -433,6 +475,8 @@ export function OutlinerPanel() {
                 onDragOver={(event) => {
                   const activeDrag = dragRef.current ?? drag;
                   if (!activeDrag) return;
+                  if (activeDrag.kind === 'object' && showBlockedDrop(event, activeDrag.contentKinds, layer)) return;
+                  event.stopPropagation();
                   event.preventDefault();
                   event.dataTransfer.dropEffect = 'move';
                   if (activeDrag.kind === 'layer') {
@@ -462,7 +506,7 @@ export function OutlinerPanel() {
                       .filter((object): object is ProjectObject => Boolean(object))
                       .sort((a, b) => b.z_index - a.z_index)[0]?.id ?? firstRemaining.id
                     : null;
-                  void moveObjectBlock(layer.id, beforeId);
+                  void moveObjectBlock(layer, beforeId);
                 }}
                 onClick={() => selectLayer(layer.id)}
                 onKeyDown={(event) => {
@@ -533,7 +577,7 @@ export function OutlinerPanel() {
               {expanded && (
                 <div role="group">
                   {objects.length > 0
-                    ? objects.map((object) => renderObject(object, 1, true))
+                    ? objects.map((object) => renderObject(object, layer, 1, true))
                     : <div className="h-7 pl-14 text-[11px] italic leading-7 text-bb-text-dim">{t('panels.outliner.empty_layer')}</div>}
                 </div>
               )}
