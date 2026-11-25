@@ -37,16 +37,16 @@ export function objectContentKind(
   if (data.type === 'raster_image') return 'raster';
   if (data.type === 'virtual_clone') {
     const sourceId = (data as { source_id: string }).source_id;
-    // Bounded walk in case of cycles — same depth limit as resolveEffectiveData.
+    // Follow clone chains of any length, stopping on a broken reference or cycle.
     let currentId: string | undefined = sourceId;
-    let depth = 0;
-    while (currentId && depth < 10) {
+    const seen = new Set<string>();
+    while (currentId && !seen.has(currentId)) {
+      seen.add(currentId);
       const src = allObjects.find((o) => o.id === currentId);
       if (!src) return 'non_raster';
       if (src.data.type === 'raster_image') return 'raster';
       if (src.data.type !== 'virtual_clone') return 'non_raster';
       currentId = (src.data as { source_id: string }).source_id;
-      depth++;
     }
     return 'non_raster';
   }
