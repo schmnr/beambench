@@ -2093,7 +2093,7 @@
         "job_origin_ignored_title": "绝对坐标中忽略作业原点",
         "laser_on_frame_warning": "激光框架将以低功率发射，同时跟踪项目边界。确保工作区域畅通无阻。",
         "manage_machine_profiles": "管理机器配置文件...",
-        "no_machine": "No Machine",
+        "no_machine": "未选择机器",
         "notifications": {
           "gcode_exported": "G-code exported",
           "homing_started": "Homing started",

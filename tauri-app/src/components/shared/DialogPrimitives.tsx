@@ -191,7 +191,7 @@ export function DialogTabs<T extends string>({
             onClick={() => onChange(tab.id)}
             className={`group flex items-center gap-2 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-bb-accent ${
               vertical
-                ? `min-h-9 w-full rounded-lg border px-3 text-left ${
+                ? `min-h-9 w-full rounded-lg border px-3 py-1.5 text-left ${
                     active
                       ? 'border-bb-accent/35 bg-bb-accent/10 text-bb-text'
                       : 'border-transparent text-bb-text-muted hover:bg-bb-hover hover:text-bb-text'
@@ -204,11 +204,11 @@ export function DialogTabs<T extends string>({
             }`}
           >
             {tab.icon ? (
-              <span className={active ? 'text-bb-accent' : 'text-bb-text-dim group-hover:text-bb-text-muted'}>
+              <span className={active ? 'shrink-0 text-bb-accent' : 'shrink-0 text-bb-text-dim group-hover:text-bb-text-muted'}>
                 {tab.icon}
               </span>
             ) : null}
-            <span className="truncate">{tab.label}</span>
+            <span className={vertical ? 'min-w-0 break-words' : 'truncate'}>{tab.label}</span>
           </button>
         );
       })}
