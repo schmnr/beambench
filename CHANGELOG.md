@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Expand Ortur and Aufero USB presets with separate Laser Master 2 S2
+  workspaces for the 10 W diode and 1.3 W infrared heads, additional Laser
+  Master 3/3 LE and Aufero Laser 2 modules, and six factory extension profiles.
+  Physical testing is pending.
+
 - Retry the first GRBL status query once if the serial write fails. If the
   retry fails, show which port opened and keep the driver error in connection
   diagnostics.

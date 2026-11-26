@@ -2270,6 +2270,54 @@
             "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
             "advisory": "390 x 410 mm, origen delantero izquierdo, S1000. Verifica $30 y el modo láser $32=1. El retorno al origen y la asistencia de aire automática están desactivados. Otro firmware y las extensiones requieren una configuración aparte."
           },
+          "ortur_lm2_s2_10w": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "390 x 400 mm, origen delantero izquierdo, S1000. Verifica $30 y el modo láser $32=1. El retorno al origen y la asistencia de aire automática están desactivados. Otro firmware y las extensiones requieren una configuración aparte."
+          },
+          "ortur_lm2_s2_ir_1_3w": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "390 x 400 mm, origen delantero izquierdo, S1000. Verifica $30 y el modo láser $32=1. El retorno al origen y la asistencia de aire automática están desactivados. Otro firmware y las extensiones requieren una configuración aparte."
+          },
+          "ortur_lm2_s2_etk1": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "390 x 800 mm, origen delantero izquierdo, S1000. Verifica $30 y el modo láser $32=1. El retorno al origen y la asistencia de aire automática están desactivados. Use este perfil solo con el kit de extensión del fabricante instalado. Antes de trazar el marco, compruebe que $130 y $131 coincidan con el recorrido ampliado."
+          },
+          "ortur_lm2_s2_10w_etk1": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "390 x 790 mm, origen delantero izquierdo, S1000. Verifica $30 y el modo láser $32=1. El retorno al origen y la asistencia de aire automática están desactivados. Use este perfil solo con el kit de extensión del fabricante instalado. Antes de trazar el marco, compruebe que $130 y $131 coincidan con el recorrido ampliado."
+          },
+          "ortur_lm2_pro_s2_etk1": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "400 x 800 mm, origen delantero izquierdo, S1000. Verifica $30 y el modo láser $32=1. El retorno al origen y la asistencia de aire automática están desactivados. Use este perfil solo con el kit de extensión del fabricante instalado. Antes de trazar el marco, compruebe que $130 y $131 coincidan con el recorrido ampliado."
+          },
+          "ortur_lm3_5_5w": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "400 x 400 mm, origen delantero izquierdo, S1000. Verifica $30 y el modo láser $32=1. El retorno al origen y la asistencia de aire automática están desactivados. Otro firmware y las extensiones requieren una configuración aparte."
+          },
+          "ortur_lm3_10w_etk2": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "400 x 850 mm, origen delantero izquierdo, S1000. Verifica $30 y el modo láser $32=1. El retorno al origen y la asistencia de aire automática están desactivados. Use este perfil solo con el kit de extensión del fabricante instalado. Antes de trazar el marco, compruebe que $130 y $131 coincidan con el recorrido ampliado."
+          },
+          "ortur_lm3_20w_etk2": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "400 x 830 mm, origen delantero izquierdo, S1000. Verifica $30 y el modo láser $32=1. El retorno al origen y la asistencia de aire automática están desactivados. Use este perfil solo con el kit de extensión del fabricante instalado. Antes de trazar el marco, compruebe que $130 y $131 coincidan con el recorrido ampliado."
+          },
+          "ortur_lm3_le_2_1w": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "400 x 400 mm, origen delantero izquierdo, S1000. Verifica $30 y el modo láser $32=1. El retorno al origen y la asistencia de aire automática están desactivados. Otro firmware y las extensiones requieren una configuración aparte."
+          },
+          "ortur_lm3_le_20w": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "400 x 380 mm, origen delantero izquierdo, S1000. Verifica $30 y el modo láser $32=1. El retorno al origen y la asistencia de aire automática están desactivados. Otro firmware y las extensiones requieren una configuración aparte."
+          },
+          "aufero_laser_2_10w": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "390 x 390 mm, origen delantero izquierdo, S1000. Verifica $30 y el modo láser $32=1. El retorno al origen y la asistencia de aire automática están desactivados. Otro firmware y las extensiones requieren una configuración aparte."
+          },
+          "aufero_laser_2_extended": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "390 x 600 mm, origen delantero izquierdo, S1000. Verifica $30 y el modo láser $32=1. El retorno al origen y la asistencia de aire automática están desactivados. Use este perfil solo con el kit de extensión del fabricante instalado. Antes de trazar el marco, compruebe que $130 y $131 coincidan con el recorrido ampliado."
+          },
           "ortur_lm2_pro_s1": {
             "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
             "advisory": "400 x 400 mm, origen delantero izquierdo, S1000. Verifica $30 y el modo láser $32=1. El retorno al origen y la asistencia de aire automática están desactivados. Otro firmware y las extensiones requieren una configuración aparte."

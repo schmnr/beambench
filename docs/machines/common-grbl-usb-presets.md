@@ -12,7 +12,7 @@
 | --- | --- | --- | --- | --- |
 | `ortur_lm2_pro_s2` | Ortur Laser Master 2 Pro S2 (LU2-2 / LU2-4) | 400 x 400 | M4 dynamic | None |
 | `ortur_lm3_10w` | Ortur Laser Master 3 10W (LU2-10A) | 400 x 400 | M4 dynamic | None |
-| `ortur_lm3_20w` | Ortur Laser Master 3 20W (LU3-20A) | 400 x 380 | M4 dynamic | None |
+| `ortur_lm3_20w` | Ortur Laser Master 3 20W (LU3-20A / B) | 400 x 380 | M4 dynamic | None |
 | `ortur_lm3_40w` | Ortur Laser Master 3 40W (LU3-40A) | 400 x 380 | M4 dynamic | None |
 | `ortur_lm3_le_10w` | Ortur Laser Master 3 LE 10W (LU2-10A) | 400 x 400 | M4 dynamic | None |
 | `aufero_laser_1` | Aufero Laser 1 (LU2-2 / LU2-4) | 180 x 180 | M4 dynamic | None |
@@ -75,14 +75,15 @@ serial transport and S0–1000 power scale:
 - [Laser Master 2 Pro S2](https://ortur.net/pages/support-olm2-pro-s2):
   400 x 400 mm. This entry covers the listed LU2-2 and LU2-4-SF/LF modules.
 - [Laser Master 3](https://ortur.net/pages/support-olm3): LU2-10A is
-  400 x 400 mm; LU3-20A and LU3-40A are 400 x 380 mm. Separate presets avoid
+  400 x 400 mm. The LU3-20A/B and LU3-40A use 400 x 380 mm. Separate presets avoid
   retaining the 10W Y travel after changing modules.
 - [Laser Master 3 LE](https://ortur.net/pages/support-olm3le): 400 x 400 mm
   for the LU2-10A configuration. Larger replacement modules need their own setup.
 - [Aufero Laser 1](https://ortur.net/pages/support-al1): 180 x 180 mm,
   LU2-2 / LU2-4 modules, manufacturer maximum speed 5000 mm/min.
 - [Aufero Laser 2](https://ortur.net/pages/support-al2): 390 x 390 mm,
-  LU2-2 / LU2-4 modules. LU2-10A and other upgrades are excluded.
+  LU2-2 / LU2-4 modules. The [expanded Ortur catalog](ortur-usb-presets.md)
+  includes separate LU2-10A and factory extension presets.
 
 The LM3 support page links the
 [LU3-20A installation instructions](https://cdn.shopify.com/s/files/1/0503/4734/4056/files/1-OLM3_LU3-20A-UserManual-en-de-fr-231016.pdf?v=1711532217),
