@@ -2424,7 +2424,47 @@
           },
           "twotrees_tts_55_pro": {
             "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "300 x 300 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning. Konstant effekt (M3). Använd Aktuell position eller Användarorigo utan referensbrytare."
+          },
+          "twotrees_tt_2_5": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "390 x 320 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning. Konstant effekt (M3)."
+          },
+          "twotrees_tt_5_5": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "390 x 320 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning. Konstant effekt (M3)."
+          },
+          "twotrees_tt_50": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "380 x 380 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning. Konstant effekt (M3)."
+          },
+          "twotrees_tts_25": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
             "advisory": "300 x 300 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning. Konstant effekt (M3)."
+          },
+          "twotrees_tts_10": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "300 x 300 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning. Konstant effekt (M3)."
+          },
+          "twotrees_ts1_mini": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "80 x 80 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning. Konstant effekt (M3)."
+          },
+          "twotrees_ts2_40w": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "450 x 410 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning. Konstant effekt (M3)."
+          },
+          "twotrees_ts2_20w_max": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "450 x 900 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning. Konstant effekt (M3)."
+          },
+          "twotrees_ts2_40w_max": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "450 x 900 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning. Konstant effekt (M3)."
+          },
+          "twotrees_ts3_10w": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "300 x 200 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning. Konstant effekt (M3)."
           },
           "twotrees_tts_10_pro": {
             "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",

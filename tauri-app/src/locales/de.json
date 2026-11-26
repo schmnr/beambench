@@ -2424,7 +2424,47 @@
           },
           "twotrees_tts_55_pro": {
             "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "300 x 300 mm, Ursprung vorne links, S1000. $30 und Lasermodus $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. Andere Firmware und Erweiterungen müssen separat eingerichtet werden. Konstante Leistung (M3). Ohne Referenzschalter Aktuelle Position oder Benutzerursprung verwenden."
+          },
+          "twotrees_tt_2_5": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "390 x 320 mm, Ursprung vorne links, S1000. $30 und Lasermodus $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. Andere Firmware und Erweiterungen müssen separat eingerichtet werden. Konstante Leistung (M3)."
+          },
+          "twotrees_tt_5_5": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "390 x 320 mm, Ursprung vorne links, S1000. $30 und Lasermodus $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. Andere Firmware und Erweiterungen müssen separat eingerichtet werden. Konstante Leistung (M3)."
+          },
+          "twotrees_tt_50": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "380 x 380 mm, Ursprung vorne links, S1000. $30 und Lasermodus $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. Andere Firmware und Erweiterungen müssen separat eingerichtet werden. Konstante Leistung (M3)."
+          },
+          "twotrees_tts_25": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
             "advisory": "300 x 300 mm, Ursprung vorne links, S1000. $30 und Lasermodus $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. Andere Firmware und Erweiterungen müssen separat eingerichtet werden. Konstante Leistung (M3)."
+          },
+          "twotrees_tts_10": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "300 x 300 mm, Ursprung vorne links, S1000. $30 und Lasermodus $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. Andere Firmware und Erweiterungen müssen separat eingerichtet werden. Konstante Leistung (M3)."
+          },
+          "twotrees_ts1_mini": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "80 x 80 mm, Ursprung vorne links, S1000. $30 und Lasermodus $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. Andere Firmware und Erweiterungen müssen separat eingerichtet werden. Konstante Leistung (M3)."
+          },
+          "twotrees_ts2_40w": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "450 x 410 mm, Ursprung vorne links, S1000. $30 und Lasermodus $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. Andere Firmware und Erweiterungen müssen separat eingerichtet werden. Konstante Leistung (M3)."
+          },
+          "twotrees_ts2_20w_max": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "450 x 900 mm, Ursprung vorne links, S1000. $30 und Lasermodus $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. Andere Firmware und Erweiterungen müssen separat eingerichtet werden. Konstante Leistung (M3)."
+          },
+          "twotrees_ts2_40w_max": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "450 x 900 mm, Ursprung vorne links, S1000. $30 und Lasermodus $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. Andere Firmware und Erweiterungen müssen separat eingerichtet werden. Konstante Leistung (M3)."
+          },
+          "twotrees_ts3_10w": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "300 x 200 mm, Ursprung vorne links, S1000. $30 und Lasermodus $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. Andere Firmware und Erweiterungen müssen separat eingerichtet werden. Konstante Leistung (M3)."
           },
           "twotrees_tts_10_pro": {
             "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
