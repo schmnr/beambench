@@ -2709,6 +2709,10 @@
             "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
             "advisory": "USB: 460800 baud. 800 x 800 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek. A keretezés előtt állítsa be a fókuszt a gép kezelőszerveivel. A kamera, a forgató és a szállítószalag külön beállítást igényel. Válassza ki a teljesítménymódot az AtomStack Studio programban, majd zárja be a Beam Bench csatlakoztatása előtt."
           },
+          "cnc_3018_pro_awoopecker_v3_1": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "Ellenőrizze a bal hátsó munkadarab-nullpontot, és kikapcsolt lézerrel járja be a körvonalat. Referenciafelvétel után a gépi koordináták negatívak lehetnek. Ellenőrizze a beállításokat: $22=1, $30=1000, $32=1."
+          },
           "monport_k40_grbl_2_0": {
             "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
             "advisory": "Csak GRBL USB: 115200 baud, X 300 x Y 200 mm, bal hátsó origó, S1000/M4. Ellenőrizze a $30, $32=1 beállításokat és mindkét tengely irányát. Alaphelyzet-keresés csak a kapcsolók és a $22=1 ellenőrzése után. A vízhűtés maradjon bekapcsolva; kikapcsolt lézerrel keretezzen, és kis teljesítménnyel teszteljen. Kézi levegő és fókusz. A Nano, Ruida és a módosított kábelezés külön beállítást igényel."

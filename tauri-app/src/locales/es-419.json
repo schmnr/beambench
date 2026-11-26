@@ -2709,6 +2709,10 @@
             "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
             "advisory": "USB: 460800 baudios. 800 x 800 mm, origen delantero izquierdo, S1000. Verifica $30 y el modo láser $32=1. El retorno al origen y la asistencia de aire automática están desactivados. Otro firmware y las extensiones requieren una configuración aparte. Enfoque con los controles de la máquina antes de enmarcar. La cámara, el accesorio giratorio y la banda transportadora requieren una configuración independiente. Seleccione el modo de potencia en AtomStack Studio y ciérrelo antes de conectar Beam Bench."
           },
+          "cnc_3018_pro_awoopecker_v3_1": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "Comprueba el origen de trabajo en la esquina trasera izquierda y recorre el contorno con el láser apagado. Las coordenadas de máquina pueden ser negativas tras el retorno al origen. Comprueba $22=1, $30=1000 y $32=1."
+          },
           "monport_k40_grbl_2_0": {
             "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
             "advisory": "Solo GRBL USB: 115200 baudios, X 300 x Y 200 mm, origen atrás a la izquierda, S1000/M4. Verifica $30, $32=1 y la dirección de ambos ejes. Lleva a origen solo tras comprobar los interruptores y $22=1. Mantén activa la refrigeración por agua; encuadra con el láser apagado y prueba a baja potencia. Aire y enfoque manuales. Nano, Ruida y el cableado modificado requieren otra configuración."

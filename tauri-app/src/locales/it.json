@@ -2709,6 +2709,10 @@
             "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
             "advisory": "USB: 460800 baud. 800 x 800 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata. Regolare la messa a fuoco dai comandi della macchina prima del tracciamento del riquadro. Fotocamera, dispositivo rotante e nastro trasportatore richiedono una configurazione separata. Selezionare la modalità di potenza in AtomStack Studio e chiuderlo prima di collegare Beam Bench."
           },
+          "cnc_3018_pro_awoopecker_v3_1": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "Verifica lo zero di lavoro in fondo a sinistra e percorri il contorno con il laser spento. Dopo la ricerca dello zero, le coordinate macchina possono essere negative. Verifica $22=1, $30=1000 e $32=1."
+          },
           "monport_k40_grbl_2_0": {
             "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
             "advisory": "Solo GRBL USB: 115200 baud, X 300 x Y 200 mm, origine posteriore sinistra, S1000/M4. Verificare $30, $32=1 e la direzione di entrambi gli assi. Eseguire l'homing solo dopo aver controllato gli interruttori e $22=1. Mantenere attivo il raffreddamento ad acqua; inquadrare a laser spento e provare a bassa potenza. Aria e messa a fuoco manuali. Nano, Ruida e cablaggi modificati richiedono una configurazione separata."

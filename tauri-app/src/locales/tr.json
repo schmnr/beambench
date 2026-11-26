@@ -2709,6 +2709,10 @@
             "description": "Belgelere dayalı GRBL 1.1 USB ön ayarı. Fiziksel makine testleri henüz yapılmadı.",
             "advisory": "USB: 460800 baud. 800 x 800 mm, sol ön başlangıç noktası, S1000. $30 değerini ve $32=1 lazer modunu doğrulayın. Referansa dönüş ve otomatik hava desteği kapalıdır. Diğer donanım yazılımları ve genişletmeler ayrı kurulum gerektirir. Çerçeveleme öncesinde makinenin kontrolleriyle odak ayarını yapın. Kamera, döner aparat ve konveyör ayrı kurulum gerektirir. Güç modunu AtomStack Studio içinde seçin ve Beam Bench bağlantısından önce programı kapatın."
           },
+          "cnc_3018_pro_awoopecker_v3_1": {
+            "description": "Belgelere dayalı GRBL 1.1 USB ön ayarı. Fiziksel makine testleri henüz yapılmadı.",
+            "advisory": "Sol arkadaki iş parçası sıfırını doğrulayın ve lazer kapalıyken çerçeveyi dolaşın. Referanslama sonrasında makine koordinatları negatif olabilir. $22=1, $30=1000 ve $32=1 ayarlarını kontrol edin."
+          },
           "monport_k40_grbl_2_0": {
             "description": "Belgelere dayalı GRBL 1.1 USB ön ayarı. Fiziksel makine testleri henüz yapılmadı.",
             "advisory": "Yalnızca GRBL USB: 115200 baud, X 300 x Y 200 mm, arka sol başlangıç noktası, S1000/M4. $30, $32=1 ve her iki eksenin yönünü doğrulayın. Ana konuma dönüşü yalnızca anahtarları ve $22=1 ayarını kontrol ettikten sonra yapın. Su soğutmasını açık tutun; lazer kapalıyken çerçeveleyin ve düşük güçle test edin. Hava ve odak elle ayarlanır. Nano, Ruida ve değiştirilmiş kablolama ayrı kurulum gerektirir."

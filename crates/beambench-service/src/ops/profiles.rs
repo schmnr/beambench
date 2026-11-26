@@ -752,6 +752,20 @@ pub fn profile_presets() -> Vec<MachineProfilePreset> {
             390.0,
             "390 x 390 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
         ),
+        // Reported laser conversion with limit switches: docs/machines/cnc-3018-pro.md.
+        MachineProfilePreset {
+            max_speed_mm_min: 2000.0,
+            homing_enabled: true,
+            origin: WorkspaceOrigin::TopLeft,
+            preferred_default_origin: Some(WorkspaceOrigin::TopLeft),
+            ..documented_grbl_usb_preset(
+                "cnc_3018_pro_awoopecker_v3_1",
+                "CNC 3018 Pro (Awoopecker V3.1, laser)",
+                300.0,
+                180.0,
+                "Verify the rear-left work origin and frame with the laser off. Machine coordinates can be negative after homing. Check $22=1, $30=1000 and $32=1.",
+            )
+        },
         // Stock K40 XY setup only; retrofit wiring must be checked separately.
         // Sources and exclusions: docs/machines/monport-usb-presets.md.
         MachineProfilePreset {
@@ -3952,6 +3966,17 @@ mod tests {
                     )
                 }),
         );
+        let cases = cases.chain([(
+            "cnc_3018_pro_awoopecker_v3_1",
+            115200,
+            300.0,
+            180.0,
+            2000.0,
+            "",
+            false,
+            true,
+            WorkspaceOrigin::TopLeft,
+        )]);
         for (id, baud, width, height, speed, air_on, constant_power, homing, origin) in cases {
             let ctx = ServiceContext::with_settings(AppSettings::default());
             let mut input = sample_input();
