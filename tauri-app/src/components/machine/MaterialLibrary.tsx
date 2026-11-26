@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { save, open } from '@tauri-apps/plugin-dialog';
@@ -49,7 +50,7 @@ function operationLabel(operation: OperationType, t: (key: string) => string): s
 
 function operationOptionsForEdit(
   operation: OperationType,
-  t: (key: string, options?: Record<string, string>) => string,
+  t: TFunction,
 ): Array<{ value: OperationType; label: string }> {
   if (OPERATION_OPTIONS.some((option) => option.value === operation)) {
     return OPERATION_OPTIONS.map((option) => ({

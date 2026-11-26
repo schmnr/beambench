@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { useMachineStore } from '../../stores/machineStore';
 import type {
@@ -78,7 +79,7 @@ function sameSelection(
 function decisionLabel(
   decision: ControllerMismatchDecision,
   detectedLabel: string,
-  t: (key: string, options?: Record<string, unknown>) => string,
+  t: TFunction,
 ): string {
   switch (decision) {
     case 'use_detected':
