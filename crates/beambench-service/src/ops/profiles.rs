@@ -479,12 +479,108 @@ pub fn profile_presets() -> Vec<MachineProfilePreset> {
             max_speed_mm_min: 5000.0,
             ..documented_grbl_usb_preset(
                 "ortur_lm2_s2",
-                "Ortur Laser Master 2 S2 (LU2-2 / LU2-4 / LU2-10A)",
+                "Ortur Laser Master 2 S2 (LU2-2 / LU2-4)",
                 390.0,
                 410.0,
                 "390 x 410 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
             )
         },
+        MachineProfilePreset {
+            max_speed_mm_min: 5000.0,
+            ..documented_grbl_usb_preset(
+                "ortur_lm2_s2_10w",
+                "Ortur Laser Master 2 S2 10W (LU2-10A)",
+                390.0,
+                400.0,
+                "390 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+            )
+        },
+        MachineProfilePreset {
+            max_speed_mm_min: 5000.0,
+            ..documented_grbl_usb_preset(
+                "ortur_lm2_s2_ir_1_3w",
+                "Ortur Laser Master 2 S2 1.3W IR (LR4-1A)",
+                390.0,
+                400.0,
+                "390 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+            )
+        },
+        MachineProfilePreset {
+            max_speed_mm_min: 5000.0,
+            ..documented_grbl_usb_preset(
+                "ortur_lm2_s2_etk1",
+                "Ortur Laser Master 2 S2 + ETK1.0 extension (LU2-2 / LU2-4)",
+                390.0,
+                800.0,
+                "390 x 800 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Use only with the factory extension kit installed. Check $130 and $131 against the extended travel before framing.",
+            )
+        },
+        MachineProfilePreset {
+            max_speed_mm_min: 5000.0,
+            ..documented_grbl_usb_preset(
+                "ortur_lm2_s2_10w_etk1",
+                "Ortur Laser Master 2 S2 10W + ETK1.0 extension (LU2-10A)",
+                390.0,
+                790.0,
+                "390 x 790 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Use only with the factory extension kit installed. Check $130 and $131 against the extended travel before framing.",
+            )
+        },
+        documented_grbl_usb_preset(
+            "ortur_lm2_pro_s2_etk1",
+            "Ortur Laser Master 2 Pro S2 + ETK1.0 extension",
+            400.0,
+            800.0,
+            "400 x 800 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Use only with the factory extension kit installed. Check $130 and $131 against the extended travel before framing.",
+        ),
+        documented_grbl_usb_preset(
+            "ortur_lm3_5_5w",
+            "Ortur Laser Master 3 5.5W (LU2-4 SF / LF)",
+            400.0,
+            400.0,
+            "400 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+        ),
+        documented_grbl_usb_preset(
+            "ortur_lm3_10w_etk2",
+            "Ortur Laser Master 3 10W + ETK2.0 extension (LU2-10A)",
+            400.0,
+            850.0,
+            "400 x 850 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Use only with the factory extension kit installed. Check $130 and $131 against the extended travel before framing.",
+        ),
+        documented_grbl_usb_preset(
+            "ortur_lm3_20w_etk2",
+            "Ortur Laser Master 3 20W + ETK2.0 extension (LU3-20A / B)",
+            400.0,
+            830.0,
+            "400 x 830 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Use only with the factory extension kit installed. Check $130 and $131 against the extended travel before framing.",
+        ),
+        documented_grbl_usb_preset(
+            "ortur_lm3_le_2_1w",
+            "Ortur Laser Master 3 LE 2.1W (LU2-2)",
+            400.0,
+            400.0,
+            "400 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+        ),
+        documented_grbl_usb_preset(
+            "ortur_lm3_le_20w",
+            "Ortur Laser Master 3 LE 20W (LU3-20A / B)",
+            400.0,
+            380.0,
+            "400 x 380 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+        ),
+        documented_grbl_usb_preset(
+            "aufero_laser_2_10w",
+            "Aufero Laser 2 10W (LU2-10A)",
+            390.0,
+            390.0,
+            "390 x 390 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+        ),
+        documented_grbl_usb_preset(
+            "aufero_laser_2_extended",
+            "Aufero Laser 2 + Y-axis extension (LU2-2 / LU2-4 / LU2-10A)",
+            390.0,
+            600.0,
+            "390 x 600 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Use only with the factory extension kit installed. Check $130 and $131 against the extended travel before framing.",
+        ),
         documented_grbl_usb_preset(
             "ortur_lm2_pro_s1",
             "Ortur Laser Master 2 Pro S1",
@@ -501,7 +597,7 @@ pub fn profile_presets() -> Vec<MachineProfilePreset> {
         ),
         documented_grbl_usb_preset(
             "ortur_lm3_le_5w",
-            "Ortur Laser Master 3 LE 5W (LU2-4 SF / LF)",
+            "Ortur Laser Master 3 LE 5W / 5.5W (LU3-5 / LU2-4 SF / LF)",
             400.0,
             400.0,
             "400 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
@@ -620,7 +716,7 @@ pub fn profile_presets() -> Vec<MachineProfilePreset> {
         ),
         documented_grbl_usb_preset(
             "ortur_lm3_20w",
-            "Ortur Laser Master 3 20W (LU3-20A)",
+            "Ortur Laser Master 3 20W (LU3-20A / B)",
             400.0,
             380.0,
             "400 x 380 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
@@ -3050,6 +3146,18 @@ mod tests {
         ("ortur_lm1", 150.0, 160.0, 3000.0),
         ("ortur_lm2", 400.0, 430.0, 3000.0),
         ("ortur_lm2_s2", 390.0, 410.0, 5000.0),
+        ("ortur_lm2_s2_10w", 390.0, 400.0, 5000.0),
+        ("ortur_lm2_s2_ir_1_3w", 390.0, 400.0, 5000.0),
+        ("ortur_lm2_s2_etk1", 390.0, 800.0, 5000.0),
+        ("ortur_lm2_s2_10w_etk1", 390.0, 790.0, 5000.0),
+        ("ortur_lm2_pro_s2_etk1", 400.0, 800.0, 6000.0),
+        ("ortur_lm3_5_5w", 400.0, 400.0, 6000.0),
+        ("ortur_lm3_10w_etk2", 400.0, 850.0, 6000.0),
+        ("ortur_lm3_20w_etk2", 400.0, 830.0, 6000.0),
+        ("ortur_lm3_le_2_1w", 400.0, 400.0, 6000.0),
+        ("ortur_lm3_le_20w", 400.0, 380.0, 6000.0),
+        ("aufero_laser_2_10w", 390.0, 390.0, 6000.0),
+        ("aufero_laser_2_extended", 390.0, 600.0, 6000.0),
         ("ortur_lm2_pro_s1", 400.0, 400.0, 6000.0),
         ("ortur_lm2_pro_s2_10w", 400.0, 400.0, 6000.0),
         ("ortur_lm3_le_5w", 400.0, 400.0, 6000.0),
