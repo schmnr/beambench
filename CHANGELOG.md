@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.2.46
+
+- Show an unavailable cursor and explain why when an Outliner drop would move
+  artwork to an incompatible layer.
+- Clarify the difference between USB Serial for GRBL and direct USB for
+  Lihuiyu controllers in the connection picker.
 - Add a USB preset for the stock AlgoLaser Alpha MK2 20W with a 400 × 410 mm
   workspace, front-left origin and M8/M9 air assist. Physical testing is pending.
 
