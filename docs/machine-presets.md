@@ -137,6 +137,7 @@ own specifications support an entry. Do not copy the S9 defaults across a brand.
 
 ## Evidence records
 
+- [AlgoLaser Alpha MK2 20W](machines/algolaser-alpha-mk2-20w.md) with stock frame and USB controller.
 - [CNC 3018 Pro laser conversion](machines/cnc-3018-pro.md) with the Awoopecker V3.1
   board and limit switches. Owner-documented settings, physical preset testing pending.
 - [Ortur and Aufero USB serial presets](machines/ortur-usb-presets.md):

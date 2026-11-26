@@ -622,6 +622,7 @@ describe('MachineProfileDialog', () => {
     ...atomstackPresetCases,
     ...artilumePresetCases,
     ...monportPresetCases,
+    { presetId: 'algolaser_alpha_mk2_20w', name: 'AlgoLaser Alpha MK2 20W', airOn: 'M8', width: 400, height: 410, maxSpeed: 30000, homing: true, constantPower: false, usbEvidence: true },
     { presetId: 'cnc_3018_pro_awoopecker_v3_1', name: 'CNC 3018 Pro (Awoopecker V3.1, laser)', airOn: '', width: 300, height: 180, maxSpeed: 2000, homing: true, constantPower: false, usbEvidence: true, origin: 'top_left' as const },
     { presetId: 'creality_cr_laser_falcon_5w', name: 'Creality CR-Laser Falcon 5W', airOn: '', width: 400, height: 415, homing: false, constantPower: false, usbEvidence: true },
     { presetId: 'creality_cr_laser_falcon_7_5w', name: 'Creality CR-Laser Falcon 7.5W', airOn: '', width: 400, height: 415, homing: false, constantPower: false, usbEvidence: true },
@@ -757,6 +758,8 @@ describe('MachineProfileDialog', () => {
       expect(screen.getByText(/Documentation-based GRBL 1.1 USB preset/)).toBeDefined();
       if (presetId === 'cnc_3018_pro_awoopecker_v3_1') {
         expect(screen.getByText(/rear-left work origin/).textContent).toMatch(/negative after homing/);
+      } else if (presetId === 'algolaser_alpha_mk2_20w') {
+        expect(screen.getByText(/Stock 20W frame, front-left origin/).textContent).toContain('M8/M9');
       } else if (presetId.startsWith('monport_')) {
         expect(screen.getByText(/rear-left origin/)).toBeDefined();
         expect(screen.getByText(/frame with the laser off/)).toBeDefined();

@@ -2709,6 +2709,10 @@
             "description": "USB-voorinstelling voor GRBL 1.1 op basis van documentatie. Tests op de machine zijn nog niet uitgevoerd.",
             "advisory": "USB: 460800 baud. 800 x 800 mm, oorsprong linksvoor, S1000. Controleer $30 en lasermodus $32=1. Homen en automatische luchtondersteuning staan uit. Andere firmware en uitbreidingen moeten apart worden ingesteld. Stel vóór het kaderen scherp met de bediening van de machine. Camera, rotatiemodule en transportband moeten afzonderlijk worden ingesteld. Kies de vermogensmodus in AtomStack Studio en sluit dat programma voordat u Beam Bench verbindt."
           },
+          "algolaser_alpha_mk2_20w": {
+            "description": "USB-voorinstelling voor GRBL 1.1 op basis van documentatie. Tests op de machine zijn nog niet uitgevoerd.",
+            "advisory": "Standaardframe van 20 W, oorsprong linksvoor. Controleer $30=1000 en $32=1. De luchtondersteuning gebruikt M8/M9."
+          },
           "cnc_3018_pro_awoopecker_v3_1": {
             "description": "USB-voorinstelling voor GRBL 1.1 op basis van documentatie. Tests op de machine zijn nog niet uitgevoerd.",
             "advisory": "Controleer het werkstuknulpunt linksachter en volg de omtrek met de laser uit. Na het refereren kunnen de machinecoördinaten negatief zijn. Controleer $22=1, $30=1000 en $32=1."

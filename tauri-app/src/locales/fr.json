@@ -2709,6 +2709,10 @@
             "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
             "advisory": "USB : 460800 bauds. 800 x 800 mm, origine à l'avant gauche, S1000. Vérifiez $30 et le mode laser $32=1. La prise d'origine et l'assistance d'air automatique sont désactivées. Les autres firmwares et les extensions nécessitent une configuration distincte. Réglez la mise au point avec les commandes de la machine avant le cadrage. La caméra, le module rotatif et le convoyeur nécessitent une configuration distincte. Sélectionnez le mode de puissance dans AtomStack Studio, puis fermez ce logiciel avant de connecter Beam Bench."
           },
+          "algolaser_alpha_mk2_20w": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "Châssis 20 W d’origine, origine à l’avant gauche. Vérifiez $30=1000 et $32=1. L’assistance d’air utilise M8/M9."
+          },
           "cnc_3018_pro_awoopecker_v3_1": {
             "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
             "advisory": "Vérifiez l’origine de travail à l’arrière gauche et parcourez le contour avec le laser éteint. Les coordonnées machine peuvent être négatives après la prise d’origine. Vérifiez $22=1, $30=1000 et $32=1."

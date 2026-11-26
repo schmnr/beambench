@@ -2709,6 +2709,10 @@
             "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
             "advisory": "USB: 460800 baud. 800 x 800 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek. A keretezés előtt állítsa be a fókuszt a gép kezelőszerveivel. A kamera, a forgató és a szállítószalag külön beállítást igényel. Válassza ki a teljesítménymódot az AtomStack Studio programban, majd zárja be a Beam Bench csatlakoztatása előtt."
           },
+          "algolaser_alpha_mk2_20w": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "Gyári 20 W-os keret, origó a bal első sarokban. Ellenőrizze a $30=1000 és $32=1 beállításokat. A levegőrásegítést az M8/M9 vezérli."
+          },
           "cnc_3018_pro_awoopecker_v3_1": {
             "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
             "advisory": "Ellenőrizze a bal hátsó munkadarab-nullpontot, és kikapcsolt lézerrel járja be a körvonalat. Referenciafelvétel után a gépi koordináták negatívak lehetnek. Ellenőrizze a beállításokat: $22=1, $30=1000, $32=1."

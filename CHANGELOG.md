@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add a USB preset for the stock AlgoLaser Alpha MK2 20W with a 400 × 410 mm
+  workspace, front-left origin and M8/M9 air assist. Physical testing is pending.
+
 - Add a CNC 3018 Pro laser preset for the Awoopecker V3.1 controller with limit
   switches, a 300 × 180 mm workspace and rear-left homing.
 - Update i18next to 27.2.7 to address GHSA-6jcc-5g8w-32mx.
