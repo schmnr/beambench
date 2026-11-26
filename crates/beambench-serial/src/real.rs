@@ -53,6 +53,7 @@ fn usb_ports() -> Option<Vec<UsbPort>> {
 /// Bytes held while waiting for a newline. GRBL lines are under 128 bytes;
 /// anything far beyond that is a wrong baud rate or a non-line protocol.
 const MAX_LINE_BUFFER_BYTES: usize = 64 * 1024;
+const SERIAL_IO_TIMEOUT: Duration = Duration::from_millis(100);
 
 /// Real serial transport wrapping a hardware serial port.
 pub struct RealSerialTransport {
@@ -60,6 +61,7 @@ pub struct RealSerialTransport {
     baud_rate: u32,
     toggle_dtr_on_open: bool,
     initial_dtr: Option<bool>,
+    initial_write_timeout: Option<Duration>,
     usb_identity: Option<UsbIdentity>,
     /// Other ports present at the last successful open. A replacement is
     /// never chosen from these: they belong to other devices.
@@ -82,6 +84,12 @@ impl RealSerialTransport {
         Self::with_dtr(port_name, baud_rate, false)
     }
 
+    /// Allow the opening probe extra time until its first write succeeds.
+    pub fn with_initial_write_timeout(mut self, timeout: Duration) -> Self {
+        self.initial_write_timeout = Some(timeout);
+        self
+    }
+
     /// Set the initial port configuration's DTR level without a reset pulse.
     pub fn new_with_initial_dtr(port_name: &str, baud_rate: u32, level: bool) -> Self {
         let mut transport = Self::with_dtr(port_name, baud_rate, false);
@@ -95,6 +103,7 @@ impl RealSerialTransport {
             baud_rate,
             toggle_dtr_on_open,
             initial_dtr: None,
+            initial_write_timeout: None,
             usb_identity: None,
             known_other_ports: HashSet::new(),
             port: None,
@@ -260,8 +269,8 @@ impl SerialTransport for RealSerialTransport {
         debug!(port = %self.port_name, baud = self.baud_rate, "Opening serial port");
         self.rediscover_usb_port()?;
 
-        let mut builder =
-            serialport::new(&self.port_name, self.baud_rate).timeout(Duration::from_millis(100));
+        let mut builder = serialport::new(&self.port_name, self.baud_rate)
+            .timeout(self.initial_write_timeout.unwrap_or(SERIAL_IO_TIMEOUT));
         if let Some(level) = self.initial_dtr {
             builder = builder.dtr_on_open(level);
         }
@@ -319,6 +328,15 @@ impl SerialTransport for RealSerialTransport {
         port.write_all(data)
             .map_err(|e| SerialError::WriteFailed(e.to_string()))?;
         record_tx(data);
+        if self.initial_write_timeout.is_some() {
+            port.set_timeout(SERIAL_IO_TIMEOUT).map_err(|error| {
+                SerialError::IoError(std::io::Error::other(format!(
+                    "could not restore the serial timeout on {}: {error}",
+                    self.port_name
+                )))
+            })?;
+            self.initial_write_timeout = None;
+        }
         Ok(data.len())
     }
 
@@ -422,6 +440,35 @@ mod tests {
             pid: 0x7523,
             serial: serial.map(str::to_string),
         }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn first_probe_write_restores_the_normal_port_timeout() {
+        use serialport::SerialPort;
+        let _guard = SERIAL_TRAFFIC_TEST_LOCK.lock().unwrap();
+        let (mut peer, slave) = serialport::TTYPort::pair().unwrap();
+        let name = slave.name().unwrap();
+        drop(slave);
+        // macOS pseudo terminals do not support the custom baud ioctl.
+        let baud = if cfg!(target_os = "macos") {
+            0
+        } else {
+            115_200
+        };
+        let probe_timeout = Duration::from_secs(1);
+        let mut transport = RealSerialTransport::new_without_dtr(&name, baud)
+            .with_initial_write_timeout(probe_timeout);
+        transport.open().unwrap();
+        assert_eq!(transport.port.as_ref().unwrap().timeout(), probe_timeout);
+        transport.write_bytes(b"?").unwrap();
+        let mut byte = [0];
+        peer.read_exact(&mut byte).unwrap();
+        assert_eq!(&byte, b"?");
+        assert_eq!(
+            transport.port.as_ref().unwrap().timeout(),
+            SERIAL_IO_TIMEOUT
+        );
     }
 
     #[test]

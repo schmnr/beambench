@@ -1147,6 +1147,9 @@ enum GrblBannerAttempt {
 }
 
 const STANDARD_GRBL_BAUD_RATE: u32 = 115_200;
+const GRBL_INITIAL_WRITE_TIMEOUT: Duration = Duration::from_secs(1);
+const GRBL_WRITE_RETRY_WINDOW: Duration = Duration::from_secs(2);
+const GRBL_WRITE_RETRY_INTERVAL: Duration = Duration::from_millis(100);
 const GRBL_STATUS_PROBE_TIMEOUT: Duration = Duration::from_secs(1);
 const GRBL_DETECTION_BAUD_RATES: &[u32] = &[
     115_200, 921_600, 460_800, 230_400, 57_600, 38_400, 19_200, 9_600,
@@ -1229,9 +1232,14 @@ fn try_grbl_status_handshake(
         Some("Sending a read-only GRBL-family status query".to_string()),
         None,
     );
-    let result = match session.poll_status() {
-        Err(error @ GrblError::Transport(SerialError::WriteFailed(_))) => {
-            // The probe is one read-only byte. Retry on this handle only.
+    let retry_deadline = Instant::now() + GRBL_WRITE_RETRY_WINDOW;
+    let mut result = session.poll_status();
+    let mut logged_retry = false;
+    while let Err(GrblError::Transport(SerialError::WriteFailed(error))) = &result {
+        if Instant::now() + GRBL_WRITE_RETRY_INTERVAL >= retry_deadline {
+            break;
+        }
+        if !logged_retry {
             ctx.push_connection_event(
                 "status_query_retry",
                 Some(port_name.clone()),
@@ -1239,12 +1247,18 @@ fn try_grbl_status_handshake(
                 Some(format!("Retrying GRBL status query after {error}")),
                 None,
             );
-            std::thread::sleep(Duration::from_millis(100));
-            session.poll_status()
+            logged_retry = true;
         }
-        result => result,
-    };
+        std::thread::sleep(GRBL_WRITE_RETRY_INTERVAL);
+        if Instant::now() >= retry_deadline {
+            break;
+        }
+        result = session.poll_status();
+    }
     if let Err(error) = result {
+        if !matches!(error, GrblError::Transport(SerialError::WriteFailed(_))) {
+            return Err(ServiceError::machine(error.to_string()));
+        }
         let message = format!(
             "Beam Bench opened {port_name} at {baud_rate} baud but could not send the GRBL status query. Reconnect the laser and check which serial port appears."
         );
@@ -1328,7 +1342,8 @@ fn open_grbl_for_connection(
                 try_grbl_status_handshake(
                     ctx,
                     baud,
-                    RealSerialTransport::new_without_dtr(&port_name, baud),
+                    RealSerialTransport::new_without_dtr(&port_name, baud)
+                        .with_initial_write_timeout(GRBL_INITIAL_WRITE_TIMEOUT),
                 )
             }
         },
@@ -8826,15 +8841,63 @@ mod tests {
     }
 
     #[test]
+    fn initial_grbl_status_connects_when_port_becomes_writable_after_500ms() {
+        let ctx = ServiceContext::new();
+        let state = Arc::new(Mutex::new(RecordingTransportState {
+            initial_write_delay: Duration::from_millis(500),
+            status_on_query: ["<Idle|MPos:0,0,0|FS:0,0>".to_owned()].into(),
+            ..Default::default()
+        }));
+        let result =
+            try_grbl_status_handshake(&ctx, 115_200, RecordingTransport::new(state.clone()))
+                .unwrap();
+        assert!(matches!(result, GrblStatusAttempt::Connected(_)));
+        let state = state.lock().unwrap();
+        assert_eq!(state.open_count, 1);
+        assert!(state.bytes.len() > 1);
+        assert!(state.bytes.iter().all(|bytes| bytes == b"?"));
+        assert!(state.lines.is_empty());
+        assert!(state.status_on_query.is_empty());
+    }
+
+    #[test]
+    fn initial_grbl_status_times_out_when_port_accepts_query_but_never_replies() {
+        let ctx = ServiceContext::new();
+        let state = Arc::new(Mutex::new(RecordingTransportState::default()));
+        let start = Instant::now();
+        let result =
+            try_grbl_status_handshake(&ctx, 115_200, RecordingTransport::new(state.clone()))
+                .unwrap();
+        assert!(matches!(
+            result,
+            GrblStatusAttempt::NoResponse {
+                garbage_seen: false,
+                readable_data_seen: false
+            }
+        ));
+        assert!(start.elapsed() < Duration::from_secs(5));
+        let state = state.lock().unwrap();
+        assert_eq!(state.bytes, [b"?"]);
+        assert!(state.lines.is_empty());
+        assert_eq!(state.close_count, 1);
+        assert_eq!(
+            ctx.recent_connection_events().last().unwrap().stage,
+            "probe_no_response"
+        );
+    }
+
+    #[test]
     fn persistent_grbl_status_write_failure_reaches_connection_diagnostics() {
         let ctx = ServiceContext::new();
         let transport = MockSerialTransport::new("COM3");
         let handle = transport.handle();
-        handle.fail_next_byte_writes(2);
+        handle.fail_next_byte_writes(usize::MAX);
 
+        let start = Instant::now();
         let error = try_grbl_status_handshake(&ctx, 115_200, transport)
             .err()
-            .expect("both status writes failed");
+            .expect("the port never became writable");
+        assert!(start.elapsed() < Duration::from_secs(5));
         assert!(error.message.contains("injected byte write failure"));
         assert!(handle.sent_bytes().is_empty());
         assert!(handle.sent_lines().is_empty());
@@ -10853,6 +10916,8 @@ mod tests {
     #[derive(Default)]
     struct RecordingTransportState {
         open: bool,
+        initial_write_delay: Duration,
+        writable_at: Option<Instant>,
         open_count: usize,
         fail_open_attempts: usize,
         fail_open_reason: Option<&'static str>,
@@ -10896,6 +10961,7 @@ mod tests {
                 ));
             }
             state.open = true;
+            state.writable_at = Some(Instant::now() + state.initial_write_delay);
             Ok(())
         }
 
@@ -10913,6 +10979,14 @@ mod tests {
         fn write_bytes(&mut self, data: &[u8]) -> Result<usize, SerialError> {
             let mut state = self.state.lock().unwrap();
             state.bytes.push(data.to_vec());
+            if state
+                .writable_at
+                .is_some_and(|ready| Instant::now() < ready)
+            {
+                return Err(SerialError::WriteFailed(
+                    "failed to write whole buffer".into(),
+                ));
+            }
             if state.fail_byte_writes > 0 {
                 state.fail_byte_writes -= 1;
                 return Err(SerialError::WriteFailed(

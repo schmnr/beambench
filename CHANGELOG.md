@@ -7,9 +7,10 @@
   Master 3/3 LE and Aufero Laser 2 modules, and six factory extension profiles.
   Physical testing is pending.
 
-- Retry the first GRBL status query once if the serial write fails. If the
-  retry fails, show which port opened and keep the driver error in connection
-  diagnostics.
+- Give slow USB serial ports up to one second per write to accept the first
+  GRBL status query. Retry failed writes on the same port for a two-second
+  window and require a fresh status reply before connecting. Connection
+  diagnostics include the port and driver error if the writes keep failing.
 
 - Add ten Two Trees USB presets for legacy TT and TTS engravers, the TS1 Mini,
   TS2 40W, TS2 20W/40W Max and TS3 10W flatbed. Identify the TTS-55 Pro by
