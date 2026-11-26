@@ -2576,7 +2576,47 @@
           },
           "twotrees_tts_55_pro": {
             "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "300 x 300 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3). Use Current Position or User Origin on a machine without homing switches."
+          },
+          "twotrees_tt_2_5": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "390 x 320 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3)."
+          },
+          "twotrees_tt_5_5": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "390 x 320 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3)."
+          },
+          "twotrees_tt_50": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "380 x 380 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3)."
+          },
+          "twotrees_tts_25": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
             "advisory": "300 x 300 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3)."
+          },
+          "twotrees_tts_10": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "300 x 300 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3)."
+          },
+          "twotrees_ts1_mini": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "80 x 80 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3)."
+          },
+          "twotrees_ts2_40w": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "450 x 410 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3)."
+          },
+          "twotrees_ts2_20w_max": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "450 x 900 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3)."
+          },
+          "twotrees_ts2_40w_max": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "450 x 900 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3)."
+          },
+          "twotrees_ts3_10w": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "300 x 200 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3)."
           },
           "twotrees_tts_10_pro": {
             "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",

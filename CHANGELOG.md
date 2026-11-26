@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Add ten Two Trees USB presets for legacy TT and TTS engravers, the TS1 Mini,
+  TS2 40W, TS2 20W/40W Max and TS3 10W flatbed. Identify the TTS-55 Pro by
+  its 5.5W module and explain how to position jobs on machines without
+  homing switches. Physical testing is pending.
+
 - Run USB lasers independently from one computer. Choose File > Open Another
   Laser Window and connect each window to a different serial port. Each copy
   keeps its own settings and crash recovery. Its title shows the connected port.

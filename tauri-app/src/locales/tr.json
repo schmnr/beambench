@@ -2424,7 +2424,47 @@
           },
           "twotrees_tts_55_pro": {
             "description": "Belgelere dayalı GRBL 1.1 USB ön ayarı. Fiziksel makine testleri henüz yapılmadı.",
+            "advisory": "300 x 300 mm, sol ön başlangıç noktası, S1000. $30 değerini ve $32=1 lazer modunu doğrulayın. Referansa dönüş ve otomatik hava desteği kapalıdır. Diğer donanım yazılımları ve genişletmeler ayrı kurulum gerektirir. Sabit Güç (M3). Referans anahtarları yoksa Geçerli Konum veya Kullanıcı Başlangıç Noktası kullanın."
+          },
+          "twotrees_tt_2_5": {
+            "description": "Belgelere dayalı GRBL 1.1 USB ön ayarı. Fiziksel makine testleri henüz yapılmadı.",
+            "advisory": "390 x 320 mm, sol ön başlangıç noktası, S1000. $30 değerini ve $32=1 lazer modunu doğrulayın. Referansa dönüş ve otomatik hava desteği kapalıdır. Diğer donanım yazılımları ve genişletmeler ayrı kurulum gerektirir. Sabit Güç (M3)."
+          },
+          "twotrees_tt_5_5": {
+            "description": "Belgelere dayalı GRBL 1.1 USB ön ayarı. Fiziksel makine testleri henüz yapılmadı.",
+            "advisory": "390 x 320 mm, sol ön başlangıç noktası, S1000. $30 değerini ve $32=1 lazer modunu doğrulayın. Referansa dönüş ve otomatik hava desteği kapalıdır. Diğer donanım yazılımları ve genişletmeler ayrı kurulum gerektirir. Sabit Güç (M3)."
+          },
+          "twotrees_tt_50": {
+            "description": "Belgelere dayalı GRBL 1.1 USB ön ayarı. Fiziksel makine testleri henüz yapılmadı.",
+            "advisory": "380 x 380 mm, sol ön başlangıç noktası, S1000. $30 değerini ve $32=1 lazer modunu doğrulayın. Referansa dönüş ve otomatik hava desteği kapalıdır. Diğer donanım yazılımları ve genişletmeler ayrı kurulum gerektirir. Sabit Güç (M3)."
+          },
+          "twotrees_tts_25": {
+            "description": "Belgelere dayalı GRBL 1.1 USB ön ayarı. Fiziksel makine testleri henüz yapılmadı.",
             "advisory": "300 x 300 mm, sol ön başlangıç noktası, S1000. $30 değerini ve $32=1 lazer modunu doğrulayın. Referansa dönüş ve otomatik hava desteği kapalıdır. Diğer donanım yazılımları ve genişletmeler ayrı kurulum gerektirir. Sabit Güç (M3)."
+          },
+          "twotrees_tts_10": {
+            "description": "Belgelere dayalı GRBL 1.1 USB ön ayarı. Fiziksel makine testleri henüz yapılmadı.",
+            "advisory": "300 x 300 mm, sol ön başlangıç noktası, S1000. $30 değerini ve $32=1 lazer modunu doğrulayın. Referansa dönüş ve otomatik hava desteği kapalıdır. Diğer donanım yazılımları ve genişletmeler ayrı kurulum gerektirir. Sabit Güç (M3)."
+          },
+          "twotrees_ts1_mini": {
+            "description": "Belgelere dayalı GRBL 1.1 USB ön ayarı. Fiziksel makine testleri henüz yapılmadı.",
+            "advisory": "80 x 80 mm, sol ön başlangıç noktası, S1000. $30 değerini ve $32=1 lazer modunu doğrulayın. Referansa dönüş ve otomatik hava desteği kapalıdır. Diğer donanım yazılımları ve genişletmeler ayrı kurulum gerektirir. Sabit Güç (M3)."
+          },
+          "twotrees_ts2_40w": {
+            "description": "Belgelere dayalı GRBL 1.1 USB ön ayarı. Fiziksel makine testleri henüz yapılmadı.",
+            "advisory": "450 x 410 mm, sol ön başlangıç noktası, S1000. $30 değerini ve $32=1 lazer modunu doğrulayın. Referansa dönüş ve otomatik hava desteği kapalıdır. Diğer donanım yazılımları ve genişletmeler ayrı kurulum gerektirir. Sabit Güç (M3)."
+          },
+          "twotrees_ts2_20w_max": {
+            "description": "Belgelere dayalı GRBL 1.1 USB ön ayarı. Fiziksel makine testleri henüz yapılmadı.",
+            "advisory": "450 x 900 mm, sol ön başlangıç noktası, S1000. $30 değerini ve $32=1 lazer modunu doğrulayın. Referansa dönüş ve otomatik hava desteği kapalıdır. Diğer donanım yazılımları ve genişletmeler ayrı kurulum gerektirir. Sabit Güç (M3)."
+          },
+          "twotrees_ts2_40w_max": {
+            "description": "Belgelere dayalı GRBL 1.1 USB ön ayarı. Fiziksel makine testleri henüz yapılmadı.",
+            "advisory": "450 x 900 mm, sol ön başlangıç noktası, S1000. $30 değerini ve $32=1 lazer modunu doğrulayın. Referansa dönüş ve otomatik hava desteği kapalıdır. Diğer donanım yazılımları ve genişletmeler ayrı kurulum gerektirir. Sabit Güç (M3)."
+          },
+          "twotrees_ts3_10w": {
+            "description": "Belgelere dayalı GRBL 1.1 USB ön ayarı. Fiziksel makine testleri henüz yapılmadı.",
+            "advisory": "300 x 200 mm, sol ön başlangıç noktası, S1000. $30 değerini ve $32=1 lazer modunu doğrulayın. Referansa dönüş ve otomatik hava desteği kapalıdır. Diğer donanım yazılımları ve genişletmeler ayrı kurulum gerektirir. Sabit Güç (M3)."
           },
           "twotrees_tts_10_pro": {
             "description": "Belgelere dayalı GRBL 1.1 USB ön ayarı. Fiziksel makine testleri henüz yapılmadı.",

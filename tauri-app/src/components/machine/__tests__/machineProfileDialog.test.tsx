@@ -622,11 +622,21 @@ describe('MachineProfileDialog', () => {
     { presetId: 'sculpfun_s30_ultra_22w', name: 'Sculpfun S30 Ultra 22W', airOn: 'M8', width: 590, height: 595, homing: false, constantPower: false, usbEvidence: true },
     { presetId: 'sculpfun_s30_ultra_33w', name: 'Sculpfun S30 Ultra 33W', airOn: 'M8', width: 590, height: 595, homing: false, constantPower: false, usbEvidence: true },
     { presetId: 'twotrees_tts_55', name: 'Two Trees TTS-55 (original)', airOn: '', width: 300, height: 300, homing: false, constantPower: true, usbEvidence: true },
-    { presetId: 'twotrees_tts_55_pro', name: 'Two Trees TTS-55 Pro', airOn: '', width: 300, height: 300, homing: false, constantPower: true, usbEvidence: true },
+    { presetId: 'twotrees_tts_55_pro', name: 'Two Trees TTS-55 Pro (5.5W)', airOn: '', width: 300, height: 300, homing: false, constantPower: true, usbEvidence: true },
     { presetId: 'twotrees_tts_10_pro', name: 'Two Trees TTS-10 Pro', airOn: '', width: 300, height: 300, homing: false, constantPower: true, usbEvidence: true },
     { presetId: 'twotrees_tts_20_pro', name: 'Two Trees TTS-20 Pro', airOn: '', width: 418, height: 418, homing: false, constantPower: true, usbEvidence: true },
     { presetId: 'twotrees_ts2_10w', name: 'Two Trees TS2 10W', airOn: '', width: 450, height: 450, homing: false, constantPower: true, usbEvidence: true },
     { presetId: 'twotrees_ts2_20w', name: 'Two Trees TS2 20W', airOn: '', width: 410, height: 410, homing: false, constantPower: true, usbEvidence: true },
+    { presetId: 'twotrees_tt_2_5', name: 'Two Trees TT-2.5', airOn: '', width: 390, height: 320, maxSpeed: 3000, homing: false, constantPower: true, usbEvidence: true },
+    { presetId: 'twotrees_tt_5_5', name: 'Two Trees TT-5.5', airOn: '', width: 390, height: 320, maxSpeed: 3000, homing: false, constantPower: true, usbEvidence: true },
+    { presetId: 'twotrees_tt_50', name: 'Two Trees TT-50', airOn: '', width: 380, height: 380, maxSpeed: 3000, homing: false, constantPower: true, usbEvidence: true },
+    { presetId: 'twotrees_tts_25', name: 'Two Trees TTS-25 (original)', airOn: '', width: 300, height: 300, homing: false, constantPower: true, usbEvidence: true },
+    { presetId: 'twotrees_tts_10', name: 'Two Trees TTS-10 (original)', airOn: '', width: 300, height: 300, homing: false, constantPower: true, usbEvidence: true },
+    { presetId: 'twotrees_ts1_mini', name: 'Two Trees TS1 Mini', airOn: '', width: 80, height: 80, maxSpeed: 3000, homing: false, constantPower: true, usbEvidence: true },
+    { presetId: 'twotrees_ts2_40w', name: 'Two Trees TS2 40W', airOn: '', width: 450, height: 410, homing: false, constantPower: true, usbEvidence: true },
+    { presetId: 'twotrees_ts2_20w_max', name: 'Two Trees TS2 20W Max', airOn: '', width: 450, height: 900, homing: false, constantPower: true, usbEvidence: true },
+    { presetId: 'twotrees_ts2_40w_max', name: 'Two Trees TS2 40W Max', airOn: '', width: 450, height: 900, homing: false, constantPower: true, usbEvidence: true },
+    { presetId: 'twotrees_ts3_10w', name: 'Two Trees TS3 10W (front-left flatbed)', airOn: '', width: 300, height: 200, homing: false, constantPower: true, usbEvidence: true },
   ].map((preset) => ({ baud: 115200, maxSpeed: 6000, origin: 'bottom_left' as const, ...preset })))('previews and applies $presetId with explicit confirmation', async ({ presetId, name, airOn, width, height, homing, constantPower, usbEvidence, baud, maxSpeed, origin }) => {
     const profile = makeProfile({ id: 'prof-preset', name: 'Preset Profile' });
     const appliedProfile = {

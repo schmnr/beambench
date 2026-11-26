@@ -1,8 +1,8 @@
 # Common GRBL USB preset evidence
 
-- Presets: the 24 exact configurations listed below, version 1.
+- Presets: the 34 exact configurations listed below, version 1.
 - Evidence level: Documentation-based. Physical Beam Bench testing is pending.
-- Sources checked: October 20, 2026.
+- Sources checked: October 20, 2026. Additional Two Trees sources checked November 25, 2026.
 - Scope: the listed base frames and modules using GRBL 1.1-compatible firmware
   over USB serial. M4 entries require GRBL 1.1f or newer with laser mode enabled.
 
@@ -29,11 +29,21 @@
 | `sculpfun_s30_ultra_22w` | Sculpfun S30 Ultra 22W | 590 x 595 | M4 dynamic | M8 / M9 |
 | `sculpfun_s30_ultra_33w` | Sculpfun S30 Ultra 33W | 590 x 595 | M4 dynamic | M8 / M9 |
 | `twotrees_tts_55` | Two Trees TTS-55 (original) | 300 x 300 | M3 constant | None |
-| `twotrees_tts_55_pro` | Two Trees TTS-55 Pro | 300 x 300 | M3 constant | None |
+| `twotrees_tts_55_pro` | Two Trees TTS-55 Pro (5.5W) | 300 x 300 | M3 constant | None |
 | `twotrees_tts_10_pro` | Two Trees TTS-10 Pro | 300 x 300 | M3 constant | None |
 | `twotrees_tts_20_pro` | Two Trees TTS-20 Pro | 418 x 418 | M3 constant | None |
 | `twotrees_ts2_10w` | Two Trees TS2 10W | 450 x 450 | M3 constant | None |
 | `twotrees_ts2_20w` | Two Trees TS2 20W | 410 x 410 | M3 constant | None |
+| `twotrees_tt_2_5` | Two Trees TT-2.5 | 390 x 320 | M3 constant | None |
+| `twotrees_tt_5_5` | Two Trees TT-5.5 | 390 x 320 | M3 constant | None |
+| `twotrees_tt_50` | Two Trees TT-50 | 380 x 380 | M3 constant | None |
+| `twotrees_tts_25` | Two Trees TTS-25 (original) | 300 x 300 | M3 constant | None |
+| `twotrees_tts_10` | Two Trees TTS-10 (original) | 300 x 300 | M3 constant | None |
+| `twotrees_ts1_mini` | Two Trees TS1 Mini | 80 x 80 | M3 constant | None |
+| `twotrees_ts2_40w` | Two Trees TS2 40W | 450 x 410 | M3 constant | None |
+| `twotrees_ts2_20w_max` | Two Trees TS2 20W Max | 450 x 900 | M3 constant | None |
+| `twotrees_ts2_40w_max` | Two Trees TS2 40W Max | 450 x 900 | M3 constant | None |
+| `twotrees_ts3_10w` | Two Trees TS3 10W (front-left flatbed) | 300 x 200 | M3 constant | None |
 
 ## Shared control settings
 
@@ -43,7 +53,7 @@ no per-G1 S requirement and no G0 overscan. A valid connected controller `$30`
 takes precedence in preview and application. Verify `$32=1`. The listed optical
 wattages are model identifiers, not the source of the power scale.
 
-The profile speed starts at 6000 mm/min, except Aufero Laser 1 and Sculpfun S10
+The profile speed starts at 6000 mm/min, except Aufero Laser 1, Sculpfun S10, Two Trees TT-2.5, TT-5.5, TT-50 and TS1 Mini
 at 3000 mm/min. These are Beam Bench starting limits, not manufacturer speed
 ratings or material settings. Controller limits still apply.
 
@@ -204,16 +214,61 @@ third-party profiles are not redistributed.
   reuses 450 x 450 mm language from 10W. The exact 20W manual takes precedence.
   Bottom-left is the GRBL starting convention pending physical validation.
 
+- The original TT-2.5 and TT-5.5 share a 390 x 320 mm frame and USB LKS
+  controller. Match the label and travel before selecting a legacy TT preset.
+  The later TT-5.5S has a 300 x 300 mm bed. The TT-50 uses an 8-bit USB LKS
+  controller with a 380 x 380 mm bed. The legacy presets use the same 3000
+  mm/min starting limit as the existing TT-5.5S. [TT-2.5/5.5 manual, pages 4–5](https://www.manualslib.com/manual/4543483/Two-Trees-Tt-2-5.html)
+  and [Two Trees controller and frame comparison](https://twotrees3d.com/pages/compare-tts-55-tts-25-tt-2-5-5-5).
+- The original TTS-25 and TTS-10 each have a 300 x 300 mm bed. The TTS-10
+  manual specifies a USB data cable and 115200 baud. The original TTS family
+  setup above supplies the starting serial settings for the TTS-25.
+  [TTS-25 specifications and connection diagrams](https://manuals.plus/asin/B09QMGVTGZ)
+  and [original TTS-10 manual](https://manuals.plus/m/15dc0eeca87c36dda098e776783517b8f0586130046e6eb65942a10df71fab81).
+- The TS1 Mini has 80 x 80 mm of XY travel and a maximum speed of 3000 mm/min.
+  Its setup guide specifies GRBL over USB and a front-left origin.
+  [Two Trees model guide](https://twotrees3d.com/blogs/twotrees-blog/the-complete-guide-to-twotrees-laser-engravers-2025-update)
+  and [TS1 connection instructions](https://wiki.twotrees3d.com/en/LaserEngravingMachine/TS1/Software-connection-tutorial).
+- The standard TS2 40W has 450 x 410 mm of travel. The two factory Max models
+  have 450 x 900 mm of travel. All three specify USB, LaserGRBL and 6000 mm/min.
+  The presets use the TS2 family's starting serial and power settings.
+  [TS2 40W](https://eu.twotrees3d.com/products/twotrees-ts2-40w-laser-engraver),
+  [TS2 20W Max](https://twotrees3d.com/products/twotrees-ts2-20w-max-laser-engraver)
+  and [TS2 40W Max](https://twotrees3d.com/products/twotrees-ts2-40w-max-laser-engraver).
+- The enclosed TS3 10W has a 300 x 200 mm flatbed and a separate rotary mode.
+  Select the flatbed Y-axis configuration on the machine before using this preset.
+  The manual documents USB at 115200 baud and describes X+ and Y− movement
+  after homing. This preset covers machines configured for front-left job
+  coordinates. Check the installed controller’s origin and axis directions
+  before framing, especially on early firmware.
+  [Manufacturer model guide](https://twotrees3d.com/blogs/twotrees-blog/the-complete-guide-to-twotrees-laser-engravers-2025-update)
+  and [TS3 manual](https://manuals.plus/m/6fdb0b8e583b2d2ccef6f4489def3504ef7d58f20725443b422b2f2f8d7bc82b_optim.pdf).
+
+### Starting a job on the TTS-55 Pro (5.5W)
+
+Select the TTS-55 Pro preset in the active machine profile. For a machine
+without configured homing switches, leave **Home on connect** off. Choose
+**Start From → Current Position**, position the head at the chosen job origin
+on the material, then run a laser-off **Frame**. Watch the full outline and
+recheck the job from that same position before starting. If a machine with
+configured switches reports a homing alarm, record the exact controller message
+and check the switches and current `$22` setting before attempting to home again.
+[Two Trees TTS-55 Pro USB and origin setup](https://wiki.twotrees3d.com/en/LaserEngravingMachine/TTS-55PRO/SoftwareConnectionTutorial).
+
 The Pro models' own wiki troubleshooting guides recommend M3 constant power for
 cutting and M4 for engraving. These presets start with M3, consistent with the
 manuals' general-use recommendation. Verified M4 can be selected for engraving.
 No automatic air commands are established here. TS2 Z/autofocus is not enabled
-by these presets; use a verified manual focus setup. Extension frames, Max
-revisions, newer 40W modules and wireless/offline controls are excluded.
+by these presets; use a verified manual focus setup. Aftermarket extensions,
+swapped modules and wireless/offline control need
+separate setup. The TS5-7W uses a rotary fixture. Its published work envelope
+does not establish a flat XY bed. The TT-25 label alone also leaves travel
+uncertain across legacy frames. Neither has a dedicated preset here.
+[TS5-7W fixture and specifications](https://twotrees3d.com/products/twotrees-ts5-7w-laser-engraver).
 
 ## Validation and remaining work
 
-Shared backend regressions apply all 24 entries, synchronize the bound project,
+Shared backend regressions apply all 34 entries, synchronize the bound project,
 and generate a rectangle through the real planner and GRBL emitter. They check
 workspace, bottom-left coordinates, S250 at 25%, M3/M4 and M5, paired M8/M9 only
 for requested S30 air assist, absence of unintended air/homing commands, and

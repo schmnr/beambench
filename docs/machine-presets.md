@@ -170,9 +170,10 @@ own specifications support an entry. Do not copy the S9 defaults across a brand.
 - [Longer RAY5 5W/20W/40W and Laser B1 20W/30W/40W, preset version 1](machines/longer-usb-presets.md):
   documentation-based USB presets with model-specific workspaces and controls,
   physical testing pending. Includes the remaining LONGER candidates and blockers.
-- [Common GRBL USB expansion, 24 presets at version 1](machines/common-grbl-usb-presets.md):
+- [Common GRBL USB expansion, 34 presets at version 1](machines/common-grbl-usb-presets.md):
   Ortur/Aufero, AtomStack Pro V2, standard Falcon2, Sculpfun S10/S30/Ultra and
-  Two Trees TTS/TS2. Documentation-based, physical testing pending.
+  Two Trees TT, TTS, TS1 Mini, TS2/Max and TS3 flatbed. Includes manual positioning
+  for the TTS-55 Pro. Documentation-based, physical testing pending.
 - [AtomStack USB catalog, 36 presets at version 1](machines/atomstack-usb-presets.md):
   Swift, original A5/M-series, Pro/V2/Max revisions, P1 blue diode, Kraft Lite,
   Hurricane and Glacier. Includes exact baud, travel and air-command differences.

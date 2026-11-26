@@ -1302,6 +1302,49 @@ pub fn profile_presets() -> Vec<MachineProfilePreset> {
             )
         },
         MachineProfilePreset {
+            max_speed_mm_min: 3000.0,
+            use_constant_power: true,
+            ..documented_grbl_usb_preset(
+                "twotrees_tt_2_5",
+                "Two Trees TT-2.5",
+                390.0,
+                320.0,
+                "390 x 320 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3).",
+            )
+        },
+        MachineProfilePreset {
+            max_speed_mm_min: 3000.0,
+            use_constant_power: true,
+            ..documented_grbl_usb_preset(
+                "twotrees_tt_5_5",
+                "Two Trees TT-5.5",
+                390.0,
+                320.0,
+                "390 x 320 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3).",
+            )
+        },
+        MachineProfilePreset {
+            max_speed_mm_min: 3000.0,
+            use_constant_power: true,
+            ..documented_grbl_usb_preset(
+                "twotrees_tt_50",
+                "Two Trees TT-50",
+                380.0,
+                380.0,
+                "380 x 380 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3).",
+            )
+        },
+        MachineProfilePreset {
+            use_constant_power: true,
+            ..documented_grbl_usb_preset(
+                "twotrees_tts_25",
+                "Two Trees TTS-25 (original)",
+                300.0,
+                300.0,
+                "300 x 300 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3).",
+            )
+        },
+        MachineProfilePreset {
             use_constant_power: true,
             ..documented_grbl_usb_preset(
                 "twotrees_tts_55",
@@ -1314,11 +1357,21 @@ pub fn profile_presets() -> Vec<MachineProfilePreset> {
         MachineProfilePreset {
             use_constant_power: true,
             ..documented_grbl_usb_preset(
-                "twotrees_tts_55_pro",
-                "Two Trees TTS-55 Pro",
+                "twotrees_tts_10",
+                "Two Trees TTS-10 (original)",
                 300.0,
                 300.0,
                 "300 x 300 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3).",
+            )
+        },
+        MachineProfilePreset {
+            use_constant_power: true,
+            ..documented_grbl_usb_preset(
+                "twotrees_tts_55_pro",
+                "Two Trees TTS-55 Pro (5.5W)",
+                300.0,
+                300.0,
+                "300 x 300 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3). Use Current Position or User Origin on a machine without homing switches.",
             )
         },
         MachineProfilePreset {
@@ -1342,6 +1395,17 @@ pub fn profile_presets() -> Vec<MachineProfilePreset> {
             )
         },
         MachineProfilePreset {
+            max_speed_mm_min: 3000.0,
+            use_constant_power: true,
+            ..documented_grbl_usb_preset(
+                "twotrees_ts1_mini",
+                "Two Trees TS1 Mini",
+                80.0,
+                80.0,
+                "80 x 80 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3).",
+            )
+        },
+        MachineProfilePreset {
             use_constant_power: true,
             ..documented_grbl_usb_preset(
                 "twotrees_ts2_10w",
@@ -1359,6 +1423,46 @@ pub fn profile_presets() -> Vec<MachineProfilePreset> {
                 410.0,
                 410.0,
                 "410 x 410 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3).",
+            )
+        },
+        MachineProfilePreset {
+            use_constant_power: true,
+            ..documented_grbl_usb_preset(
+                "twotrees_ts2_40w",
+                "Two Trees TS2 40W",
+                450.0,
+                410.0,
+                "450 x 410 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3).",
+            )
+        },
+        MachineProfilePreset {
+            use_constant_power: true,
+            ..documented_grbl_usb_preset(
+                "twotrees_ts2_20w_max",
+                "Two Trees TS2 20W Max",
+                450.0,
+                900.0,
+                "450 x 900 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3).",
+            )
+        },
+        MachineProfilePreset {
+            use_constant_power: true,
+            ..documented_grbl_usb_preset(
+                "twotrees_ts2_40w_max",
+                "Two Trees TS2 40W Max",
+                450.0,
+                900.0,
+                "450 x 900 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3).",
+            )
+        },
+        MachineProfilePreset {
+            use_constant_power: true,
+            ..documented_grbl_usb_preset(
+                "twotrees_ts3_10w",
+                "Two Trees TS3 10W (front-left flatbed)",
+                300.0,
+                200.0,
+                "300 x 200 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3).",
             )
         },
         // Sources and stock hardware scope: docs/machines/creality-falcon-a1-10w.md.
@@ -4138,6 +4242,16 @@ mod tests {
             "twotrees_tts_20_pro",
             "twotrees_ts2_10w",
             "twotrees_ts2_20w",
+            "twotrees_tt_2_5",
+            "twotrees_tt_5_5",
+            "twotrees_tt_50",
+            "twotrees_tts_25",
+            "twotrees_tts_10",
+            "twotrees_ts1_mini",
+            "twotrees_ts2_40w",
+            "twotrees_ts2_20w_max",
+            "twotrees_ts2_40w_max",
+            "twotrees_ts3_10w",
             "longer_ray5_5w",
             "longer_ray5_20w",
             "longer_ray5_40w",
@@ -4419,6 +4533,32 @@ mod tests {
             ("twotrees_tts_20_pro", 418.0, 418.0, 6000.0, "", true, false),
             ("twotrees_ts2_10w", 450.0, 450.0, 6000.0, "", true, false),
             ("twotrees_ts2_20w", 410.0, 410.0, 6000.0, "", true, false),
+            ("twotrees_tt_2_5", 390.0, 320.0, 3000.0, "", true, false),
+            ("twotrees_tt_5_5", 390.0, 320.0, 3000.0, "", true, false),
+            ("twotrees_tt_50", 380.0, 380.0, 3000.0, "", true, false),
+            ("twotrees_tts_25", 300.0, 300.0, 6000.0, "", true, false),
+            ("twotrees_tts_10", 300.0, 300.0, 6000.0, "", true, false),
+            ("twotrees_ts1_mini", 80.0, 80.0, 3000.0, "", true, false),
+            ("twotrees_ts2_40w", 450.0, 410.0, 6000.0, "", true, false),
+            (
+                "twotrees_ts2_20w_max",
+                450.0,
+                900.0,
+                6000.0,
+                "",
+                true,
+                false,
+            ),
+            (
+                "twotrees_ts2_40w_max",
+                450.0,
+                900.0,
+                6000.0,
+                "",
+                true,
+                false,
+            ),
+            ("twotrees_ts3_10w", 300.0, 200.0, 6000.0, "", true, false),
             ("acmer_p1_s_pro_6w", 380.0, 370.0, 6000.0, "", false, false),
             ("acmer_p1_s_pro_10w", 380.0, 370.0, 6000.0, "", false, false),
             ("acmer_p2_10w", 420.0, 400.0, 6000.0, "", false, false),

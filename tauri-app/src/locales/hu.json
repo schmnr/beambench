@@ -2424,7 +2424,47 @@
           },
           "twotrees_tts_55_pro": {
             "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "300 x 300 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek. Állandó teljesítmény (M3). Referenciakapcsolók nélkül használja az Aktuális pozíció vagy a Felhasználói origó módot."
+          },
+          "twotrees_tt_2_5": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "390 x 320 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek. Állandó teljesítmény (M3)."
+          },
+          "twotrees_tt_5_5": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "390 x 320 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek. Állandó teljesítmény (M3)."
+          },
+          "twotrees_tt_50": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "380 x 380 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek. Állandó teljesítmény (M3)."
+          },
+          "twotrees_tts_25": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
             "advisory": "300 x 300 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek. Állandó teljesítmény (M3)."
+          },
+          "twotrees_tts_10": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "300 x 300 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek. Állandó teljesítmény (M3)."
+          },
+          "twotrees_ts1_mini": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "80 x 80 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek. Állandó teljesítmény (M3)."
+          },
+          "twotrees_ts2_40w": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "450 x 410 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek. Állandó teljesítmény (M3)."
+          },
+          "twotrees_ts2_20w_max": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "450 x 900 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek. Állandó teljesítmény (M3)."
+          },
+          "twotrees_ts2_40w_max": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "450 x 900 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek. Állandó teljesítmény (M3)."
+          },
+          "twotrees_ts3_10w": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "300 x 200 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek. Állandó teljesítmény (M3)."
           },
           "twotrees_tts_10_pro": {
             "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
