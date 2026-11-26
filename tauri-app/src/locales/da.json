@@ -2709,6 +2709,10 @@
             "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
             "advisory": "USB: 460800 baud. 800 x 800 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning. Indstil fokus med maskinens betjening før indramning. Kamera, rotationsenhed og transportbånd kræver separat opsætning. Vælg effekttilstanden i AtomStack Studio, og luk programmet, før du forbinder Beam Bench."
           },
+          "cnc_3018_pro_awoopecker_v3_1": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "Kontrollér arbejdsnulpunktet bagest til venstre, og kør langs omridset med laseren slukket. Maskinkoordinaterne kan være negative efter referencekørsel. Kontrollér $22=1, $30=1000 og $32=1."
+          },
           "monport_k40_grbl_2_0": {
             "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
             "advisory": "Kun GRBL USB: 115200 baud, X 300 x Y 200 mm, nulpunkt bagest til venstre, S1000/M4. Kontrollér $30, $32=1 og begge aksers retning. Kør først til hjemposition efter kontrol af kontakter og $22=1. Hold vandkølingen i gang; indram med laseren slukket, og test ved lav effekt. Manuel luft og fokus. Nano, Ruida og ændret ledningsføring kræver særskilt opsætning."

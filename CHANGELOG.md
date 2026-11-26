@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add a CNC 3018 Pro laser preset for the Awoopecker V3.1 controller with limit
+  switches, a 300 × 180 mm workspace and rear-left homing.
+- Update i18next to 27.2.7 to address GHSA-6jcc-5g8w-32mx.
 - Expand Ortur and Aufero USB presets with separate Laser Master 2 S2
   workspaces for the 10 W diode and 1.3 W infrared heads, additional Laser
   Master 3/3 LE and Aufero Laser 2 modules, and six factory extension profiles.

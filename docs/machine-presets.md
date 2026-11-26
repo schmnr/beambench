@@ -137,6 +137,8 @@ own specifications support an entry. Do not copy the S9 defaults across a brand.
 
 ## Evidence records
 
+- [CNC 3018 Pro laser conversion](machines/cnc-3018-pro.md) with the Awoopecker V3.1
+  board and limit switches. Owner-documented settings, physical preset testing pending.
 - [Ortur and Aufero USB serial presets](machines/ortur-usb-presets.md):
   Laser Master 1/2, module-specific 2 S2, Pro and 3/LE frames, H10, H20,
   R1/R2, F20/F20 Pro, Aufero models and factory extensions. Documentation-based, physical testing pending.
