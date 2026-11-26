@@ -3273,6 +3273,7 @@
       "empty_frame": "La cámara devolvió una imagen vacía.",
       "canvas_failed": "No se pudo preparar la imagen de la cámara."
     },
+    "serial_status_write_failed": "Beam Bench abrió {port}, pero no pudo enviar la consulta de estado de GRBL. Vuelva a conectar el láser y revise qué puerto serial aparece.",
     "serial_open_no_response": "El puerto se abrió, pero el láser no respondió. Verifique que el láser esté encendido, pruebe otro cable o puerto USB y asegúrese de haber seleccionado el puerto correcto. Algunas placas necesitan el controlador USB CH340.",
     "serial_protocol_unrecognized": "El láser respondió, pero Beam Bench no reconoció su controlador. Verifique la velocidad en baudios en el perfil de la máquina (la mayoría de los láseres GRBL usan 115200) y cierre cualquier otro software de láser que use este puerto.",
     "network_grbl_no_status": "El controlador en esta dirección no respondió como un láser GRBL. Verifique la dirección IP y el puerto, cierre otras aplicaciones conectadas a él (muchos módulos Wi-Fi permiten solo una conexión a la vez) e inténtelo de nuevo.",

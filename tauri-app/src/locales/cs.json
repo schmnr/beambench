@@ -3273,6 +3273,7 @@
       "empty_frame": "Kamera vrátila prázdný snímek.",
       "canvas_failed": "Snímek kamery se nepodařilo připravit."
     },
+    "serial_status_write_failed": "Beam Bench otevřel port {port}, ale nepodařilo se odeslat dotaz na stav GRBL. Znovu připojte laser a zkontrolujte, který sériový port se objeví.",
     "serial_open_no_response": "Port se otevřel, ale laser neodpověděl. Zkontrolujte, že je laser zapnutý, zkuste jiný kabel USB nebo port a ověřte, že je vybrán správný port. Některé desky potřebují ovladač USB CH340.",
     "serial_protocol_unrecognized": "Laser odpověděl, ale Beam Bench nerozpoznal jeho řadič. Zkontrolujte přenosovou rychlost v profilu stroje (většina laserů GRBL používá 115200) a zavřete jiný laserový software, který tento port používá.",
     "network_grbl_no_status": "Řadič na této adrese neodpověděl jako laser GRBL. Zkontrolujte IP adresu a port, zavřete jiné aplikace, které jsou k němu připojené (mnoho modulů Wi-Fi povoluje jen jedno připojení najednou), a zkuste to znovu.",

@@ -3273,6 +3273,7 @@
       "empty_frame": "Kamera boş bir görüntü döndürdü.",
       "canvas_failed": "Kamera görüntüsü hazırlanamadı."
     },
+    "serial_status_write_failed": "Beam Bench {port} bağlantı noktasını açtı ancak GRBL durum sorgusunu gönderemedi. Lazeri yeniden bağlayıp hangi seri bağlantı noktasının göründüğünü kontrol edin.",
     "serial_open_no_response": "Bağlantı noktası açıldı, ancak lazer yanıt vermedi. Lazerin açık olduğunu kontrol edin, başka bir USB kablosu veya bağlantı noktası deneyin ve doğru bağlantı noktasının seçildiğinden emin olun. Bazı kartlar CH340 USB sürücüsüne ihtiyaç duyar.",
     "serial_protocol_unrecognized": "Lazer yanıt verdi, ancak Beam Bench denetleyicisini tanımadı. Makine profilindeki baud hızını kontrol edin (çoğu GRBL lazer 115200 kullanır) ve bu bağlantı noktasını kullanan diğer lazer yazılımlarını kapatın.",
     "network_grbl_no_status": "Bu adresteki denetleyici bir GRBL lazer olarak yanıt vermedi. IP adresini ve bağlantı noktasını kontrol edin, ona bağlı diğer uygulamaları kapatın (birçok Wi-Fi modülü aynı anda yalnızca bir bağlantıya izin verir) ve yeniden deneyin.",

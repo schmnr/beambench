@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Retry the first GRBL status query once if the serial write fails. If the
+  retry fails, show which port opened and keep the driver error in connection
+  diagnostics.
+
 - Add ten Two Trees USB presets for legacy TT and TTS engravers, the TS1 Mini,
   TS2 40W, TS2 20W/40W Max and TS3 10W flatbed. Identify the TTS-55 Pro by
   its 5.5W module and explain how to position jobs on machines without

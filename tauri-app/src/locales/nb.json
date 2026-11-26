@@ -3273,6 +3273,7 @@
       "empty_frame": "Kameraet returnerte et tomt bilde.",
       "canvas_failed": "Kamerabildet kunne ikke klargjøres."
     },
+    "serial_status_write_failed": "Beam Bench åpnet {port}, men kunne ikke sende GRBL-statusforespørselen. Koble til laseren på nytt og se hvilken serieport som vises.",
     "serial_open_no_response": "Porten ble åpnet, men laseren svarte ikke. Kontroller at laseren er slått på, prøv en annen USB-kabel eller port, og sørg for at riktig port er valgt. Noen kort trenger USB-driveren CH340.",
     "serial_protocol_unrecognized": "Laseren svarte, men Beam Bench gjenkjente ikke kontrolleren. Kontroller overføringshastigheten (baud) i maskinprofilen (de fleste GRBL-lasere bruker 115200), og lukk annen laserprogramvare som bruker denne porten.",
     "network_grbl_no_status": "Kontrolleren på denne adressen svarte ikke som en GRBL-laser. Kontroller IP-adressen og porten, lukk andre apper som er koblet til den (mange Wi-Fi-moduler tillater bare én tilkobling om gangen), og prøv igjen.",

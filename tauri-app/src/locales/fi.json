@@ -3273,6 +3273,7 @@
       "empty_frame": "Kamera palautti tyhjän kuvan.",
       "canvas_failed": "Kamerakuvaa ei voitu valmistella."
     },
+    "serial_status_write_failed": "Beam Bench avasi portin {port}, mutta GRBL-tilakyselyn lähetys epäonnistui. Kytke laser uudelleen ja tarkista, mikä sarjaportti tulee näkyviin.",
     "serial_open_no_response": "Portti avautui, mutta laser ei vastannut. Tarkista, että laser on päällä, kokeile toista USB-kaapelia tai -porttia ja varmista, että oikea portti on valittuna. Jotkin piirilevyt tarvitsevat CH340-USB-ajurin.",
     "serial_protocol_unrecognized": "Laser vastasi, mutta Beam Bench ei tunnistanut sen ohjainta. Tarkista koneprofiilin baudinopeus (useimmat GRBL-laserit käyttävät arvoa 115200) ja sulje muut tätä porttia käyttävät laserohjelmat.",
     "network_grbl_no_status": "Tämän osoitteen ohjain ei vastannut GRBL-laserina. Tarkista IP-osoite ja portti, sulje muut siihen yhdistetyt sovellukset (monet Wi-Fi-moduulit sallivat vain yhden yhteyden kerrallaan) ja yritä uudelleen.",

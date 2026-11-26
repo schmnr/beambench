@@ -186,6 +186,10 @@ describe('wrapBackendError', () => {
   });
 
   it('translates connection failures and never shows their tags', () => {
+    const writeFailure = wrapBackendError(
+      'Operation failed: [serial_status_write_failed] Beam Bench opened COM3 at 115200 baud but could not send the GRBL status query. Reconnect the laser and check which serial port appears. (transport error: write failed: failed to write whole buffer)',
+    );
+    expect(writeFailure).toBe('Beam Bench opened COM3 but could not send the GRBL status query. Reconnect the laser and check which serial port appears.');
     const silent = wrapBackendError(
       '[serial_open_no_response] The serial port opened, but no supported controller replied. GRBL-family baud rates: 115200.',
     );

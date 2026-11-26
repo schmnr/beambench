@@ -1488,6 +1488,7 @@ fn connection_error_code(detail: &str) -> Option<String> {
     [
         "serial_port_unavailable",
         "serial_open_no_response",
+        "serial_status_write_failed",
         "serial_protocol_unrecognized",
         "ruida_unknown_variant",
         "ruida_probe_inconclusive",

@@ -3273,6 +3273,7 @@
       "empty_frame": "Kamera je vrnila prazen posnetek.",
       "canvas_failed": "Posnetka kamere ni bilo mogoče pripraviti."
     },
+    "serial_status_write_failed": "Beam Bench je odprl vrata {port}, vendar ni mogel poslati poizvedbe o stanju GRBL. Znova priključite laser in preverite, katera serijska vrata se prikažejo.",
     "serial_open_no_response": "Vrata so se odprla, vendar laser ni odgovoril. Preverite, ali je laser vklopljen, poskusite z drugim kablom ali vrati USB in se prepričajte, da so izbrana prava vrata. Nekatere plošče potrebujejo gonilnik USB CH340.",
     "serial_protocol_unrecognized": "Laser je odgovoril, vendar Beam Bench ni prepoznal njegovega krmilnika. Preverite hitrost prenosa (baud) v profilu stroja (večina laserjev GRBL uporablja 115200) in zaprite drugo lasersko programsko opremo, ki uporablja ta vrata.",
     "network_grbl_no_status": "Krmilnik na tem naslovu ni odgovoril kot laser GRBL. Preverite naslov IP in vrata, zaprite druge aplikacije, ki so povezane z njim (veliko modulov Wi-Fi dovoli le eno povezavo hkrati), in poskusite znova.",

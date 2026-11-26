@@ -22,9 +22,10 @@ use beambench_common::machine::{
 use beambench_core::object::ObjectData;
 use beambench_core::{MachineProfile, MachineProfileId, Project, RuidaTableAxis, Workspace};
 use beambench_grbl::{
-    FluidNcNetworkAdapter, FluidNcSerialAdapter, GrblFamilyAdapter, GrblFamilyIdentityProbeConfig,
-    GrblFamilyIdentityProbeOutcome, GrblFamilyIdentityProbeResult, GrblHalNetworkAdapter,
-    GrblHalSerialAdapter, GrblResponse, GrblSession, GrblSettings, commands as grbl_commands,
+    FluidNcNetworkAdapter, FluidNcSerialAdapter, GrblError, GrblFamilyAdapter,
+    GrblFamilyIdentityProbeConfig, GrblFamilyIdentityProbeOutcome, GrblFamilyIdentityProbeResult,
+    GrblHalNetworkAdapter, GrblHalSerialAdapter, GrblResponse, GrblSession, GrblSettings,
+    commands as grbl_commands,
 };
 use beambench_lihuiyu::{
     LihuiyuCompilationConfig, LihuiyuCompiledJob, LihuiyuCoordinateTransform, LihuiyuUsbDeviceInfo,
@@ -47,7 +48,8 @@ use beambench_ruida::{
     RuidaPowerOverride, RuidaUdpIo, compile_ruida_job,
 };
 use beambench_serial::{
-    RealSerialTransport, TcpLineTransport, list_available_ports, reset_serial_traffic,
+    RealSerialTransport, SerialError, SerialTransport, TcpLineTransport, list_available_ports,
+    reset_serial_traffic,
 };
 use beambench_smoothieware::{
     SmoothiewareGcodeConfig, SmoothiewarePowerMode, SmoothiewarePowerScale,
@@ -1188,32 +1190,32 @@ enum GrblStatusAttempt {
 /// OEM variants that do not replay a startup banner when a sender connects.
 fn try_grbl_status_handshake(
     ctx: &ServiceContext,
-    port_name: &str,
     baud_rate: u32,
+    transport: impl SerialTransport + 'static,
 ) -> ServiceResult<GrblStatusAttempt> {
     ctx.push_connection_event(
         "open_attempt",
-        Some(port_name.to_string()),
+        Some(transport.port_name().to_owned()),
         Some(baud_rate),
         Some("Opening GRBL-family serial connection without resetting the controller".to_string()),
         None,
     );
-    let transport = RealSerialTransport::new_without_dtr(port_name, baud_rate);
     let mut session = Box::new(GrblSession::new(Box::new(transport)));
     if let Err(error) = session.connect() {
         let message = error.to_string();
         ctx.push_connection_event(
             "open_failed",
-            Some(port_name.to_string()),
+            Some(session.port_name().to_owned()),
             Some(baud_rate),
             None,
             Some(message.clone()),
         );
         return Err(ServiceError::machine(message));
     }
+    let port_name = session.port_name().to_owned();
     ctx.push_connection_event(
         "transport_open",
-        Some(port_name.to_string()),
+        Some(port_name.clone()),
         Some(baud_rate),
         Some("Serial transport opened".to_string()),
         None,
@@ -1222,14 +1224,40 @@ fn try_grbl_status_handshake(
     let status_count = session.status_report_count();
     ctx.push_connection_event(
         "status_query",
-        Some(port_name.to_string()),
+        Some(port_name.clone()),
         Some(baud_rate),
         Some("Sending a read-only GRBL-family status query".to_string()),
         None,
     );
-    session
-        .poll_status()
-        .map_err(|error| ServiceError::machine(error.to_string()))?;
+    let result = match session.poll_status() {
+        Err(error @ GrblError::Transport(SerialError::WriteFailed(_))) => {
+            // The probe is one read-only byte. Retry on this handle only.
+            ctx.push_connection_event(
+                "status_query_retry",
+                Some(port_name.clone()),
+                Some(baud_rate),
+                Some(format!("Retrying GRBL status query after {error}")),
+                None,
+            );
+            std::thread::sleep(Duration::from_millis(100));
+            session.poll_status()
+        }
+        result => result,
+    };
+    if let Err(error) = result {
+        let message = format!(
+            "Beam Bench opened {port_name} at {baud_rate} baud but could not send the GRBL status query. Reconnect the laser and check which serial port appears."
+        );
+        let detail = format!("[serial_status_write_failed] {message} ({error})");
+        ctx.push_connection_event(
+            "status_query_failed",
+            Some(port_name),
+            Some(baud_rate),
+            Some(message),
+            Some(detail.clone()),
+        );
+        return Err(ServiceError::machine(detail));
+    }
     let deadline = Instant::now() + GRBL_STATUS_PROBE_TIMEOUT;
     while session.status_report_count() == status_count && Instant::now() < deadline {
         session
@@ -1246,7 +1274,7 @@ fn try_grbl_status_handshake(
             .map_err(|error| ServiceError::machine(error.to_string()))?;
         ctx.push_connection_event(
             "protocol_response",
-            Some(port_name.to_string()),
+            Some(port_name),
             Some(baud_rate),
             Some("Received a fresh GRBL-family status response".to_string()),
             None,
@@ -1259,7 +1287,7 @@ fn try_grbl_status_handshake(
     session.disconnect().ok();
     ctx.push_connection_event(
         "probe_no_response",
-        Some(port_name.to_string()),
+        Some(port_name),
         Some(baud_rate),
         Some(if garbage_seen {
             "Received unreadable serial data but no GRBL-family status response".to_string()
@@ -1297,7 +1325,11 @@ fn open_grbl_for_connection(
                     },
                 })
             } else {
-                try_grbl_status_handshake(ctx, &port_name, baud)
+                try_grbl_status_handshake(
+                    ctx,
+                    baud,
+                    RealSerialTransport::new_without_dtr(&port_name, baud),
+                )
             }
         },
     )
@@ -8770,6 +8802,76 @@ mod tests {
             assert!(ctx.recent_connection_events().is_empty());
             assert!(ctx.pending_controller_connection.lock().unwrap().is_none());
         }
+    }
+
+    #[test]
+    fn initial_grbl_status_write_recovers_from_one_failure() {
+        let ctx = ServiceContext::new();
+        let transport = MockSerialTransport::new("COM3");
+        let handle = transport.handle();
+        handle.fail_next_byte_writes(1);
+        handle.enqueue_response("<Idle|MPos:0,0,0|FS:0,0>");
+
+        let result = try_grbl_status_handshake(&ctx, 115_200, transport).unwrap();
+        assert!(matches!(result, GrblStatusAttempt::Connected(_)));
+        assert_eq!(handle.sent_bytes(), [b"?"]);
+        assert!(handle.sent_lines().is_empty());
+        let events = ctx.recent_connection_events();
+        assert!(
+            events
+                .iter()
+                .any(|event| event.stage == "status_query_retry")
+        );
+        assert_eq!(events.last().unwrap().stage, "protocol_response");
+    }
+
+    #[test]
+    fn persistent_grbl_status_write_failure_reaches_connection_diagnostics() {
+        let ctx = ServiceContext::new();
+        let transport = MockSerialTransport::new("COM3");
+        let handle = transport.handle();
+        handle.fail_next_byte_writes(2);
+
+        let error = try_grbl_status_handshake(&ctx, 115_200, transport)
+            .err()
+            .expect("both status writes failed");
+        assert!(error.message.contains("injected byte write failure"));
+        assert!(handle.sent_bytes().is_empty());
+        assert!(handle.sent_lines().is_empty());
+        let diagnostics = crate::ops::feedback::get_connection_diagnostics(&ctx).unwrap();
+        let events = ctx.recent_connection_events();
+        let stages: Vec<_> = events.iter().map(|event| event.stage.as_str()).collect();
+        assert_eq!(
+            stages,
+            [
+                "open_attempt",
+                "transport_open",
+                "status_query",
+                "status_query_retry",
+                "status_query_failed"
+            ]
+        );
+        let failure = events.last().unwrap();
+        assert_eq!(
+            failure.error_code.as_deref(),
+            Some("serial_status_write_failed")
+        );
+        assert_eq!(failure.error.as_deref(), Some(error.message.as_str()));
+        assert_eq!(failure.port_name.as_deref(), Some("COM3"));
+        assert_eq!(failure.baud_rate, Some(115_200));
+        assert_eq!(diagnostics.machine.handshake_message, failure.message);
+        assert!(
+            diagnostics
+                .known_issues
+                .iter()
+                .any(|issue| issue.code == "serial_status_write_failed")
+        );
+        assert!(
+            diagnostics
+                .known_issues
+                .iter()
+                .all(|issue| issue.code != "no_grbl_response")
+        );
     }
 
     #[test]
