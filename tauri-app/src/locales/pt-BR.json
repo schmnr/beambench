@@ -2709,6 +2709,10 @@
             "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
             "advisory": "USB: 460800 baud. 800 x 800 mm, origem frontal esquerda, S1000. Verifique $30 e o modo laser $32=1. A busca de origem e a assistência de ar automática estão desativadas. Outros firmwares e extensões precisam de configuração separada. Ajuste o foco pelos controles da máquina antes de delimitar a área. Câmera, acessório rotativo e esteira precisam de configuração separada. Selecione o modo de potência no AtomStack Studio e feche-o antes de conectar o Beam Bench."
           },
+          "algolaser_alpha_mk2_20w": {
+            "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
+            "advisory": "Estrutura original de 20 W, origem no canto dianteiro esquerdo. Verifique $30=1000 e $32=1. A assistência de ar usa M8/M9."
+          },
           "cnc_3018_pro_awoopecker_v3_1": {
             "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
             "advisory": "Confira a origem de trabalho no canto traseiro esquerdo e percorra o contorno com o laser desligado. As coordenadas da máquina podem ser negativas após o referenciamento. Confira $22=1, $30=1000 e $32=1."

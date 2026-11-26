@@ -2709,6 +2709,10 @@
             "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
             "advisory": "USB: 460800 bodów. 800 x 800 mm, początek z przodu po lewej, S1000. Sprawdź $30 i tryb lasera $32=1. Bazowanie i automatyczny nadmuch są wyłączone. Inne oprogramowanie układowe i rozszerzenia wymagają osobnej konfiguracji. Przed obrysowaniem ustaw ostrość za pomocą elementów sterujących maszyny. Kamera, przystawka obrotowa i podajnik wymagają osobnej konfiguracji. Wybierz tryb mocy w AtomStack Studio i zamknij ten program przed połączeniem Beam Bench."
           },
+          "algolaser_alpha_mk2_20w": {
+            "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
+            "advisory": "Fabryczna rama 20 W, początek układu współrzędnych z przodu po lewej. Sprawdź $30=1000 i $32=1. Nadmuchem sterują polecenia M8/M9."
+          },
           "cnc_3018_pro_awoopecker_v3_1": {
             "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
             "advisory": "Sprawdź punkt zerowy pracy w lewym tylnym rogu i wykonaj obrys przy wyłączonym laserze. Po bazowaniu współrzędne maszyny mogą być ujemne. Sprawdź $22=1, $30=1000 i $32=1."

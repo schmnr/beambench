@@ -752,6 +752,20 @@ pub fn profile_presets() -> Vec<MachineProfilePreset> {
             390.0,
             "390 x 390 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
         ),
+        // Stock 20W frame: docs/machines/algolaser-alpha-mk2-20w.md.
+        MachineProfilePreset {
+            max_speed_mm_min: 30000.0,
+            homing_enabled: true,
+            air_assist_on_gcode: "M8",
+            air_assist_off_gcode: "M9",
+            ..documented_grbl_usb_preset(
+                "algolaser_alpha_mk2_20w",
+                "AlgoLaser Alpha MK2 20W",
+                400.0,
+                410.0,
+                "Stock 20W frame, front-left origin. Check $30=1000 and $32=1. Air assist uses M8/M9.",
+            )
+        },
         // Reported laser conversion with limit switches: docs/machines/cnc-3018-pro.md.
         MachineProfilePreset {
             max_speed_mm_min: 2000.0,
@@ -3966,17 +3980,30 @@ mod tests {
                     )
                 }),
         );
-        let cases = cases.chain([(
-            "cnc_3018_pro_awoopecker_v3_1",
-            115200,
-            300.0,
-            180.0,
-            2000.0,
-            "",
-            false,
-            true,
-            WorkspaceOrigin::TopLeft,
-        )]);
+        let cases = cases.chain([
+            (
+                "algolaser_alpha_mk2_20w",
+                115200,
+                400.0,
+                410.0,
+                30000.0,
+                "M8",
+                false,
+                true,
+                WorkspaceOrigin::BottomLeft,
+            ),
+            (
+                "cnc_3018_pro_awoopecker_v3_1",
+                115200,
+                300.0,
+                180.0,
+                2000.0,
+                "",
+                false,
+                true,
+                WorkspaceOrigin::TopLeft,
+            ),
+        ]);
         for (id, baud, width, height, speed, air_on, constant_power, homing, origin) in cases {
             let ctx = ServiceContext::with_settings(AppSettings::default());
             let mut input = sample_input();
@@ -4336,6 +4363,7 @@ mod tests {
         install_grbl_session_with_info(&ctx, &["Grbl 1.1h ['$' for help]", "$30=255", "ok"]);
 
         for preset_id in [
+            "algolaser_alpha_mk2_20w",
             "acmer_p1_s_pro_6w",
             "acmer_p1_s_pro_10w",
             "acmer_p2_10w",

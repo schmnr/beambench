@@ -2861,6 +2861,10 @@
             "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
             "advisory": "USB: 460800 baud. 800 x 800 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Focus using the machine controls before framing. Camera, rotary and conveyor workflows need separate setup. Select the power mode in AtomStack Studio and close it before connecting Beam Bench."
           },
+          "algolaser_alpha_mk2_20w": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "Stock 20W frame, front-left origin. Check $30=1000 and $32=1. Air assist uses M8/M9."
+          },
           "cnc_3018_pro_awoopecker_v3_1": {
             "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
             "advisory": "Verify the rear-left work origin and frame with the laser off. Machine coordinates can be negative after homing. Check $22=1, $30=1000 and $32=1."

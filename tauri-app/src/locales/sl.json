@@ -2709,6 +2709,10 @@
             "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
             "advisory": "USB: 460800 baudov. 800 x 800 mm, izhodišče spredaj levo, S1000. Preverite $30 in laserski način $32=1. Iskanje izhodišča in samodejni vpih zraka sta izklopljena. Druga strojna programska oprema in razširitve zahtevajo ločeno nastavitev. Pred obrisovanjem nastavite ostrenje s krmilniki stroja. Kamera, rotacijska naprava in tekoči trak zahtevajo ločeno nastavitev. Izberite način moči v programu AtomStack Studio in ga zaprite, preden povežete Beam Bench."
           },
+          "algolaser_alpha_mk2_20w": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "Standardni okvir 20 W, izhodišče spredaj levo. Preverite $30=1000 in $32=1. Zračni vpih krmilita ukaza M8/M9."
+          },
           "cnc_3018_pro_awoopecker_v3_1": {
             "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
             "advisory": "Preverite delovno izhodišče v zadnjem levem kotu in z izklopljenim laserjem prevozite obris. Po referenciranju so lahko strojne koordinate negativne. Preverite $22=1, $30=1000 in $32=1."

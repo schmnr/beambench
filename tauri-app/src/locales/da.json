@@ -2709,6 +2709,10 @@
             "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
             "advisory": "USB: 460800 baud. 800 x 800 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning. Indstil fokus med maskinens betjening før indramning. Kamera, rotationsenhed og transportbånd kræver separat opsætning. Vælg effekttilstanden i AtomStack Studio, og luk programmet, før du forbinder Beam Bench."
           },
+          "algolaser_alpha_mk2_20w": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "Standardramme til 20 W, nulpunkt forrest til venstre. Kontrollér $30=1000 og $32=1. Luftassistenten bruger M8/M9."
+          },
           "cnc_3018_pro_awoopecker_v3_1": {
             "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
             "advisory": "Kontrollér arbejdsnulpunktet bagest til venstre, og kør langs omridset med laseren slukket. Maskinkoordinaterne kan være negative efter referencekørsel. Kontrollér $22=1, $30=1000 og $32=1."

@@ -2709,6 +2709,10 @@
             "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
             "advisory": "USB: 460800 baudios. 800 x 800 mm, origen delantero izquierdo, S1000. Comprueba $30 y el modo láser $32=1. El retorno al origen y el aire asistido automático están desactivados. Otro firmware y las ampliaciones requieren una configuración aparte. Enfoque con los controles de la máquina antes de enmarcar. La cámara, el accesorio giratorio y la cinta transportadora requieren una configuración independiente. Seleccione el modo de potencia en AtomStack Studio y ciérrelo antes de conectar Beam Bench."
           },
+          "algolaser_alpha_mk2_20w": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "Bastidor original de 20 W, origen delante a la izquierda. Compruebe $30=1000 y $32=1. La asistencia de aire usa M8/M9."
+          },
           "cnc_3018_pro_awoopecker_v3_1": {
             "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
             "advisory": "Comprueba el origen de trabajo en la esquina trasera izquierda y recorre el contorno con el láser apagado. Las coordenadas de máquina pueden ser negativas tras el retorno al origen. Comprueba $22=1, $30=1000 y $32=1."

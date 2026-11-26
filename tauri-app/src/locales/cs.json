@@ -2709,6 +2709,10 @@
             "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
             "advisory": "USB: 460800 baudů. 800 x 800 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení. Před obkreslením rámečku zaostřete pomocí ovládání stroje. Kamera, rotační zařízení a dopravník vyžadují samostatné nastavení. Vyberte režim výkonu v AtomStack Studio a před připojením Beam Bench tento program zavřete."
           },
+          "algolaser_alpha_mk2_20w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "Standardní rám 20 W, počátek vlevo vpředu. Zkontrolujte $30=1000 a $32=1. Ofuk používá M8/M9."
+          },
           "cnc_3018_pro_awoopecker_v3_1": {
             "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
             "advisory": "Ověřte pracovní počátek vlevo vzadu a projeďte obrys s vypnutým laserem. Po najetí do referenční polohy mohou být strojní souřadnice záporné. Ověřte $22=1, $30=1000 a $32=1."

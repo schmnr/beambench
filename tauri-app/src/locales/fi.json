@@ -2709,6 +2709,10 @@
             "description": "Dokumentaatioon perustuva GRBL 1.1:n USB-esiasetus. Testaus fyysisellä koneella on tekemättä.",
             "advisory": "USB: 460800 baudia. 800 x 800 mm, origo edessä vasemmalla, S1000. Tarkista $30 ja lasertila $32=1. Kotihaku ja automaattinen ilma-avustus ovat pois käytöstä. Muu laiteohjelmisto ja laajennukset vaativat erillisen määrityksen. Säädä tarkennus laitteen ohjaimilla ennen rajauksen ajoa. Kamera, pyörityslaite ja kuljetin on määritettävä erikseen. Valitse tehotila AtomStack Studiossa ja sulje ohjelma ennen Beam Benchin yhdistämistä."
           },
+          "algolaser_alpha_mk2_20w": {
+            "description": "Dokumentaatioon perustuva GRBL 1.1:n USB-esiasetus. Testaus fyysisellä koneella on tekemättä.",
+            "advisory": "20 W:n vakiokehys, origo vasemmassa etukulmassa. Tarkista $30=1000 ja $32=1. Ilma-avustus käyttää komentoja M8/M9."
+          },
           "cnc_3018_pro_awoopecker_v3_1": {
             "description": "Dokumentaatioon perustuva GRBL 1.1:n USB-esiasetus. Testaus fyysisellä koneella on tekemättä.",
             "advisory": "Tarkista työstön nollapiste vasemmassa takakulmassa ja aja ääriviiva laser sammutettuna. Konekoordinaatit voivat olla negatiivisia referenssiajon jälkeen. Tarkista $22=1, $30=1000 ja $32=1."

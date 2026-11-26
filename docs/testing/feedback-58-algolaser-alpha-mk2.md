@@ -8,7 +8,7 @@ The envelope says `kind: connectivity`, but the feature and action are both
 `machine_preset_request`. The report has no active profile, port, firmware,
 connection events, controller traffic, warning, or error. Those fields are
 deliberately absent from preset requests. This is evidence of a missing catalog
-entry, not a reproduced handshake or job failure. Keep the request open.
+entry, not a reproduced handshake or job failure.
 
 ## Manufacturer evidence
 
@@ -23,11 +23,10 @@ Reviewed October 20, 2026:
   The landing page alone does not establish baud rate, power scale, origin,
   homing or supported air-assist commands.
 
-There is no AlgoLaser preset in the current catalog. The existing GRBL adapter
-is a possible basis, but a generic preset does not establish exact model
-support. Follow [the preset evidence requirements](../machine-presets.md)
-before adding an entry. The next useful evidence is the manufacturer's device
-profile or exact controller settings, followed by owner validation.
+On November 26, 2026, the Alpha MK2 manual and the manufacturer’s 20W sample
+jobs supplied the serial, power and air-assist settings. Beam Bench now has a
+[documentation-based Alpha MK2 20W preset](../machines/algolaser-alpha-mk2-20w.md).
+Physical testing is pending.
 
 The older [AlgoLaser job rejection report #30](https://github.com/schmnr/beambench-feedback/issues/30)
 concerns a DIY KIT MK2. It established a successful TCP connection and a later
