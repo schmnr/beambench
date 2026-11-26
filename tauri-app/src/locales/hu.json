@@ -3273,6 +3273,7 @@
       "empty_frame": "A kamera üres képet adott vissza.",
       "canvas_failed": "A kameraképet nem sikerült előkészíteni."
     },
+    "serial_status_write_failed": "A Beam Bench megnyitotta a(z) {port} portot, de nem tudta elküldeni a GRBL állapotlekérdezést. Csatlakoztassa újra a lézert, és ellenőrizze, melyik soros port jelenik meg.",
     "serial_open_no_response": "A port megnyílt, de a lézer nem válaszolt. Ellenőrizze, hogy a lézer be van-e kapcsolva, próbáljon másik USB-kábelt vagy portot, és győződjön meg róla, hogy a megfelelő port van kiválasztva. Egyes panelekhez a CH340 USB-illesztőprogram szükséges.",
     "serial_protocol_unrecognized": "A lézer válaszolt, de a Beam Bench nem ismerte fel a vezérlőjét. Ellenőrizze az átviteli sebességet (baud) a gépprofilban (a legtöbb GRBL lézer 115200-at használ), és zárjon be minden más lézerszoftvert, amely ezt a portot használja.",
     "network_grbl_no_status": "Az ezen a címen lévő vezérlő nem GRBL lézerként válaszolt. Ellenőrizze az IP-címet és a portot, zárja be a hozzá csatlakozó többi alkalmazást (sok Wi-Fi-modul egyszerre csak egy kapcsolatot enged), majd próbálja újra.",

@@ -1061,6 +1061,11 @@ fn connection_failure_summary(event: &DiagnosticConnectionEvent) -> String {
             None => "Beam Bench could not open the serial port. Another application may be using it, or the controller may have been disconnected.".to_owned(),
         };
     }
+    if event.error_code.as_deref() == Some("serial_status_write_failed")
+        && let Some(message) = &event.message
+    {
+        return message.clone();
+    }
     if event.error_code.as_deref() == Some("serial_open_no_response") {
         return match event.port_name.as_deref() {
             Some(port) => format!(
@@ -1337,25 +1342,17 @@ fn known_issues_for(
             },
         );
     } else if let Some(failure) = latest_connection_failure(connection_events)
-        && failure.error_code.as_deref() == Some("serial_open_no_response")
+        && let Some(
+            code @ ("serial_status_write_failed"
+            | "serial_open_no_response"
+            | "serial_protocol_unrecognized"),
+        ) = failure.error_code.as_deref()
     {
         issues.retain(|issue| issue.code != "no_grbl_response");
         issues.insert(
             0,
             KnownIssueWarning {
-                code: "serial_open_no_response".to_owned(),
-                severity: "warning".to_owned(),
-                message: connection_failure_summary(failure),
-            },
-        );
-    } else if let Some(failure) = latest_connection_failure(connection_events)
-        && failure.error_code.as_deref() == Some("serial_protocol_unrecognized")
-    {
-        issues.retain(|issue| issue.code != "no_grbl_response");
-        issues.insert(
-            0,
-            KnownIssueWarning {
-                code: "serial_protocol_unrecognized".to_owned(),
+                code: code.to_owned(),
                 severity: "warning".to_owned(),
                 message: connection_failure_summary(failure),
             },

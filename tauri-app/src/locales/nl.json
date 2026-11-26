@@ -3273,6 +3273,7 @@
       "empty_frame": "De camera gaf een leeg beeld terug.",
       "canvas_failed": "Het camerabeeld kon niet worden voorbereid."
     },
+    "serial_status_write_failed": "Beam Bench heeft {port} geopend, maar kon het GRBL-statusverzoek niet versturen. Sluit de laser opnieuw aan en kijk welke seriële poort verschijnt.",
     "serial_open_no_response": "De poort is geopend, maar de laser antwoordde niet. Controleer of de laser is ingeschakeld, probeer een andere USB-kabel of -poort en controleer of de juiste poort is geselecteerd. Sommige borden hebben het USB-stuurprogramma CH340 nodig.",
     "serial_protocol_unrecognized": "De laser antwoordde, maar Beam Bench herkende de controller niet. Controleer de baudrate in het machineprofiel (de meeste GRBL-lasers gebruiken 115200) en sluit andere lasersoftware die deze poort gebruikt.",
     "network_grbl_no_status": "De controller op dit adres antwoordde niet als een GRBL-laser. Controleer het IP-adres en de poort, sluit andere apps die ermee verbonden zijn (veel wifi-modules staan maar één verbinding tegelijk toe) en probeer het opnieuw.",

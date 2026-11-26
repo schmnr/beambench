@@ -29,6 +29,7 @@ const DXF_SKIPPED_ENTITIES =
   /^DXF import skipped unsupported or malformed entities: (.+)\.$/u;
 const PDF_NO_READABLE_PAGES =
   "Beam Bench couldn't find a readable page in this PDF. Try exporting the PDF again.";
+const SERIAL_STATUS_WRITE_FAILED = /\[serial_status_write_failed\] Beam Bench opened (.+?) at \d+ baud /u;
 const SERIAL_OPEN_NO_RESPONSE = '[serial_open_no_response]';
 const SERIAL_PROTOCOL_UNRECOGNIZED = '[serial_protocol_unrecognized]';
 const NETWORK_GRBL_NO_STATUS = 'The network controller did not return a GRBL status report';
@@ -56,6 +57,10 @@ export function wrapBackendError(detail: string): string {
   }
   if (normalized === 'Raster objects can only live on image layers') {
     return i18n.t('errors.images_need_image_layer');
+  }
+  const failedStatusWrite = normalized.match(SERIAL_STATUS_WRITE_FAILED);
+  if (failedStatusWrite) {
+    return i18n.t('errors.serial_status_write_failed', { port: failedStatusWrite[1] });
   }
   if (normalized.includes(SERIAL_OPEN_NO_RESPONSE)) {
     return i18n.t('errors.serial_open_no_response');

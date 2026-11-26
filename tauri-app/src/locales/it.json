@@ -3273,6 +3273,7 @@
       "empty_frame": "La fotocamera ha restituito un'immagine vuota.",
       "canvas_failed": "Impossibile preparare l'immagine della fotocamera."
     },
+    "serial_status_write_failed": "Beam Bench ha aperto la porta {port}, ma non è riuscito a inviare la richiesta di stato GRBL. Ricollegare il laser e verificare quale porta seriale compare.",
     "serial_open_no_response": "La porta si è aperta, ma il laser non ha risposto. Verificare che il laser sia acceso, provare un altro cavo o porta USB e assicurarsi che sia selezionata la porta corretta. Alcune schede richiedono il driver USB CH340.",
     "serial_protocol_unrecognized": "Il laser ha risposto, ma Beam Bench non ha riconosciuto il suo controller. Verificare la velocità in baud nel profilo della macchina (la maggior parte dei laser GRBL usa 115200) e chiudere qualsiasi altro software laser che usa questa porta.",
     "network_grbl_no_status": "Il controller a questo indirizzo non ha risposto come un laser GRBL. Verificare l’indirizzo IP e la porta, chiudere le altre app collegate (molti moduli Wi-Fi consentono una sola connessione alla volta) e riprovare.",

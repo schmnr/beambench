@@ -3273,6 +3273,7 @@
       "empty_frame": "相机返回了空图像。",
       "canvas_failed": "无法准备相机图像。"
     },
+    "serial_status_write_failed": "Beam Bench 已打开 {port}，但未能发送 GRBL 状态查询。请重新连接激光机，查看出现的是哪个串口。",
     "serial_open_no_response": "端口已打开，但激光器没有响应。请确认激光器已开机，尝试更换 USB 线或端口，并确认选择了正确的端口。某些主板需要安装 CH340 USB 驱动程序。",
     "serial_protocol_unrecognized": "激光器已响应，但 Beam Bench 无法识别其控制器。请检查机器配置文件中的波特率（大多数 GRBL 激光器使用 115200），并关闭正在使用此端口的其他激光软件。",
     "network_grbl_no_status": "此地址的控制器没有以 GRBL 激光器的方式响应。请检查 IP 地址和端口，关闭连接到它的其他应用（许多 Wi-Fi 模块一次只允许一个连接），然后重试。",
